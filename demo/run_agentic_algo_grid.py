@@ -1,0 +1,3433 @@
+"""Run algorithm-level strategy experiments for the truck-agent competition.
+
+This runner intentionally avoids date-specific patches such as ``D001:16``.
+Each preset calibrates an online decision algorithm:
+
+* visible-chain value: reward orders that finish near visible high-value cargo;
+* shadow-price rest: rest only when penalty value exceeds visible opportunity cost;
+* driver profiles: tune these values independently per driver.
+"""
+
+from __future__ import annotations
+
+import argparse
+import csv
+import json
+import os
+import shutil
+import subprocess
+import sys
+from datetime import datetime
+from pathlib import Path
+from typing import Any
+
+
+DEMO_ROOT = Path(__file__).resolve().parent
+SERVER_ROOT = DEMO_ROOT / "server"
+RESULTS_DIR = DEMO_ROOT / "results"
+GRID_ROOT = RESULTS_DIR / "grid_agentic_algo"
+PRE_REST_BEST_SCORE = 283234.33
+BEST_KNOWN_SCORE = 283962.97
+
+
+BASE_ENV = {
+    "AGENT_STRATEGY": "new_release_agentic_planner_agent",
+    "AGENT_AP_ENABLE_D004_LUNCH_FIRST_TRADEOFF": "1",
+    "AGENT_AP_D004_LUNCH_FIRST_MIN_NET": "680",
+    "AGENT_AP_D004_LUNCH_FIRST_MIN_NPH": "50",
+    "AGENT_AP_D010_FAMILY_PRE_QUERY": "0",
+    "AGENT_D001_NEAREST_CARGO_LIMIT": "300",
+    "AGENT_D003_NEAREST_CARGO_LIMIT": "300",
+    "AGENT_D004_NEAREST_CARGO_LIMIT": "500",
+    "AGENT_D005_NEAREST_CARGO_LIMIT": "500",
+    "AGENT_D006_NEAREST_CARGO_LIMIT": "300",
+    "AGENT_D007_NEAREST_CARGO_LIMIT": "500",
+    "AGENT_D008_NEAREST_CARGO_LIMIT": "300",
+}
+
+
+PRESETS: dict[str, dict[str, str]] = {
+    "chain_d001_tiny": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "0.10",
+    },
+    "chain_d001_small": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "0.25",
+    },
+    "chain_d001_w05": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "0.50",
+    },
+    "chain_d001": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "0.70",
+    },
+    "chain_d001_w09": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "0.90",
+    },
+    "chain_d001_w11": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.10",
+    },
+    "chain_d001_w10": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.00",
+    },
+    "chain_d001_w105": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+    },
+    "chain_d001_w115": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.15",
+    },
+    "chain_d001_w12": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.20",
+    },
+    "chain_d001_w13": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.30",
+    },
+    "chain_d001_w15": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.50",
+    },
+    "chain_d004_small": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D004_CHAIN_WEIGHT": "0.15",
+    },
+    "chain_d010_small": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.15",
+    },
+    "chain_d010_w10": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+    },
+    "chain_d010_w08": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.08",
+    },
+    "chain_d010_w12": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.12",
+    },
+    "chain_d010_w05": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.05",
+    },
+    "chain_d010_w20": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.20",
+    },
+    "chain_d001_d010_w10": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "0.70",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+    },
+    "chain_d001_d010_w15": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "0.70",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.15",
+    },
+    "chain_d001_d010_w20": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "0.70",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.20",
+    },
+    "chain_d001w11_d010w05": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.10",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.05",
+    },
+    "chain_d001w095_d010w08": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "0.95",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.08",
+    },
+    "chain_d001w095_d010w10": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "0.95",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+    },
+    "chain_d001w095_d010w12": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "0.95",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.12",
+    },
+    "chain_d001w10_d010w08": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.00",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.08",
+    },
+    "chain_d001w11_d010w10": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.10",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+    },
+    "chain_d001w10_d010w10": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.00",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+    },
+    "chain_d001w10_d010w12": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.00",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.12",
+    },
+    "chain_d001w105_d010w10": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+    },
+    "chain_d001w105_d010w08": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.08",
+    },
+    "chain_d001w105_d010w12": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.12",
+    },
+    "chain_d001w115_d010w10": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.15",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+    },
+    "chain_d001w11_d010w08": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.10",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.08",
+    },
+    "chain_d001w11_d010w12": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.10",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.12",
+    },
+    "chain_d001w11_d010w15": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.10",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.15",
+    },
+    "chain_d001w12_d010w10": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.20",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+    },
+    "chain_d001w13_d010w10": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.30",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+    },
+    "chain_d001d010_wide_d001400": {
+        "AGENT_D001_NEAREST_CARGO_LIMIT": "400",
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "0.70",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+    },
+    "chain_d001d010_wide_d010300": {
+        "AGENT_D010_NEAREST_CARGO_LIMIT": "300",
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "0.70",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+    },
+    "chain_d001d010_wide_both": {
+        "AGENT_D001_NEAREST_CARGO_LIMIT": "400",
+        "AGENT_D010_NEAREST_CARGO_LIMIT": "300",
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "0.70",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+    },
+    "chain_d003_small": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D003_CHAIN_WEIGHT": "0.10",
+    },
+    "chain_d005_small": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D005_CHAIN_WEIGHT": "0.10",
+    },
+    "chain_d007_small": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+    },
+    "chain_d008_small": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D008_CHAIN_WEIGHT": "0.10",
+    },
+    "chain_d002_small": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D002_CHAIN_WEIGHT": "0.10",
+    },
+    "chain_d006_small": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D006_CHAIN_WEIGHT": "0.10",
+    },
+    "chain_d009_small": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.10",
+    },
+    "d002_wide200": {
+        "AGENT_D002_NEAREST_CARGO_LIMIT": "200",
+    },
+    "d002_wide300": {
+        "AGENT_D002_NEAREST_CARGO_LIMIT": "300",
+    },
+    "d003_aftercap_net": {
+        "AGENT_AP_D003_AFTER_CAP_NET_WEIGHT": "0.04",
+        "AGENT_AP_D003_AFTER_CAP_PICKUP_COST": "0.15",
+    },
+    "d003_aftercap_net_strong": {
+        "AGENT_AP_D003_AFTER_CAP_NET_WEIGHT": "0.08",
+        "AGENT_AP_D003_AFTER_CAP_PICKUP_COST": "0.20",
+    },
+    "d004_strict_quota": {
+        "AGENT_AP_ENABLE_D004_STRICT_QUOTA": "1",
+        "AGENT_AP_D004_OVER_QUOTA_MIN_NET": "900",
+        "AGENT_AP_D004_OVER_QUOTA_MIN_NPH": "95",
+    },
+    "d009_home_slack": {
+        "AGENT_AP_D009_HOME_SLACK_WEIGHT": "0.25",
+    },
+    "d009_evening_stay": {
+        "AGENT_AP_ENABLE_D009_EVENING_STAY_HOME": "1",
+        "AGENT_AP_D009_LEAVE_HOME_MIN_NET": "500",
+        "AGENT_AP_D009_LEAVE_HOME_MIN_NPH": "65",
+        "AGENT_AP_D009_HOME_MARGIN_MINUTES": "45",
+    },
+    "chain_d001d010_d003small": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "0.70",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D003_CHAIN_WEIGHT": "0.10",
+    },
+    "chain_d001d010_d005small": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "0.70",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D005_CHAIN_WEIGHT": "0.10",
+    },
+    "chain_d001d010_d007small": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "0.70",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+    },
+    "chain_d001d010_d008small": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "0.70",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D008_CHAIN_WEIGHT": "0.10",
+    },
+    "best_d002_chain": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.10",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D002_CHAIN_WEIGHT": "0.10",
+    },
+    "best_d003_chain": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.10",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D003_CHAIN_WEIGHT": "0.10",
+    },
+    "best_d005_chain": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.10",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D005_CHAIN_WEIGHT": "0.10",
+    },
+    "best_d006_chain": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.10",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D006_CHAIN_WEIGHT": "0.10",
+    },
+    "best_d007_chain": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.10",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+    },
+    "best_d008_chain": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.10",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D008_CHAIN_WEIGHT": "0.10",
+    },
+    "best_d009_chain": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.10",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.10",
+    },
+    "best_d003_w05": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.10",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D003_CHAIN_WEIGHT": "0.05",
+    },
+    "best_d003_w08": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.10",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D003_CHAIN_WEIGHT": "0.08",
+    },
+    "best_d003_w12": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.10",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D003_CHAIN_WEIGHT": "0.12",
+    },
+    "best_d007_w05": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.10",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.05",
+    },
+    "best_d007_w08": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.10",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.08",
+    },
+    "best_d007_w12": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.10",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.12",
+    },
+    "best_d009_w05": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.10",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.05",
+    },
+    "best_d009_w08": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.10",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.08",
+    },
+    "best_d009_w12": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.10",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.12",
+    },
+    "best_d007_d009_chain": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.10",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.10",
+    },
+    "hot_d001w10_d010w10_d007w05": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.00",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.05",
+    },
+    "hot_d001w10_d010w10_d007w10": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.00",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+    },
+    "hot_d001w10_d010w10_d009w05": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.00",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.05",
+    },
+    "hot_d001w10_d010w10_d009w10": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.00",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.10",
+    },
+    "hot_d001w10_d010w10_d004strict": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.00",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_ENABLE_D004_STRICT_QUOTA": "1",
+        "AGENT_AP_D004_OVER_QUOTA_MIN_NET": "900",
+        "AGENT_AP_D004_OVER_QUOTA_MIN_NPH": "95",
+    },
+    "hot_d001w10_d010w10_d007w10_d009w10": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.00",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.10",
+    },
+    "hot_d001w10_d010w10_d007w10_d004strict": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.00",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_ENABLE_D004_STRICT_QUOTA": "1",
+        "AGENT_AP_D004_OVER_QUOTA_MIN_NET": "900",
+        "AGENT_AP_D004_OVER_QUOTA_MIN_NPH": "95",
+    },
+    "hot_d001w10_d010w10_d009w10_d004strict": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.00",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_ENABLE_D004_STRICT_QUOTA": "1",
+        "AGENT_AP_D004_OVER_QUOTA_MIN_NET": "900",
+        "AGENT_AP_D004_OVER_QUOTA_MIN_NPH": "95",
+    },
+    "hot_d001w10_d010w10_d007w10_d009w10_d004strict": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.00",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_ENABLE_D004_STRICT_QUOTA": "1",
+        "AGENT_AP_D004_OVER_QUOTA_MIN_NET": "900",
+        "AGENT_AP_D004_OVER_QUOTA_MIN_NPH": "95",
+    },
+    "hot_d001w105_d010w08_d007w10_d009w10": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.08",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.10",
+    },
+    "hot_d001w105_d010w10_d007w05_d009w10": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.05",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.10",
+    },
+    "hot_d001w105_d010w10_d007w08_d009w10": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.08",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.10",
+    },
+    "hot_d001w105_d010w10_d007w10": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+    },
+    "hot_d001w105_d010w10_d009w10": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.10",
+    },
+    "hot_d001w105_d010w10_d007w10_d009w05": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.05",
+    },
+    "hot_d001w105_d010w10_d007w10_d009w08": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.08",
+    },
+    "hot_d001w105_d010w10_d007w10_d009w10": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.10",
+    },
+    "hot_d001w105_d010w10_d007w12_d009w10": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.12",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.10",
+    },
+    "hot_d001w105_d010w10_d007w10_d009w12": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.12",
+    },
+    "hot_d001w105_d010w12_d007w10_d009w10": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.12",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.10",
+    },
+    "hot_d001w11_d010w10_d007w10_d009w10": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.10",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.10",
+    },
+    "hot_best_d005_w05": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.12",
+        "AGENT_AP_D005_CHAIN_WEIGHT": "0.05",
+    },
+    "hot_best_d005_w08": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.12",
+        "AGENT_AP_D005_CHAIN_WEIGHT": "0.08",
+    },
+    "hot_best_d005_w10": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.12",
+        "AGENT_AP_D005_CHAIN_WEIGHT": "0.10",
+    },
+    "hot_best_d005_w12": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.12",
+        "AGENT_AP_D005_CHAIN_WEIGHT": "0.12",
+    },
+    "hot_best_d003_w05": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.12",
+        "AGENT_AP_D003_CHAIN_WEIGHT": "0.05",
+    },
+    "hot_best_d003_w08": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.12",
+        "AGENT_AP_D003_CHAIN_WEIGHT": "0.08",
+    },
+    "hot_best_d003_w10": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.12",
+        "AGENT_AP_D003_CHAIN_WEIGHT": "0.10",
+    },
+    "hot_best_d003_w12": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.12",
+        "AGENT_AP_D003_CHAIN_WEIGHT": "0.12",
+    },
+    "hot_best_d003w10_d005w10": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.12",
+        "AGENT_AP_D003_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D005_CHAIN_WEIGHT": "0.10",
+    },
+    "hot_best_d003w05_d005w08": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.12",
+        "AGENT_AP_D003_CHAIN_WEIGHT": "0.05",
+        "AGENT_AP_D005_CHAIN_WEIGHT": "0.08",
+    },
+    "hot_best_d003w05_d005w10": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.12",
+        "AGENT_AP_D003_CHAIN_WEIGHT": "0.05",
+        "AGENT_AP_D005_CHAIN_WEIGHT": "0.10",
+    },
+    "hot_best_d003w05_d005w12": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.12",
+        "AGENT_AP_D003_CHAIN_WEIGHT": "0.05",
+        "AGENT_AP_D005_CHAIN_WEIGHT": "0.12",
+    },
+    "hot_best_d003w08_d005w08": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.12",
+        "AGENT_AP_D003_CHAIN_WEIGHT": "0.08",
+        "AGENT_AP_D005_CHAIN_WEIGHT": "0.08",
+    },
+    "hot_best_d003w08_d005w10": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.12",
+        "AGENT_AP_D003_CHAIN_WEIGHT": "0.08",
+        "AGENT_AP_D005_CHAIN_WEIGHT": "0.10",
+    },
+    "hot_best_d003w08_d005w12": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.12",
+        "AGENT_AP_D003_CHAIN_WEIGHT": "0.08",
+        "AGENT_AP_D005_CHAIN_WEIGHT": "0.12",
+    },
+    "hot_full_d001w105_d010w08_d003w05_d005w08_d007w10_d009w12": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.08",
+        "AGENT_AP_D003_CHAIN_WEIGHT": "0.05",
+        "AGENT_AP_D005_CHAIN_WEIGHT": "0.08",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.12",
+    },
+    "hot_full_d001w105_d010w10_d003w05_d005w08_d007w10_d009w12": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D003_CHAIN_WEIGHT": "0.05",
+        "AGENT_AP_D005_CHAIN_WEIGHT": "0.08",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.12",
+    },
+    "hot_full_d001w105_d010w12_d003w05_d005w08_d007w10_d009w12": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.12",
+        "AGENT_AP_D003_CHAIN_WEIGHT": "0.05",
+        "AGENT_AP_D005_CHAIN_WEIGHT": "0.08",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.12",
+    },
+    "hot_full_d001w11_d010w10_d003w05_d005w08_d007w10_d009w12": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.10",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D003_CHAIN_WEIGHT": "0.05",
+        "AGENT_AP_D005_CHAIN_WEIGHT": "0.08",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.12",
+    },
+    "hot_full_d001w105_d010w10_d003w03_d007w10_d009w12": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D003_CHAIN_WEIGHT": "0.03",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.12",
+    },
+    "hot_full_d001w105_d010w10_d003w06_d007w10_d009w12": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D003_CHAIN_WEIGHT": "0.06",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.12",
+    },
+    "hot_full_d001w105_d010w10_d003w05_d007w08_d009w12": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D003_CHAIN_WEIGHT": "0.05",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.08",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.12",
+    },
+    "hot_full_d001w105_d010w10_d003w05_d007w12_d009w12": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D003_CHAIN_WEIGHT": "0.05",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.12",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.12",
+    },
+    "hot_full_d001w105_d010w10_d003w05_d007w10_d009w15": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D003_CHAIN_WEIGHT": "0.05",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.15",
+    },
+    "hot_full_d001w105_d010w10_d003w05_d007w10_d009w20": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D003_CHAIN_WEIGHT": "0.05",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.20",
+    },
+    "hot_best_d003w05_d009limit200": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D003_CHAIN_WEIGHT": "0.05",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.12",
+        "AGENT_D009_NEAREST_CARGO_LIMIT": "200",
+    },
+    "hot_best_d003w05_d009limit300": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D003_CHAIN_WEIGHT": "0.05",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.12",
+        "AGENT_D009_NEAREST_CARGO_LIMIT": "300",
+    },
+    "hot_best_d003limit400": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D003_CHAIN_WEIGHT": "0.05",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.12",
+        "AGENT_D003_NEAREST_CARGO_LIMIT": "400",
+    },
+    "hot_best_d005limit700": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D003_CHAIN_WEIGHT": "0.05",
+        "AGENT_AP_D005_CHAIN_WEIGHT": "0.08",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.12",
+        "AGENT_D005_NEAREST_CARGO_LIMIT": "700",
+    },
+    "hot_full_d003w05_d005w08_d009limit150": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D003_CHAIN_WEIGHT": "0.05",
+        "AGENT_AP_D005_CHAIN_WEIGHT": "0.08",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.12",
+        "AGENT_D009_NEAREST_CARGO_LIMIT": "150",
+    },
+    "hot_full_d003w05_d005w08_d009limit180": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D003_CHAIN_WEIGHT": "0.05",
+        "AGENT_AP_D005_CHAIN_WEIGHT": "0.08",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.12",
+        "AGENT_D009_NEAREST_CARGO_LIMIT": "180",
+    },
+    "hot_full_d003w05_d005w08_d009limit200": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D003_CHAIN_WEIGHT": "0.05",
+        "AGENT_AP_D005_CHAIN_WEIGHT": "0.08",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.12",
+        "AGENT_D009_NEAREST_CARGO_LIMIT": "200",
+    },
+    "hot_full_d003w05_d005w08_d009limit220": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D003_CHAIN_WEIGHT": "0.05",
+        "AGENT_AP_D005_CHAIN_WEIGHT": "0.08",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.12",
+        "AGENT_D009_NEAREST_CARGO_LIMIT": "220",
+    },
+    "hot_full_d003w05_d005w08_d009limit250": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D003_CHAIN_WEIGHT": "0.05",
+        "AGENT_AP_D005_CHAIN_WEIGHT": "0.08",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.12",
+        "AGENT_D009_NEAREST_CARGO_LIMIT": "250",
+    },
+    "hot_full_d003w05_d005w08_d009w15": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D003_CHAIN_WEIGHT": "0.05",
+        "AGENT_AP_D005_CHAIN_WEIGHT": "0.08",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.15",
+    },
+    "hot_full_d003w05_d005w08_d009w20": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D003_CHAIN_WEIGHT": "0.05",
+        "AGENT_AP_D005_CHAIN_WEIGHT": "0.08",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.20",
+    },
+    "hot_full_d003w05_d005w08_d006w01": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D003_CHAIN_WEIGHT": "0.05",
+        "AGENT_AP_D005_CHAIN_WEIGHT": "0.08",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.12",
+        "AGENT_AP_D006_CHAIN_WEIGHT": "0.01",
+    },
+    "hot_full_d003w05_d005w08_d006w02": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D003_CHAIN_WEIGHT": "0.05",
+        "AGENT_AP_D005_CHAIN_WEIGHT": "0.08",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.12",
+        "AGENT_AP_D006_CHAIN_WEIGHT": "0.02",
+    },
+    "hot_full_d003w05_d005w08_d006w03": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D003_CHAIN_WEIGHT": "0.05",
+        "AGENT_AP_D005_CHAIN_WEIGHT": "0.08",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.12",
+        "AGENT_AP_D006_CHAIN_WEIGHT": "0.03",
+    },
+    "hot_full_d003w05_d005w08_d006w05": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D003_CHAIN_WEIGHT": "0.05",
+        "AGENT_AP_D005_CHAIN_WEIGHT": "0.08",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.12",
+        "AGENT_AP_D006_CHAIN_WEIGHT": "0.05",
+    },
+    "hot_best_d002_tiny": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.12",
+        "AGENT_AP_D002_CHAIN_WEIGHT": "0.02",
+    },
+    "hot_best_d006_tiny": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.12",
+        "AGENT_AP_D006_CHAIN_WEIGHT": "0.02",
+    },
+    "hot_best_d008_tiny": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_CHAIN_WEIGHT": "0.12",
+        "AGENT_AP_D008_CHAIN_WEIGHT": "0.02",
+    },
+    "best_d002_wide200": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.10",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_D002_NEAREST_CARGO_LIMIT": "200",
+    },
+    "best_d003_aftercap": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.10",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D003_AFTER_CAP_NET_WEIGHT": "0.04",
+        "AGENT_AP_D003_AFTER_CAP_PICKUP_COST": "0.15",
+    },
+    "best_d004_strict_quota": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.10",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_ENABLE_D004_STRICT_QUOTA": "1",
+        "AGENT_AP_D004_OVER_QUOTA_MIN_NET": "900",
+        "AGENT_AP_D004_OVER_QUOTA_MIN_NPH": "95",
+    },
+    "best_d009_home_slack": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.10",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+        "AGENT_AP_D009_HOME_SLACK_WEIGHT": "0.25",
+    },
+    "chain_core": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "0.70",
+        "AGENT_AP_D003_CHAIN_WEIGHT": "0.25",
+        "AGENT_AP_D004_CHAIN_WEIGHT": "0.25",
+        "AGENT_AP_D005_CHAIN_WEIGHT": "0.20",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.20",
+        "AGENT_AP_D008_CHAIN_WEIGHT": "0.25",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.25",
+    },
+    "chain_core_stronger": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "1.00",
+        "AGENT_AP_D003_CHAIN_WEIGHT": "0.40",
+        "AGENT_AP_D004_CHAIN_WEIGHT": "0.40",
+        "AGENT_AP_D005_CHAIN_WEIGHT": "0.25",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.25",
+        "AGENT_AP_D008_CHAIN_WEIGHT": "0.35",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.35",
+    },
+    "shadow_d001_loose": {
+        "AGENT_AP_ENABLE_SHADOW_REST": "1",
+        "AGENT_AP_SHADOW_REST_DRIVERS": "D001",
+        "AGENT_AP_D001_SHADOW_REST_MAX_NPH": "60",
+        "AGENT_AP_D001_SHADOW_REST_MAX_NET": "500",
+        "AGENT_AP_D001_SHADOW_REST_OPPORTUNITY_MULT": "0.20",
+    },
+    "shadow_d001_very_loose": {
+        "AGENT_AP_ENABLE_SHADOW_REST": "1",
+        "AGENT_AP_SHADOW_REST_DRIVERS": "D001",
+        "AGENT_AP_D001_SHADOW_REST_MAX_NPH": "999",
+        "AGENT_AP_D001_SHADOW_REST_MAX_NET": "9999",
+        "AGENT_AP_D001_SHADOW_REST_OPPORTUNITY_MULT": "0.15",
+    },
+    "shadow_d010_loose": {
+        "AGENT_AP_ENABLE_SHADOW_REST": "1",
+        "AGENT_AP_SHADOW_REST_DRIVERS": "D010",
+        "AGENT_AP_D010_SHADOW_REST_MAX_NPH": "80",
+        "AGENT_AP_D010_SHADOW_REST_MAX_NET": "900",
+        "AGENT_AP_D010_SHADOW_REST_OPPORTUNITY_MULT": "0.25",
+    },
+    "shadow_d001_balanced": {
+        "AGENT_AP_ENABLE_SHADOW_REST": "1",
+        "AGENT_AP_SHADOW_REST_DRIVERS": "D001",
+        "AGENT_AP_D001_SHADOW_REST_MAX_NPH": "35",
+        "AGENT_AP_D001_SHADOW_REST_MAX_NET": "300",
+        "AGENT_AP_D001_SHADOW_REST_OPPORTUNITY_MULT": "0.32",
+    },
+    "shadow_d001_d010_balanced": {
+        "AGENT_AP_ENABLE_SHADOW_REST": "1",
+        "AGENT_AP_SHADOW_REST_DRIVERS": "D001,D010",
+        "AGENT_AP_D001_SHADOW_REST_MAX_NPH": "35",
+        "AGENT_AP_D001_SHADOW_REST_MAX_NET": "300",
+        "AGENT_AP_D001_SHADOW_REST_OPPORTUNITY_MULT": "0.32",
+        "AGENT_AP_D010_SHADOW_REST_MAX_NPH": "45",
+        "AGENT_AP_D010_SHADOW_REST_MAX_NET": "600",
+        "AGENT_AP_D010_SHADOW_REST_OPPORTUNITY_MULT": "0.45",
+    },
+    "chain_d001_small_shadow_loose": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "0.25",
+        "AGENT_AP_ENABLE_SHADOW_REST": "1",
+        "AGENT_AP_SHADOW_REST_DRIVERS": "D001",
+        "AGENT_AP_D001_SHADOW_REST_MAX_NPH": "60",
+        "AGENT_AP_D001_SHADOW_REST_MAX_NET": "500",
+        "AGENT_AP_D001_SHADOW_REST_OPPORTUNITY_MULT": "0.20",
+    },
+    "chain_d001_shadow_very_loose": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "0.70",
+        "AGENT_AP_ENABLE_SHADOW_REST": "1",
+        "AGENT_AP_SHADOW_REST_DRIVERS": "D001",
+        "AGENT_AP_D001_SHADOW_REST_MAX_NPH": "999",
+        "AGENT_AP_D001_SHADOW_REST_MAX_NET": "9999",
+        "AGENT_AP_D001_SHADOW_REST_OPPORTUNITY_MULT": "0.15",
+    },
+    "chain_d001_d010_w15_shadow_d001": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "0.70",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.15",
+        "AGENT_AP_ENABLE_SHADOW_REST": "1",
+        "AGENT_AP_SHADOW_REST_DRIVERS": "D001",
+        "AGENT_AP_D001_SHADOW_REST_MAX_NPH": "999",
+        "AGENT_AP_D001_SHADOW_REST_MAX_NET": "9999",
+        "AGENT_AP_D001_SHADOW_REST_OPPORTUNITY_MULT": "0.15",
+    },
+    "chain_shadow_d001": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "0.70",
+        "AGENT_AP_ENABLE_SHADOW_REST": "1",
+        "AGENT_AP_SHADOW_REST_DRIVERS": "D001",
+        "AGENT_AP_D001_SHADOW_REST_MAX_NPH": "35",
+        "AGENT_AP_D001_SHADOW_REST_MAX_NET": "300",
+        "AGENT_AP_D001_SHADOW_REST_OPPORTUNITY_MULT": "0.32",
+    },
+    "chain_shadow_d001_d010": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "0.70",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.25",
+        "AGENT_AP_ENABLE_SHADOW_REST": "1",
+        "AGENT_AP_SHADOW_REST_DRIVERS": "D001,D010",
+        "AGENT_AP_D001_SHADOW_REST_MAX_NPH": "35",
+        "AGENT_AP_D001_SHADOW_REST_MAX_NET": "300",
+        "AGENT_AP_D001_SHADOW_REST_OPPORTUNITY_MULT": "0.32",
+        "AGENT_AP_D010_SHADOW_REST_MAX_NPH": "45",
+        "AGENT_AP_D010_SHADOW_REST_MAX_NET": "600",
+        "AGENT_AP_D010_SHADOW_REST_OPPORTUNITY_MULT": "0.45",
+    },
+    "chain_shadow_all_safe": {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "0.70",
+        "AGENT_AP_D003_CHAIN_WEIGHT": "0.25",
+        "AGENT_AP_D004_CHAIN_WEIGHT": "0.25",
+        "AGENT_AP_D005_CHAIN_WEIGHT": "0.20",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.20",
+        "AGENT_AP_D008_CHAIN_WEIGHT": "0.25",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.25",
+        "AGENT_AP_ENABLE_SHADOW_REST": "1",
+        "AGENT_AP_SHADOW_REST_DRIVERS": "D001,D006,D010",
+        "AGENT_AP_D001_SHADOW_REST_MAX_NPH": "35",
+        "AGENT_AP_D001_SHADOW_REST_MAX_NET": "300",
+        "AGENT_AP_D001_SHADOW_REST_OPPORTUNITY_MULT": "0.32",
+        "AGENT_AP_D006_SHADOW_REST_MAX_NPH": "30",
+        "AGENT_AP_D006_SHADOW_REST_MAX_NET": "420",
+        "AGENT_AP_D006_SHADOW_REST_OPPORTUNITY_MULT": "0.95",
+        "AGENT_AP_D010_SHADOW_REST_MAX_NPH": "45",
+        "AGENT_AP_D010_SHADOW_REST_MAX_NET": "600",
+        "AGENT_AP_D010_SHADOW_REST_OPPORTUNITY_MULT": "0.45",
+    },
+    "wide_query_chain_shadow": {
+        "AGENT_D010_NEAREST_CARGO_LIMIT": "300",
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": "0.70",
+        "AGENT_AP_D003_CHAIN_WEIGHT": "0.25",
+        "AGENT_AP_D004_CHAIN_WEIGHT": "0.25",
+        "AGENT_AP_D005_CHAIN_WEIGHT": "0.20",
+        "AGENT_AP_D007_CHAIN_WEIGHT": "0.20",
+        "AGENT_AP_D008_CHAIN_WEIGHT": "0.25",
+        "AGENT_AP_D010_CHAIN_WEIGHT": "0.25",
+        "AGENT_AP_ENABLE_SHADOW_REST": "1",
+        "AGENT_AP_SHADOW_REST_DRIVERS": "D001,D010",
+        "AGENT_AP_D001_SHADOW_REST_MAX_NPH": "35",
+        "AGENT_AP_D001_SHADOW_REST_MAX_NET": "300",
+        "AGENT_AP_D001_SHADOW_REST_OPPORTUNITY_MULT": "0.32",
+        "AGENT_AP_D010_SHADOW_REST_MAX_NPH": "45",
+        "AGENT_AP_D010_SHADOW_REST_MAX_NET": "600",
+        "AGENT_AP_D010_SHADOW_REST_OPPORTUNITY_MULT": "0.45",
+    },
+}
+
+
+def _full_hot_env(
+    *,
+    d001: str = "1.05",
+    d010: str = "0.10",
+    d003: str = "0.05",
+    d005: str = "0.08",
+    d007: str = "0.10",
+    d009: str = "0.12",
+    d006: str | None = None,
+    d009_limit: int | None = None,
+    d004_lunch_net: int | None = None,
+    d004_lunch_nph: int | None = None,
+) -> dict[str, str]:
+    env = {
+        "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+        "AGENT_AP_D001_CHAIN_WEIGHT": d001,
+        "AGENT_AP_D010_CHAIN_WEIGHT": d010,
+        "AGENT_AP_D003_CHAIN_WEIGHT": d003,
+        "AGENT_AP_D005_CHAIN_WEIGHT": d005,
+        "AGENT_AP_D007_CHAIN_WEIGHT": d007,
+        "AGENT_AP_D009_CHAIN_WEIGHT": d009,
+    }
+    if d006 is not None:
+        env["AGENT_AP_D006_CHAIN_WEIGHT"] = d006
+    if d009_limit is not None:
+        env["AGENT_D009_NEAREST_CARGO_LIMIT"] = str(d009_limit)
+    if d004_lunch_net is not None:
+        env["AGENT_AP_D004_LUNCH_FIRST_MIN_NET"] = str(d004_lunch_net)
+    if d004_lunch_nph is not None:
+        env["AGENT_AP_D004_LUNCH_FIRST_MIN_NPH"] = str(d004_lunch_nph)
+    return env
+
+
+PRESETS.update(
+    {
+        # v11: refine the new D009 visibility sweet spot around the v10 best limit=220.
+        "hot_full_d003w05_d005w08_d009limit205": _full_hot_env(d009_limit=205),
+        "hot_full_d003w05_d005w08_d009limit210": _full_hot_env(d009_limit=210),
+        "hot_full_d003w05_d005w08_d009limit215": _full_hot_env(d009_limit=215),
+        "hot_full_d003w05_d005w08_d009limit218": _full_hot_env(d009_limit=218),
+        "hot_full_d003w05_d005w08_d009limit222": _full_hot_env(d009_limit=222),
+        "hot_full_d003w05_d005w08_d009limit225": _full_hot_env(d009_limit=225),
+        "hot_full_d003w05_d005w08_d009limit230": _full_hot_env(d009_limit=230),
+        "hot_full_d003w05_d005w08_d009limit235": _full_hot_env(d009_limit=235),
+        "hot_full_d003w05_d005w08_d009limit240": _full_hot_env(d009_limit=240),
+        "hot_full_d003w05_d005w08_d009limit245": _full_hot_env(d009_limit=245),
+
+        # v11: test whether the small D006 chain signal stacks on the current best.
+        "hot_full_d003w05_d005w08_d009limit220_d006w015": _full_hot_env(d006="0.015", d009_limit=220),
+        "hot_full_d003w05_d005w08_d009limit220_d006w02": _full_hot_env(d006="0.02", d009_limit=220),
+        "hot_full_d003w05_d005w08_d009limit220_d006w025": _full_hot_env(d006="0.025", d009_limit=220),
+        "hot_full_d003w05_d005w08_d009limit220_d006w03": _full_hot_env(d006="0.03", d009_limit=220),
+        "hot_full_d003w05_d005w08_d009limit220_d006w04": _full_hot_env(d006="0.04", d009_limit=220),
+        "hot_full_d003w05_d005w08_d009limit220_d006w05": _full_hot_env(d006="0.05", d009_limit=220),
+
+        # v11: second-order interaction between D009 visibility and D006 tiny chain.
+        "hot_full_d003w05_d005w08_d009limit210_d006w02": _full_hot_env(d006="0.02", d009_limit=210),
+        "hot_full_d003w05_d005w08_d009limit230_d006w02": _full_hot_env(d006="0.02", d009_limit=230),
+        "hot_full_d003w05_d005w08_d009limit240_d006w02": _full_hot_env(d006="0.02", d009_limit=240),
+        "hot_full_d003w05_d005w08_d009limit210_d006w03": _full_hot_env(d006="0.03", d009_limit=210),
+        "hot_full_d003w05_d005w08_d009limit230_d006w03": _full_hot_env(d006="0.03", d009_limit=230),
+        "hot_full_d003w05_d005w08_d009limit240_d006w03": _full_hot_env(d006="0.03", d009_limit=240),
+
+        # v11: D009 chain weight should be retuned after widening the candidate pool.
+        "hot_full_d003w05_d005w08_d009limit220_d009w08": _full_hot_env(d009="0.08", d009_limit=220),
+        "hot_full_d003w05_d005w08_d009limit220_d009w10": _full_hot_env(d009="0.10", d009_limit=220),
+        "hot_full_d003w05_d005w08_d009limit220_d009w14": _full_hot_env(d009="0.14", d009_limit=220),
+        "hot_full_d003w05_d005w08_d009limit220_d009w15": _full_hot_env(d009="0.15", d009_limit=220),
+        "hot_full_d003w05_d005w08_d009limit220_d009w18": _full_hot_env(d009="0.18", d009_limit=220),
+        "hot_full_d003w05_d005w08_d009limit220_d009w20": _full_hot_env(d009="0.20", d009_limit=220),
+
+        # v11: verify D003/D005 plateaus still hold under D009 limit=220.
+        "hot_full_d003w03_d005w08_d009limit220": _full_hot_env(d003="0.03", d005="0.08", d009_limit=220),
+        "hot_full_d003w05_d005w10_d009limit220": _full_hot_env(d003="0.05", d005="0.10", d009_limit=220),
+        "hot_full_d003w05_d005w12_d009limit220": _full_hot_env(d003="0.05", d005="0.12", d009_limit=220),
+        "hot_full_d003w08_d005w08_d009limit220": _full_hot_env(d003="0.08", d005="0.08", d009_limit=220),
+        "hot_full_d003w08_d005w10_d009limit220": _full_hot_env(d003="0.08", d005="0.10", d009_limit=220),
+        "hot_full_d003w08_d005w12_d009limit220": _full_hot_env(d003="0.08", d005="0.12", d009_limit=220),
+        "hot_full_d003w10_d005w08_d009limit220": _full_hot_env(d003="0.10", d005="0.08", d009_limit=220),
+
+        # v11: D007 and D001/D010 plateau retest under the current best D009 visibility.
+        "hot_full_d003w05_d005w08_d007w08_d009limit220": _full_hot_env(d007="0.08", d009_limit=220),
+        "hot_full_d003w05_d005w08_d007w12_d009limit220": _full_hot_env(d007="0.12", d009_limit=220),
+        "hot_full_d003w05_d005w08_d007w15_d009limit220": _full_hot_env(d007="0.15", d009_limit=220),
+        "hot_full_d001w10_d010w10_d003w05_d005w08_d007w10_d009limit220": _full_hot_env(d001="1.00", d010="0.10", d009_limit=220),
+        "hot_full_d001w11_d010w10_d003w05_d005w08_d007w10_d009limit220": _full_hot_env(d001="1.10", d010="0.10", d009_limit=220),
+        "hot_full_d001w105_d010w08_d003w05_d005w08_d007w10_d009limit220": _full_hot_env(d001="1.05", d010="0.08", d009_limit=220),
+        "hot_full_d001w105_d010w12_d003w05_d005w08_d007w10_d009limit220": _full_hot_env(d001="1.05", d010="0.12", d009_limit=220),
+
+        # v11: D004 lunch threshold can interact with the stronger global plan, so retest narrowly.
+        "hot_full_d003w05_d005w08_d009limit220_d004lunch640_50": _full_hot_env(d009_limit=220, d004_lunch_net=640, d004_lunch_nph=50),
+        "hot_full_d003w05_d005w08_d009limit220_d004lunch660_50": _full_hot_env(d009_limit=220, d004_lunch_net=660, d004_lunch_nph=50),
+        "hot_full_d003w05_d005w08_d009limit220_d004lunch680_48": _full_hot_env(d009_limit=220, d004_lunch_net=680, d004_lunch_nph=48),
+        "hot_full_d003w05_d005w08_d009limit220_d004lunch680_52": _full_hot_env(d009_limit=220, d004_lunch_net=680, d004_lunch_nph=52),
+        "hot_full_d003w05_d005w08_d009limit220_d004lunch700_50": _full_hot_env(d009_limit=220, d004_lunch_net=700, d004_lunch_nph=50),
+    }
+)
+
+
+PRESETS.update(
+    {
+        # v12: new best from v11 is D009 limit=220 with chain weight=0.10.
+        # Test whether D006 tiny stacks on top of that exact best.
+        "hot_best_d009w10_limit220_d006w015": _full_hot_env(d009="0.10", d006="0.015", d009_limit=220),
+        "hot_best_d009w10_limit220_d006w02": _full_hot_env(d009="0.10", d006="0.02", d009_limit=220),
+        "hot_best_d009w10_limit220_d006w025": _full_hot_env(d009="0.10", d006="0.025", d009_limit=220),
+        "hot_best_d009w10_limit220_d006w03": _full_hot_env(d009="0.10", d006="0.03", d009_limit=220),
+        "hot_best_d009w10_limit220_d006w04": _full_hot_env(d009="0.10", d006="0.04", d009_limit=220),
+        "hot_best_d009w10_limit220_d006w05": _full_hot_env(d009="0.10", d006="0.05", d009_limit=220),
+
+        # v12: fine search around the D009 weight optimum under limit=220.
+        "hot_best_limit220_d009w085": _full_hot_env(d009="0.085", d009_limit=220),
+        "hot_best_limit220_d009w09": _full_hot_env(d009="0.09", d009_limit=220),
+        "hot_best_limit220_d009w095": _full_hot_env(d009="0.095", d009_limit=220),
+        "hot_best_limit220_d009w105": _full_hot_env(d009="0.105", d009_limit=220),
+        "hot_best_limit220_d009w11": _full_hot_env(d009="0.11", d009_limit=220),
+        "hot_best_limit220_d009w115": _full_hot_env(d009="0.115", d009_limit=220),
+        "hot_best_limit220_d009w12": _full_hot_env(d009="0.12", d009_limit=220),
+
+        # v12: when D009 weight is 0.10, the best limit may shift around 220.
+        "hot_best_d009w10_limit214": _full_hot_env(d009="0.10", d009_limit=214),
+        "hot_best_d009w10_limit216": _full_hot_env(d009="0.10", d009_limit=216),
+        "hot_best_d009w10_limit218": _full_hot_env(d009="0.10", d009_limit=218),
+        "hot_best_d009w10_limit220": _full_hot_env(d009="0.10", d009_limit=220),
+        "hot_best_d009w10_limit222": _full_hot_env(d009="0.10", d009_limit=222),
+        "hot_best_d009w10_limit224": _full_hot_env(d009="0.10", d009_limit=224),
+        "hot_best_d009w10_limit226": _full_hot_env(d009="0.10", d009_limit=226),
+        "hot_best_d009w10_limit228": _full_hot_env(d009="0.10", d009_limit=228),
+        "hot_best_d009w10_limit230": _full_hot_env(d009="0.10", d009_limit=230),
+
+        # v12: combine D006 tiny with nearby D009 limits under the better D009 weight.
+        "hot_best_d009w10_limit218_d006w02": _full_hot_env(d009="0.10", d006="0.02", d009_limit=218),
+        "hot_best_d009w10_limit222_d006w02": _full_hot_env(d009="0.10", d006="0.02", d009_limit=222),
+        "hot_best_d009w10_limit224_d006w02": _full_hot_env(d009="0.10", d006="0.02", d009_limit=224),
+        "hot_best_d009w10_limit226_d006w02": _full_hot_env(d009="0.10", d006="0.02", d009_limit=226),
+        "hot_best_d009w10_limit230_d006w02": _full_hot_env(d009="0.10", d006="0.02", d009_limit=230),
+        "hot_best_d009w10_limit218_d006w03": _full_hot_env(d009="0.10", d006="0.03", d009_limit=218),
+        "hot_best_d009w10_limit222_d006w03": _full_hot_env(d009="0.10", d006="0.03", d009_limit=222),
+        "hot_best_d009w10_limit224_d006w03": _full_hot_env(d009="0.10", d006="0.03", d009_limit=224),
+        "hot_best_d009w10_limit226_d006w03": _full_hot_env(d009="0.10", d006="0.03", d009_limit=226),
+        "hot_best_d009w10_limit230_d006w03": _full_hot_env(d009="0.10", d006="0.03", d009_limit=230),
+
+        # v12: retest stable plateaus after lowering D009 chain weight to 0.10.
+        "hot_best_d009w10_d003w05_d005w10": _full_hot_env(d003="0.05", d005="0.10", d009="0.10", d009_limit=220),
+        "hot_best_d009w10_d003w05_d005w12": _full_hot_env(d003="0.05", d005="0.12", d009="0.10", d009_limit=220),
+        "hot_best_d009w10_d003w08_d005w08": _full_hot_env(d003="0.08", d005="0.08", d009="0.10", d009_limit=220),
+        "hot_best_d009w10_d003w08_d005w10": _full_hot_env(d003="0.08", d005="0.10", d009="0.10", d009_limit=220),
+        "hot_best_d009w10_d003w08_d005w12": _full_hot_env(d003="0.08", d005="0.12", d009="0.10", d009_limit=220),
+        "hot_best_d009w10_d007w08": _full_hot_env(d007="0.08", d009="0.10", d009_limit=220),
+        "hot_best_d009w10_d007w12": _full_hot_env(d007="0.12", d009="0.10", d009_limit=220),
+        "hot_best_d009w10_d001w11_d010w10": _full_hot_env(d001="1.10", d010="0.10", d009="0.10", d009_limit=220),
+        "hot_best_d009w10_d001w105_d010w08": _full_hot_env(d001="1.05", d010="0.08", d009="0.10", d009_limit=220),
+        "hot_best_d009w10_d001w105_d010w12": _full_hot_env(d001="1.05", d010="0.12", d009="0.10", d009_limit=220),
+    }
+)
+
+
+PRESETS.update(
+    {
+        # v13: the best policy after v12 is D009 limit=220, D009 weight around
+        # 0.09-0.10, plus a tiny D006 chain. Search only the sharp boundary.
+        "hot_v13_d009w09_limit219_d006w015": _full_hot_env(d009="0.09", d006="0.015", d009_limit=219),
+        "hot_v13_d009w09_limit220_d006w015": _full_hot_env(d009="0.09", d006="0.015", d009_limit=220),
+        "hot_v13_d009w09_limit221_d006w015": _full_hot_env(d009="0.09", d006="0.015", d009_limit=221),
+        "hot_v13_d009w095_limit219_d006w015": _full_hot_env(d009="0.095", d006="0.015", d009_limit=219),
+        "hot_v13_d009w095_limit220_d006w015": _full_hot_env(d009="0.095", d006="0.015", d009_limit=220),
+        "hot_v13_d009w095_limit221_d006w015": _full_hot_env(d009="0.095", d006="0.015", d009_limit=221),
+        "hot_v13_d009w10_limit219_d006w015": _full_hot_env(d009="0.10", d006="0.015", d009_limit=219),
+        "hot_v13_d009w10_limit220_d006w015": _full_hot_env(d009="0.10", d006="0.015", d009_limit=220),
+        "hot_v13_d009w10_limit221_d006w015": _full_hot_env(d009="0.10", d006="0.015", d009_limit=221),
+
+        # v13: threshold test for D006 chain. If lower weights still trigger
+        # the same path, use the smallest robust value in the final default.
+        "hot_v13_d006w004": _full_hot_env(d009="0.10", d006="0.004", d009_limit=220),
+        "hot_v13_d006w006": _full_hot_env(d009="0.10", d006="0.006", d009_limit=220),
+        "hot_v13_d006w008": _full_hot_env(d009="0.10", d006="0.008", d009_limit=220),
+        "hot_v13_d006w010": _full_hot_env(d009="0.10", d006="0.010", d009_limit=220),
+        "hot_v13_d006w012": _full_hot_env(d009="0.10", d006="0.012", d009_limit=220),
+        "hot_v13_d006w014": _full_hot_env(d009="0.10", d006="0.014", d009_limit=220),
+
+        # v13: D006 candidate-pool size can change the path that the tiny chain
+        # bonus selects. Base is 300; test both cheaper and wider visibility.
+        "hot_v13_d006limit150": {**_full_hot_env(d009="0.10", d006="0.015", d009_limit=220), "AGENT_D006_NEAREST_CARGO_LIMIT": "150"},
+        "hot_v13_d006limit200": {**_full_hot_env(d009="0.10", d006="0.015", d009_limit=220), "AGENT_D006_NEAREST_CARGO_LIMIT": "200"},
+        "hot_v13_d006limit250": {**_full_hot_env(d009="0.10", d006="0.015", d009_limit=220), "AGENT_D006_NEAREST_CARGO_LIMIT": "250"},
+        "hot_v13_d006limit350": {**_full_hot_env(d009="0.10", d006="0.015", d009_limit=220), "AGENT_D006_NEAREST_CARGO_LIMIT": "350"},
+        "hot_v13_d006limit400": {**_full_hot_env(d009="0.10", d006="0.015", d009_limit=220), "AGENT_D006_NEAREST_CARGO_LIMIT": "400"},
+        "hot_v13_d006limit500": {**_full_hot_env(d009="0.10", d006="0.015", d009_limit=220), "AGENT_D006_NEAREST_CARGO_LIMIT": "500"},
+
+        # v13: D009 risk controls on the current best. These may reduce the
+        # remaining 900 home/night penalty if opportunity cost is below 900.
+        "hot_v13_best_d009margin25": {**_full_hot_env(d009="0.10", d006="0.015", d009_limit=220), "AGENT_AP_D009_HOME_MARGIN_MINUTES": "25"},
+        "hot_v13_best_d009margin30": {**_full_hot_env(d009="0.10", d006="0.015", d009_limit=220), "AGENT_AP_D009_HOME_MARGIN_MINUTES": "30"},
+        "hot_v13_best_d009margin35": {**_full_hot_env(d009="0.10", d006="0.015", d009_limit=220), "AGENT_AP_D009_HOME_MARGIN_MINUTES": "35"},
+        "hot_v13_best_d009margin45": {**_full_hot_env(d009="0.10", d006="0.015", d009_limit=220), "AGENT_AP_D009_HOME_MARGIN_MINUTES": "45"},
+        "hot_v13_best_d009slack005": {**_full_hot_env(d009="0.10", d006="0.015", d009_limit=220), "AGENT_AP_D009_HOME_SLACK_WEIGHT": "0.05"},
+        "hot_v13_best_d009slack010": {**_full_hot_env(d009="0.10", d006="0.015", d009_limit=220), "AGENT_AP_D009_HOME_SLACK_WEIGHT": "0.10"},
+        "hot_v13_best_d009evening450": {**_full_hot_env(d009="0.10", d006="0.015", d009_limit=220), "AGENT_AP_D009_EVENING_MIN_NET": "450"},
+        "hot_v13_best_d009evening650": {**_full_hot_env(d009="0.10", d006="0.015", d009_limit=220), "AGENT_AP_D009_EVENING_MIN_NET": "650"},
+
+        # v13: salvage limit=221/222 with risk gates. If this keeps the wider
+        # candidate benefit without the extra 900 penalty, it is the next jump.
+        "hot_v13_limit221_margin25": {**_full_hot_env(d009="0.10", d006="0.015", d009_limit=221), "AGENT_AP_D009_HOME_MARGIN_MINUTES": "25"},
+        "hot_v13_limit221_margin30": {**_full_hot_env(d009="0.10", d006="0.015", d009_limit=221), "AGENT_AP_D009_HOME_MARGIN_MINUTES": "30"},
+        "hot_v13_limit221_slack005": {**_full_hot_env(d009="0.10", d006="0.015", d009_limit=221), "AGENT_AP_D009_HOME_SLACK_WEIGHT": "0.05"},
+        "hot_v13_limit221_evening450": {**_full_hot_env(d009="0.10", d006="0.015", d009_limit=221), "AGENT_AP_D009_EVENING_MIN_NET": "450"},
+        "hot_v13_limit222_margin25": {**_full_hot_env(d009="0.10", d006="0.015", d009_limit=222), "AGENT_AP_D009_HOME_MARGIN_MINUTES": "25"},
+        "hot_v13_limit222_margin30": {**_full_hot_env(d009="0.10", d006="0.015", d009_limit=222), "AGENT_AP_D009_HOME_MARGIN_MINUTES": "30"},
+        "hot_v13_limit222_slack005": {**_full_hot_env(d009="0.10", d006="0.015", d009_limit=222), "AGENT_AP_D009_HOME_SLACK_WEIGHT": "0.05"},
+        "hot_v13_limit222_evening450": {**_full_hot_env(d009="0.10", d006="0.015", d009_limit=222), "AGENT_AP_D009_EVENING_MIN_NET": "450"},
+
+        # v13: D009 weight/limit boundary plus D006 visibility. Useful if the
+        # D006 query-pool changes global timing enough to move D009's boundary.
+        "hot_v13_d009w09_limit220_d006limit250": {**_full_hot_env(d009="0.09", d006="0.015", d009_limit=220), "AGENT_D006_NEAREST_CARGO_LIMIT": "250"},
+        "hot_v13_d009w09_limit220_d006limit350": {**_full_hot_env(d009="0.09", d006="0.015", d009_limit=220), "AGENT_D006_NEAREST_CARGO_LIMIT": "350"},
+        "hot_v13_d009w095_limit220_d006limit250": {**_full_hot_env(d009="0.095", d006="0.015", d009_limit=220), "AGENT_D006_NEAREST_CARGO_LIMIT": "250"},
+        "hot_v13_d009w095_limit220_d006limit350": {**_full_hot_env(d009="0.095", d006="0.015", d009_limit=220), "AGENT_D006_NEAREST_CARGO_LIMIT": "350"},
+        "hot_v13_d009w10_limit220_d006limit250": {**_full_hot_env(d009="0.10", d006="0.015", d009_limit=220), "AGENT_D006_NEAREST_CARGO_LIMIT": "250"},
+        "hot_v13_d009w10_limit220_d006limit350": {**_full_hot_env(d009="0.10", d006="0.015", d009_limit=220), "AGENT_D006_NEAREST_CARGO_LIMIT": "350"},
+    }
+)
+
+
+def _v14_best_env(**overrides: str) -> dict[str, str]:
+    env = _full_hot_env(d009="0.10", d006="0.014", d009_limit=220)
+    env["AGENT_D006_NEAREST_CARGO_LIMIT"] = "200"
+    env.update(overrides)
+    return env
+
+
+PRESETS.update(
+    {
+        # v14: current best is D006 limit=200. Search the local boundary.
+        "hot_v14_d006limit170": _v14_best_env(AGENT_D006_NEAREST_CARGO_LIMIT="170"),
+        "hot_v14_d006limit180": _v14_best_env(AGENT_D006_NEAREST_CARGO_LIMIT="180"),
+        "hot_v14_d006limit185": _v14_best_env(AGENT_D006_NEAREST_CARGO_LIMIT="185"),
+        "hot_v14_d006limit190": _v14_best_env(AGENT_D006_NEAREST_CARGO_LIMIT="190"),
+        "hot_v14_d006limit195": _v14_best_env(AGENT_D006_NEAREST_CARGO_LIMIT="195"),
+        "hot_v14_d006limit198": _v14_best_env(AGENT_D006_NEAREST_CARGO_LIMIT="198"),
+        "hot_v14_d006limit200": _v14_best_env(AGENT_D006_NEAREST_CARGO_LIMIT="200"),
+        "hot_v14_d006limit202": _v14_best_env(AGENT_D006_NEAREST_CARGO_LIMIT="202"),
+        "hot_v14_d006limit205": _v14_best_env(AGENT_D006_NEAREST_CARGO_LIMIT="205"),
+        "hot_v14_d006limit208": _v14_best_env(AGENT_D006_NEAREST_CARGO_LIMIT="208"),
+        "hot_v14_d006limit210": _v14_best_env(AGENT_D006_NEAREST_CARGO_LIMIT="210"),
+        "hot_v14_d006limit215": _v14_best_env(AGENT_D006_NEAREST_CARGO_LIMIT="215"),
+        "hot_v14_d006limit220": _v14_best_env(AGENT_D006_NEAREST_CARGO_LIMIT="220"),
+        "hot_v14_d006limit225": _v14_best_env(AGENT_D006_NEAREST_CARGO_LIMIT="225"),
+        "hot_v14_d006limit230": _v14_best_env(AGENT_D006_NEAREST_CARGO_LIMIT="230"),
+
+        # v14: under D006 limit=200, verify the minimum robust chain trigger.
+        "hot_v14_d006limit200_w012": _v14_best_env(AGENT_AP_D006_CHAIN_WEIGHT="0.012"),
+        "hot_v14_d006limit200_w013": _v14_best_env(AGENT_AP_D006_CHAIN_WEIGHT="0.013"),
+        "hot_v14_d006limit200_w014": _v14_best_env(AGENT_AP_D006_CHAIN_WEIGHT="0.014"),
+        "hot_v14_d006limit200_w015": _v14_best_env(AGENT_AP_D006_CHAIN_WEIGHT="0.015"),
+        "hot_v14_d006limit200_w016": _v14_best_env(AGENT_AP_D006_CHAIN_WEIGHT="0.016"),
+        "hot_v14_d006limit200_w018": _v14_best_env(AGENT_AP_D006_CHAIN_WEIGHT="0.018"),
+        "hot_v14_d006limit200_w020": _v14_best_env(AGENT_AP_D006_CHAIN_WEIGHT="0.020"),
+
+        # v14: independent query-limit search for every other driver on top of the current best.
+        "hot_v14_d001limit150": _v14_best_env(AGENT_D001_NEAREST_CARGO_LIMIT="150"),
+        "hot_v14_d001limit200": _v14_best_env(AGENT_D001_NEAREST_CARGO_LIMIT="200"),
+        "hot_v14_d001limit250": _v14_best_env(AGENT_D001_NEAREST_CARGO_LIMIT="250"),
+        "hot_v14_d001limit300": _v14_best_env(AGENT_D001_NEAREST_CARGO_LIMIT="300"),
+        "hot_v14_d001limit350": _v14_best_env(AGENT_D001_NEAREST_CARGO_LIMIT="350"),
+        "hot_v14_d001limit400": _v14_best_env(AGENT_D001_NEAREST_CARGO_LIMIT="400"),
+        "hot_v14_d001limit500": _v14_best_env(AGENT_D001_NEAREST_CARGO_LIMIT="500"),
+
+        "hot_v14_d002limit80": _v14_best_env(AGENT_D002_NEAREST_CARGO_LIMIT="80"),
+        "hot_v14_d002limit100": _v14_best_env(AGENT_D002_NEAREST_CARGO_LIMIT="100"),
+        "hot_v14_d002limit150": _v14_best_env(AGENT_D002_NEAREST_CARGO_LIMIT="150"),
+        "hot_v14_d002limit200": _v14_best_env(AGENT_D002_NEAREST_CARGO_LIMIT="200"),
+        "hot_v14_d002limit250": _v14_best_env(AGENT_D002_NEAREST_CARGO_LIMIT="250"),
+        "hot_v14_d002limit300": _v14_best_env(AGENT_D002_NEAREST_CARGO_LIMIT="300"),
+
+        "hot_v14_d003limit150": _v14_best_env(AGENT_D003_NEAREST_CARGO_LIMIT="150"),
+        "hot_v14_d003limit200": _v14_best_env(AGENT_D003_NEAREST_CARGO_LIMIT="200"),
+        "hot_v14_d003limit250": _v14_best_env(AGENT_D003_NEAREST_CARGO_LIMIT="250"),
+        "hot_v14_d003limit300": _v14_best_env(AGENT_D003_NEAREST_CARGO_LIMIT="300"),
+        "hot_v14_d003limit350": _v14_best_env(AGENT_D003_NEAREST_CARGO_LIMIT="350"),
+
+        "hot_v14_d004limit300": _v14_best_env(AGENT_D004_NEAREST_CARGO_LIMIT="300"),
+        "hot_v14_d004limit400": _v14_best_env(AGENT_D004_NEAREST_CARGO_LIMIT="400"),
+        "hot_v14_d004limit500": _v14_best_env(AGENT_D004_NEAREST_CARGO_LIMIT="500"),
+        "hot_v14_d004limit600": _v14_best_env(AGENT_D004_NEAREST_CARGO_LIMIT="600"),
+        "hot_v14_d004limit700": _v14_best_env(AGENT_D004_NEAREST_CARGO_LIMIT="700"),
+
+        "hot_v14_d005limit300": _v14_best_env(AGENT_D005_NEAREST_CARGO_LIMIT="300"),
+        "hot_v14_d005limit400": _v14_best_env(AGENT_D005_NEAREST_CARGO_LIMIT="400"),
+        "hot_v14_d005limit450": _v14_best_env(AGENT_D005_NEAREST_CARGO_LIMIT="450"),
+        "hot_v14_d005limit500": _v14_best_env(AGENT_D005_NEAREST_CARGO_LIMIT="500"),
+        "hot_v14_d005limit550": _v14_best_env(AGENT_D005_NEAREST_CARGO_LIMIT="550"),
+        "hot_v14_d005limit600": _v14_best_env(AGENT_D005_NEAREST_CARGO_LIMIT="600"),
+
+        "hot_v14_d007limit300": _v14_best_env(AGENT_D007_NEAREST_CARGO_LIMIT="300"),
+        "hot_v14_d007limit400": _v14_best_env(AGENT_D007_NEAREST_CARGO_LIMIT="400"),
+        "hot_v14_d007limit500": _v14_best_env(AGENT_D007_NEAREST_CARGO_LIMIT="500"),
+        "hot_v14_d007limit600": _v14_best_env(AGENT_D007_NEAREST_CARGO_LIMIT="600"),
+        "hot_v14_d007limit700": _v14_best_env(AGENT_D007_NEAREST_CARGO_LIMIT="700"),
+
+        "hot_v14_d008limit100": _v14_best_env(AGENT_D008_NEAREST_CARGO_LIMIT="100"),
+        "hot_v14_d008limit200": _v14_best_env(AGENT_D008_NEAREST_CARGO_LIMIT="200"),
+        "hot_v14_d008limit300": _v14_best_env(AGENT_D008_NEAREST_CARGO_LIMIT="300"),
+        "hot_v14_d008limit400": _v14_best_env(AGENT_D008_NEAREST_CARGO_LIMIT="400"),
+        "hot_v14_d008limit500": _v14_best_env(AGENT_D008_NEAREST_CARGO_LIMIT="500"),
+
+        "hot_v14_d010limit100": _v14_best_env(AGENT_D010_NEAREST_CARGO_LIMIT="100"),
+        "hot_v14_d010limit150": _v14_best_env(AGENT_D010_NEAREST_CARGO_LIMIT="150"),
+        "hot_v14_d010limit200": _v14_best_env(AGENT_D010_NEAREST_CARGO_LIMIT="200"),
+        "hot_v14_d010limit250": _v14_best_env(AGENT_D010_NEAREST_CARGO_LIMIT="250"),
+        "hot_v14_d010limit300": _v14_best_env(AGENT_D010_NEAREST_CARGO_LIMIT="300"),
+    }
+)
+
+
+def _v15_combo_env(
+    *,
+    d003_limit: int | None = None,
+    d004_limit: int | None = None,
+    d006_limit: int = 200,
+    d007_limit: int | None = None,
+    d010_limit: int | None = None,
+) -> dict[str, str]:
+    env = _v14_best_env(AGENT_D006_NEAREST_CARGO_LIMIT=str(d006_limit))
+    if d003_limit is not None:
+        env["AGENT_D003_NEAREST_CARGO_LIMIT"] = str(d003_limit)
+    if d004_limit is not None:
+        env["AGENT_D004_NEAREST_CARGO_LIMIT"] = str(d004_limit)
+    if d007_limit is not None:
+        env["AGENT_D007_NEAREST_CARGO_LIMIT"] = str(d007_limit)
+    if d010_limit is not None:
+        env["AGENT_D010_NEAREST_CARGO_LIMIT"] = str(d010_limit)
+    return env
+
+
+PRESETS.update(
+    {
+        # v15: combine all positive query-limit signals discovered in v14.
+        "hot_v15_base_d006200": _v15_combo_env(d006_limit=200),
+        "hot_v15_base_d006202": _v15_combo_env(d006_limit=202),
+        "hot_v15_d010200": _v15_combo_env(d010_limit=200),
+        "hot_v15_d004600": _v15_combo_env(d004_limit=600),
+        "hot_v15_d007400": _v15_combo_env(d007_limit=400),
+        "hot_v15_d003200": _v15_combo_env(d003_limit=200),
+
+        "hot_v15_d010200_d004600": _v15_combo_env(d010_limit=200, d004_limit=600),
+        "hot_v15_d010200_d007400": _v15_combo_env(d010_limit=200, d007_limit=400),
+        "hot_v15_d010200_d003200": _v15_combo_env(d010_limit=200, d003_limit=200),
+        "hot_v15_d010200_d006202": _v15_combo_env(d010_limit=200, d006_limit=202),
+        "hot_v15_d004600_d007400": _v15_combo_env(d004_limit=600, d007_limit=400),
+        "hot_v15_d004600_d003200": _v15_combo_env(d004_limit=600, d003_limit=200),
+        "hot_v15_d004600_d006202": _v15_combo_env(d004_limit=600, d006_limit=202),
+        "hot_v15_d007400_d003200": _v15_combo_env(d007_limit=400, d003_limit=200),
+        "hot_v15_d007400_d006202": _v15_combo_env(d007_limit=400, d006_limit=202),
+        "hot_v15_d003200_d006202": _v15_combo_env(d003_limit=200, d006_limit=202),
+
+        "hot_v15_d010200_d004600_d007400": _v15_combo_env(d010_limit=200, d004_limit=600, d007_limit=400),
+        "hot_v15_d010200_d004600_d003200": _v15_combo_env(d010_limit=200, d004_limit=600, d003_limit=200),
+        "hot_v15_d010200_d007400_d003200": _v15_combo_env(d010_limit=200, d007_limit=400, d003_limit=200),
+        "hot_v15_d004600_d007400_d003200": _v15_combo_env(d004_limit=600, d007_limit=400, d003_limit=200),
+        "hot_v15_d010200_d004600_d006202": _v15_combo_env(d010_limit=200, d004_limit=600, d006_limit=202),
+        "hot_v15_d010200_d007400_d006202": _v15_combo_env(d010_limit=200, d007_limit=400, d006_limit=202),
+        "hot_v15_d004600_d007400_d006202": _v15_combo_env(d004_limit=600, d007_limit=400, d006_limit=202),
+
+        "hot_v15_all_d006200": _v15_combo_env(d010_limit=200, d004_limit=600, d007_limit=400, d003_limit=200, d006_limit=200),
+        "hot_v15_all_d006202": _v15_combo_env(d010_limit=200, d004_limit=600, d007_limit=400, d003_limit=200, d006_limit=202),
+
+        # v15: local refinements for the large D010 and D004 signals.
+        "hot_v15_d010180": _v15_combo_env(d010_limit=180),
+        "hot_v15_d010190": _v15_combo_env(d010_limit=190),
+        "hot_v15_d010200_local": _v15_combo_env(d010_limit=200),
+        "hot_v15_d010210": _v15_combo_env(d010_limit=210),
+        "hot_v15_d010220": _v15_combo_env(d010_limit=220),
+        "hot_v15_d004540": _v15_combo_env(d004_limit=540),
+        "hot_v15_d004560": _v15_combo_env(d004_limit=560),
+        "hot_v15_d004580": _v15_combo_env(d004_limit=580),
+        "hot_v15_d004600_local": _v15_combo_env(d004_limit=600),
+        "hot_v15_d004620": _v15_combo_env(d004_limit=620),
+        "hot_v15_d004640": _v15_combo_env(d004_limit=640),
+
+        # v15: validate whether D007=400 and D003=200 have narrow nearby peaks.
+        "hot_v15_d007360": _v15_combo_env(d007_limit=360),
+        "hot_v15_d007380": _v15_combo_env(d007_limit=380),
+        "hot_v15_d007400_local": _v15_combo_env(d007_limit=400),
+        "hot_v15_d007420": _v15_combo_env(d007_limit=420),
+        "hot_v15_d007440": _v15_combo_env(d007_limit=440),
+        "hot_v15_d003180": _v15_combo_env(d003_limit=180),
+        "hot_v15_d003190": _v15_combo_env(d003_limit=190),
+        "hot_v15_d003200_local": _v15_combo_env(d003_limit=200),
+        "hot_v15_d003210": _v15_combo_env(d003_limit=210),
+        "hot_v15_d003220": _v15_combo_env(d003_limit=220),
+    }
+)
+
+
+def _v16_full_env(
+    *,
+    d003_limit: int = 200,
+    d004_limit: int = 600,
+    d006_limit: int = 202,
+    d007_limit: int = 400,
+    d009_limit: int = 220,
+    d009_weight: str = "0.10",
+    d010_limit: int = 200,
+) -> dict[str, str]:
+    env = _v15_combo_env(
+        d003_limit=d003_limit,
+        d004_limit=d004_limit,
+        d006_limit=d006_limit,
+        d007_limit=d007_limit,
+        d010_limit=d010_limit,
+    )
+    env["AGENT_D009_NEAREST_CARGO_LIMIT"] = str(d009_limit)
+    env["AGENT_AP_D009_CHAIN_WEIGHT"] = d009_weight
+    return env
+
+
+PRESETS.update(
+    {
+        # v16: local interaction around the current v15 best:
+        # D003=200, D004=600, D006=202, D007=400, D010=200.
+        "hot_v16_all_d004600_d007400_d006200": _v16_full_env(d004_limit=600, d007_limit=400, d006_limit=200),
+        "hot_v16_all_d004600_d007400_d006202": _v16_full_env(d004_limit=600, d007_limit=400, d006_limit=202),
+        "hot_v16_all_d004600_d007420_d006200": _v16_full_env(d004_limit=600, d007_limit=420, d006_limit=200),
+        "hot_v16_all_d004600_d007420_d006202": _v16_full_env(d004_limit=600, d007_limit=420, d006_limit=202),
+        "hot_v16_all_d004620_d007400_d006200": _v16_full_env(d004_limit=620, d007_limit=400, d006_limit=200),
+        "hot_v16_all_d004620_d007400_d006202": _v16_full_env(d004_limit=620, d007_limit=400, d006_limit=202),
+        "hot_v16_all_d004620_d007420_d006200": _v16_full_env(d004_limit=620, d007_limit=420, d006_limit=200),
+        "hot_v16_all_d004620_d007420_d006202": _v16_full_env(d004_limit=620, d007_limit=420, d006_limit=202),
+
+        # v16: D004 local refinement under the full combo.
+        "hot_v16_all_d004560": _v16_full_env(d004_limit=560),
+        "hot_v16_all_d004580": _v16_full_env(d004_limit=580),
+        "hot_v16_all_d004600": _v16_full_env(d004_limit=600),
+        "hot_v16_all_d004610": _v16_full_env(d004_limit=610),
+        "hot_v16_all_d004620": _v16_full_env(d004_limit=620),
+        "hot_v16_all_d004630": _v16_full_env(d004_limit=630),
+        "hot_v16_all_d004640": _v16_full_env(d004_limit=640),
+
+        # v16: D007 local refinement under the full combo.
+        "hot_v16_all_d007360": _v16_full_env(d007_limit=360),
+        "hot_v16_all_d007380": _v16_full_env(d007_limit=380),
+        "hot_v16_all_d007400": _v16_full_env(d007_limit=400),
+        "hot_v16_all_d007410": _v16_full_env(d007_limit=410),
+        "hot_v16_all_d007420": _v16_full_env(d007_limit=420),
+        "hot_v16_all_d007430": _v16_full_env(d007_limit=430),
+        "hot_v16_all_d007440": _v16_full_env(d007_limit=440),
+
+        # v16: D006 local refinement under the full combo.
+        "hot_v16_all_d006198": _v16_full_env(d006_limit=198),
+        "hot_v16_all_d006200": _v16_full_env(d006_limit=200),
+        "hot_v16_all_d006201": _v16_full_env(d006_limit=201),
+        "hot_v16_all_d006202": _v16_full_env(d006_limit=202),
+        "hot_v16_all_d006203": _v16_full_env(d006_limit=203),
+        "hot_v16_all_d006204": _v16_full_env(d006_limit=204),
+        "hot_v16_all_d006205": _v16_full_env(d006_limit=205),
+
+        # v16: D003 and D010 are smaller but confirmed signals; refine only nearby.
+        "hot_v16_all_d003190": _v16_full_env(d003_limit=190),
+        "hot_v16_all_d003195": _v16_full_env(d003_limit=195),
+        "hot_v16_all_d003200": _v16_full_env(d003_limit=200),
+        "hot_v16_all_d003205": _v16_full_env(d003_limit=205),
+        "hot_v16_all_d003210": _v16_full_env(d003_limit=210),
+        "hot_v16_all_d010190": _v16_full_env(d010_limit=190),
+        "hot_v16_all_d010195": _v16_full_env(d010_limit=195),
+        "hot_v16_all_d010200": _v16_full_env(d010_limit=200),
+        "hot_v16_all_d010205": _v16_full_env(d010_limit=205),
+        "hot_v16_all_d010210": _v16_full_env(d010_limit=210),
+
+        # v16: confirm D009's old plateau still holds after the full combo.
+        "hot_v16_all_d009w09": _v16_full_env(d009_weight="0.09"),
+        "hot_v16_all_d009w095": _v16_full_env(d009_weight="0.095"),
+        "hot_v16_all_d009w10": _v16_full_env(d009_weight="0.10"),
+        "hot_v16_all_d009limit219": _v16_full_env(d009_limit=219),
+        "hot_v16_all_d009limit220": _v16_full_env(d009_limit=220),
+        "hot_v16_all_d009limit221": _v16_full_env(d009_limit=221),
+        "hot_v16_all_d009w09_limit219": _v16_full_env(d009_weight="0.09", d009_limit=219),
+        "hot_v16_all_d009w095_limit219": _v16_full_env(d009_weight="0.095", d009_limit=219),
+    }
+)
+
+
+def _v17_best_0509_env(
+    *,
+    d001_weight: str = "1.05",
+    d003_weight: str = "0.05",
+    d003_limit: int = 200,
+    d004_limit: int = 600,
+    d004_lunch_net: int = 680,
+    d004_lunch_nph: int = 50,
+    d005_weight: str = "0.08",
+    d006_weight: str = "0.014",
+    d006_limit: int = 202,
+    d007_weight: str = "0.10",
+    d007_limit: int = 420,
+    d009_weight: str = "0.10",
+    d009_limit: int = 220,
+    d010_weight: str = "0.10",
+    d010_limit: int = 200,
+) -> dict[str, str]:
+    env = _v16_full_env(
+        d003_limit=d003_limit,
+        d004_limit=d004_limit,
+        d006_limit=d006_limit,
+        d007_limit=d007_limit,
+        d009_limit=d009_limit,
+        d009_weight=d009_weight,
+        d010_limit=d010_limit,
+    )
+    env.update(
+        {
+            "AGENT_AP_D001_CHAIN_WEIGHT": d001_weight,
+            "AGENT_AP_D003_CHAIN_WEIGHT": d003_weight,
+            "AGENT_AP_D004_LUNCH_FIRST_MIN_NET": str(d004_lunch_net),
+            "AGENT_AP_D004_LUNCH_FIRST_MIN_NPH": str(d004_lunch_nph),
+            "AGENT_AP_D005_CHAIN_WEIGHT": d005_weight,
+            "AGENT_AP_D006_CHAIN_WEIGHT": d006_weight,
+            "AGENT_AP_D007_CHAIN_WEIGHT": d007_weight,
+            "AGENT_AP_D010_CHAIN_WEIGHT": d010_weight,
+        }
+    )
+    return env
+
+
+PRESETS.update(
+    {
+        # v17: 0509 current best is the v16 full combo with D007 limit=410/420.
+        # Search only around changes that can plausibly stack on top of that.
+        "hot_v17_best_d007410": _v17_best_0509_env(d007_limit=410),
+        "hot_v17_best_d007415": _v17_best_0509_env(d007_limit=415),
+        "hot_v17_best_d007420": _v17_best_0509_env(d007_limit=420),
+        "hot_v17_best_d007425": _v17_best_0509_env(d007_limit=425),
+        "hot_v17_best_d007430": _v17_best_0509_env(d007_limit=430),
+
+        "hot_v17_best_d004590": _v17_best_0509_env(d004_limit=590),
+        "hot_v17_best_d004600": _v17_best_0509_env(d004_limit=600),
+        "hot_v17_best_d004605": _v17_best_0509_env(d004_limit=605),
+        "hot_v17_best_d004610": _v17_best_0509_env(d004_limit=610),
+        "hot_v17_best_d004615": _v17_best_0509_env(d004_limit=615),
+        "hot_v17_best_d004620": _v17_best_0509_env(d004_limit=620),
+
+        "hot_v17_best_d006200": _v17_best_0509_env(d006_limit=200),
+        "hot_v17_best_d006201": _v17_best_0509_env(d006_limit=201),
+        "hot_v17_best_d006202": _v17_best_0509_env(d006_limit=202),
+        "hot_v17_best_d006203": _v17_best_0509_env(d006_limit=203),
+        "hot_v17_best_d006204": _v17_best_0509_env(d006_limit=204),
+        "hot_v17_best_d006202_w012": _v17_best_0509_env(d006_limit=202, d006_weight="0.012"),
+        "hot_v17_best_d006202_w013": _v17_best_0509_env(d006_limit=202, d006_weight="0.013"),
+        "hot_v17_best_d006202_w015": _v17_best_0509_env(d006_limit=202, d006_weight="0.015"),
+        "hot_v17_best_d006202_w016": _v17_best_0509_env(d006_limit=202, d006_weight="0.016"),
+
+        "hot_v17_best_d009limit218": _v17_best_0509_env(d009_limit=218),
+        "hot_v17_best_d009limit219": _v17_best_0509_env(d009_limit=219),
+        "hot_v17_best_d009limit220": _v17_best_0509_env(d009_limit=220),
+        "hot_v17_best_d009limit221": _v17_best_0509_env(d009_limit=221),
+        "hot_v17_best_d009w09": _v17_best_0509_env(d009_weight="0.09"),
+        "hot_v17_best_d009w095": _v17_best_0509_env(d009_weight="0.095"),
+        "hot_v17_best_d009w105": _v17_best_0509_env(d009_weight="0.105"),
+        "hot_v17_best_d009w11": _v17_best_0509_env(d009_weight="0.11"),
+
+        "hot_v17_best_d001w100_d010w10": _v17_best_0509_env(d001_weight="1.00", d010_weight="0.10"),
+        "hot_v17_best_d001w105_d010w08": _v17_best_0509_env(d001_weight="1.05", d010_weight="0.08"),
+        "hot_v17_best_d001w105_d010w10": _v17_best_0509_env(d001_weight="1.05", d010_weight="0.10"),
+        "hot_v17_best_d001w105_d010w12": _v17_best_0509_env(d001_weight="1.05", d010_weight="0.12"),
+        "hot_v17_best_d001w110_d010w10": _v17_best_0509_env(d001_weight="1.10", d010_weight="0.10"),
+
+        "hot_v17_best_d003195": _v17_best_0509_env(d003_limit=195),
+        "hot_v17_best_d003200": _v17_best_0509_env(d003_limit=200),
+        "hot_v17_best_d003205": _v17_best_0509_env(d003_limit=205),
+        "hot_v17_best_d003w03": _v17_best_0509_env(d003_weight="0.03"),
+        "hot_v17_best_d003w05": _v17_best_0509_env(d003_weight="0.05"),
+        "hot_v17_best_d003w08": _v17_best_0509_env(d003_weight="0.08"),
+        "hot_v17_best_d005w06": _v17_best_0509_env(d005_weight="0.06"),
+        "hot_v17_best_d005w08": _v17_best_0509_env(d005_weight="0.08"),
+        "hot_v17_best_d005w10": _v17_best_0509_env(d005_weight="0.10"),
+
+        "hot_v17_best_d004lunch640_50": _v17_best_0509_env(d004_lunch_net=640, d004_lunch_nph=50),
+        "hot_v17_best_d004lunch660_50": _v17_best_0509_env(d004_lunch_net=660, d004_lunch_nph=50),
+        "hot_v17_best_d004lunch680_48": _v17_best_0509_env(d004_lunch_net=680, d004_lunch_nph=48),
+        "hot_v17_best_d004lunch680_52": _v17_best_0509_env(d004_lunch_net=680, d004_lunch_nph=52),
+        "hot_v17_best_d004lunch700_50": _v17_best_0509_env(d004_lunch_net=700, d004_lunch_nph=50),
+
+        "hot_v17_best_confirm": _v17_best_0509_env(),
+    }
+)
+
+
+def _v18_rollout_env(
+    *,
+    rollout_drivers: str = "D001,D004,D006,D007,D009,D010",
+    d001_weight: str = "0.04",
+    d004_weight: str = "0.03",
+    d006_weight: str = "0.025",
+    d007_weight: str = "0.04",
+    d009_weight: str = "0.03",
+    d010_weight: str = "0.035",
+    top_n: int = 2,
+    max_pickup: int = 180,
+    max_wait: int = 180,
+    next_net_weight: str = "0.055",
+    next_nph_weight: str = "0.42",
+) -> dict[str, str]:
+    env = _v17_best_0509_env()
+    env.update(
+        {
+            "AGENT_AP_ENABLE_TWO_STEP_ROLLOUT": "1",
+            "AGENT_AP_ROLLOUT_DRIVERS": rollout_drivers,
+            "AGENT_AP_D001_ROLLOUT_WEIGHT": d001_weight,
+            "AGENT_AP_D004_ROLLOUT_WEIGHT": d004_weight,
+            "AGENT_AP_D006_ROLLOUT_WEIGHT": d006_weight,
+            "AGENT_AP_D007_ROLLOUT_WEIGHT": d007_weight,
+            "AGENT_AP_D009_ROLLOUT_WEIGHT": d009_weight,
+            "AGENT_AP_D010_ROLLOUT_WEIGHT": d010_weight,
+            "AGENT_AP_ROLLOUT_TOP_N": str(top_n),
+            "AGENT_AP_ROLLOUT_SUCCESSOR_MAX_PICKUP_MINUTES": str(max_pickup),
+            "AGENT_AP_ROLLOUT_SUCCESSOR_MAX_WAIT_MINUTES": str(max_wait),
+            "AGENT_AP_ROLLOUT_NEXT_NET_WEIGHT": next_net_weight,
+            "AGENT_AP_ROLLOUT_NEXT_NPH_WEIGHT": next_nph_weight,
+        }
+    )
+    return env
+
+
+PRESETS.update(
+    {
+        # v18: short-horizon planner. First isolate per-driver effect, then test
+        # combinations around the stable v17 0509 best baseline.
+        "hot_v18_rollout_d001": _v18_rollout_env(rollout_drivers="D001"),
+        "hot_v18_rollout_d004": _v18_rollout_env(rollout_drivers="D004"),
+        "hot_v18_rollout_d006": _v18_rollout_env(rollout_drivers="D006"),
+        "hot_v18_rollout_d007": _v18_rollout_env(rollout_drivers="D007"),
+        "hot_v18_rollout_d009": _v18_rollout_env(rollout_drivers="D009"),
+        "hot_v18_rollout_d010": _v18_rollout_env(rollout_drivers="D010"),
+
+        "hot_v18_rollout_d001_d007": _v18_rollout_env(rollout_drivers="D001,D007"),
+        "hot_v18_rollout_d009_d010": _v18_rollout_env(rollout_drivers="D009,D010"),
+        "hot_v18_rollout_d004_d006": _v18_rollout_env(rollout_drivers="D004,D006"),
+        "hot_v18_rollout_core": _v18_rollout_env(),
+
+        "hot_v18_rollout_core_light": _v18_rollout_env(
+            d001_weight="0.02",
+            d004_weight="0.015",
+            d006_weight="0.012",
+            d007_weight="0.02",
+            d009_weight="0.015",
+            d010_weight="0.018",
+        ),
+        "hot_v18_rollout_core_strong": _v18_rollout_env(
+            d001_weight="0.06",
+            d004_weight="0.045",
+            d006_weight="0.038",
+            d007_weight="0.06",
+            d009_weight="0.045",
+            d010_weight="0.052",
+        ),
+        "hot_v18_rollout_core_tight_next": _v18_rollout_env(max_pickup=120, max_wait=120),
+        "hot_v18_rollout_core_wide_next": _v18_rollout_env(max_pickup=240, max_wait=240),
+        "hot_v18_rollout_top1": _v18_rollout_env(top_n=1),
+        "hot_v18_rollout_top3": _v18_rollout_env(top_n=3),
+
+        "hot_v18_rollout_net_heavy": _v18_rollout_env(next_net_weight="0.075", next_nph_weight="0.34"),
+        "hot_v18_rollout_nph_heavy": _v18_rollout_env(next_net_weight="0.040", next_nph_weight="0.55"),
+    }
+)
+
+
+def _v19_gated_rollout_env(
+    *,
+    drivers: str = "D001,D006,D009",
+    max_gap: int = 50,
+    top_k: int = 3,
+    max_base_drop: int = 60,
+    bonus_cap: int = 25,
+    d007_limit: int = 420,
+    d010_limit: int = 200,
+    d001_weight: str = "0.04",
+    d006_weight: str = "0.025",
+    d009_weight: str = "0.03",
+    d007_weight: str = "0.04",
+    d010_weight: str = "0.035",
+    next_net_weight: str = "0.055",
+    next_nph_weight: str = "0.42",
+) -> dict[str, str]:
+    env = _v18_rollout_env(
+        rollout_drivers=drivers,
+        d007_weight=d007_weight,
+        d010_weight=d010_weight,
+        d001_weight=d001_weight,
+        d006_weight=d006_weight,
+        d009_weight=d009_weight,
+        next_net_weight=next_net_weight,
+        next_nph_weight=next_nph_weight,
+    )
+    env["AGENT_D007_NEAREST_CARGO_LIMIT"] = str(d007_limit)
+    env["AGENT_D010_NEAREST_CARGO_LIMIT"] = str(d010_limit)
+    env.pop("AGENT_AP_ENABLE_TWO_STEP_ROLLOUT", None)
+    env.update(
+        {
+            "AGENT_AP_ENABLE_GATED_ROLLOUT": "1",
+            "AGENT_AP_GATED_ROLLOUT_DRIVERS": drivers,
+            "AGENT_AP_GATED_ROLLOUT_MAX_GAP": str(max_gap),
+            "AGENT_AP_GATED_ROLLOUT_TOP_K": str(top_k),
+            "AGENT_AP_GATED_ROLLOUT_MAX_BASE_DROP": str(max_base_drop),
+            "AGENT_AP_GATED_ROLLOUT_BONUS_CAP": str(bonus_cap),
+        }
+    )
+    return env
+
+
+PRESETS.update(
+    {
+        # v19: gated rollout. Use the v17 score as the primary ranker and only
+        # let rollout rerank near-ties inside top-k. This directly addresses
+        # v18's over-aggressive action changes.
+        "hot_v19_gated_d001_gap30": _v19_gated_rollout_env(drivers="D001", max_gap=30),
+        "hot_v19_gated_d001_gap50": _v19_gated_rollout_env(drivers="D001", max_gap=50),
+        "hot_v19_gated_d001_gap80": _v19_gated_rollout_env(drivers="D001", max_gap=80),
+
+        "hot_v19_gated_d006_gap30": _v19_gated_rollout_env(drivers="D006", max_gap=30),
+        "hot_v19_gated_d006_gap50": _v19_gated_rollout_env(drivers="D006", max_gap=50),
+        "hot_v19_gated_d006_gap80": _v19_gated_rollout_env(drivers="D006", max_gap=80),
+
+        "hot_v19_gated_d009_gap30": _v19_gated_rollout_env(drivers="D009", max_gap=30),
+        "hot_v19_gated_d009_gap50": _v19_gated_rollout_env(drivers="D009", max_gap=50),
+        "hot_v19_gated_d009_gap80": _v19_gated_rollout_env(drivers="D009", max_gap=80),
+
+        "hot_v19_gated_safe_gap30": _v19_gated_rollout_env(drivers="D001,D006,D009", max_gap=30),
+        "hot_v19_gated_safe_gap50": _v19_gated_rollout_env(drivers="D001,D006,D009", max_gap=50),
+        "hot_v19_gated_safe_gap80": _v19_gated_rollout_env(drivers="D001,D006,D009", max_gap=80),
+
+        "hot_v19_gated_safe_cap10": _v19_gated_rollout_env(drivers="D001,D006,D009", bonus_cap=10),
+        "hot_v19_gated_safe_cap15": _v19_gated_rollout_env(drivers="D001,D006,D009", bonus_cap=15),
+        "hot_v19_gated_safe_cap25": _v19_gated_rollout_env(drivers="D001,D006,D009", bonus_cap=25),
+        "hot_v19_gated_safe_cap40": _v19_gated_rollout_env(drivers="D001,D006,D009", bonus_cap=40),
+
+        "hot_v19_gated_top2": _v19_gated_rollout_env(drivers="D001,D006,D009", top_k=2),
+        "hot_v19_gated_top3": _v19_gated_rollout_env(drivers="D001,D006,D009", top_k=3),
+        "hot_v19_gated_top5": _v19_gated_rollout_env(drivers="D001,D006,D009", top_k=5),
+
+        "hot_v19_gated_d001_d009": _v19_gated_rollout_env(drivers="D001,D009", max_gap=50),
+        "hot_v19_gated_d001_d006": _v19_gated_rollout_env(drivers="D001,D006", max_gap=50),
+        "hot_v19_gated_d006_d009": _v19_gated_rollout_env(drivers="D006,D009", max_gap=50),
+
+        # Probe the previously bad drivers only with a narrow gate and tiny cap.
+        "hot_v19_gated_d007_tiny": _v19_gated_rollout_env(drivers="D007", max_gap=20, bonus_cap=8),
+        "hot_v19_gated_d010_tiny": _v19_gated_rollout_env(drivers="D010", max_gap=20, bonus_cap=8),
+        "hot_v19_gated_d007_d010_tiny": _v19_gated_rollout_env(drivers="D007,D010", max_gap=20, bonus_cap=8),
+    }
+)
+
+
+PRESETS.update(
+    {
+        # v20: refine the v19 positive signal. D009 is deliberately excluded
+        # because every gated D009 variant regressed by -265.31.
+        "hot_v20_d010_gap8_cap8": _v19_gated_rollout_env(drivers="D010", max_gap=8, bonus_cap=8),
+        "hot_v20_d010_gap12_cap8": _v19_gated_rollout_env(drivers="D010", max_gap=12, bonus_cap=8),
+        "hot_v20_d010_gap16_cap8": _v19_gated_rollout_env(drivers="D010", max_gap=16, bonus_cap=8),
+        "hot_v20_d010_gap20_cap8": _v19_gated_rollout_env(drivers="D010", max_gap=20, bonus_cap=8),
+        "hot_v20_d010_gap25_cap8": _v19_gated_rollout_env(drivers="D010", max_gap=25, bonus_cap=8),
+        "hot_v20_d010_gap30_cap8": _v19_gated_rollout_env(drivers="D010", max_gap=30, bonus_cap=8),
+
+        "hot_v20_d010_gap20_cap4": _v19_gated_rollout_env(drivers="D010", max_gap=20, bonus_cap=4),
+        "hot_v20_d010_gap20_cap6": _v19_gated_rollout_env(drivers="D010", max_gap=20, bonus_cap=6),
+        "hot_v20_d010_gap20_cap10": _v19_gated_rollout_env(drivers="D010", max_gap=20, bonus_cap=10),
+        "hot_v20_d010_gap20_cap12": _v19_gated_rollout_env(drivers="D010", max_gap=20, bonus_cap=12),
+
+        "hot_v20_d007_gap8_cap8": _v19_gated_rollout_env(drivers="D007", max_gap=8, bonus_cap=8),
+        "hot_v20_d007_gap12_cap8": _v19_gated_rollout_env(drivers="D007", max_gap=12, bonus_cap=8),
+        "hot_v20_d007_gap16_cap8": _v19_gated_rollout_env(drivers="D007", max_gap=16, bonus_cap=8),
+        "hot_v20_d007_gap20_cap8": _v19_gated_rollout_env(drivers="D007", max_gap=20, bonus_cap=8),
+        "hot_v20_d007_gap25_cap8": _v19_gated_rollout_env(drivers="D007", max_gap=25, bonus_cap=8),
+
+        "hot_v20_d007_gap20_cap4": _v19_gated_rollout_env(drivers="D007", max_gap=20, bonus_cap=4),
+        "hot_v20_d007_gap20_cap6": _v19_gated_rollout_env(drivers="D007", max_gap=20, bonus_cap=6),
+        "hot_v20_d007_gap20_cap10": _v19_gated_rollout_env(drivers="D007", max_gap=20, bonus_cap=10),
+
+        "hot_v20_d007d010_gap8_cap8": _v19_gated_rollout_env(drivers="D007,D010", max_gap=8, bonus_cap=8),
+        "hot_v20_d007d010_gap12_cap8": _v19_gated_rollout_env(drivers="D007,D010", max_gap=12, bonus_cap=8),
+        "hot_v20_d007d010_gap16_cap8": _v19_gated_rollout_env(drivers="D007,D010", max_gap=16, bonus_cap=8),
+        "hot_v20_d007d010_gap20_cap8": _v19_gated_rollout_env(drivers="D007,D010", max_gap=20, bonus_cap=8),
+        "hot_v20_d007d010_gap25_cap8": _v19_gated_rollout_env(drivers="D007,D010", max_gap=25, bonus_cap=8),
+        "hot_v20_d007d010_gap30_cap8": _v19_gated_rollout_env(drivers="D007,D010", max_gap=30, bonus_cap=8),
+
+        "hot_v20_d007d010_gap20_cap4": _v19_gated_rollout_env(drivers="D007,D010", max_gap=20, bonus_cap=4),
+        "hot_v20_d007d010_gap20_cap6": _v19_gated_rollout_env(drivers="D007,D010", max_gap=20, bonus_cap=6),
+        "hot_v20_d007d010_gap20_cap10": _v19_gated_rollout_env(drivers="D007,D010", max_gap=20, bonus_cap=10),
+        "hot_v20_d007d010_gap20_cap12": _v19_gated_rollout_env(drivers="D007,D010", max_gap=20, bonus_cap=12),
+
+        "hot_v20_d007d010_top2": _v19_gated_rollout_env(drivers="D007,D010", max_gap=20, bonus_cap=8, top_k=2),
+        "hot_v20_d007d010_top3": _v19_gated_rollout_env(drivers="D007,D010", max_gap=20, bonus_cap=8, top_k=3),
+        "hot_v20_d007d010_top5": _v19_gated_rollout_env(drivers="D007,D010", max_gap=20, bonus_cap=8, top_k=5),
+
+        "hot_v20_d007d010_drop20": _v19_gated_rollout_env(drivers="D007,D010", max_gap=20, bonus_cap=8, max_base_drop=20),
+        "hot_v20_d007d010_drop40": _v19_gated_rollout_env(drivers="D007,D010", max_gap=20, bonus_cap=8, max_base_drop=40),
+        "hot_v20_d007d010_drop80": _v19_gated_rollout_env(drivers="D007,D010", max_gap=20, bonus_cap=8, max_base_drop=80),
+
+        "hot_v20_d007410_d010": _v19_gated_rollout_env(drivers="D007,D010", max_gap=20, bonus_cap=8, d007_limit=410),
+        "hot_v20_d007415_d010": _v19_gated_rollout_env(drivers="D007,D010", max_gap=20, bonus_cap=8, d007_limit=415),
+        "hot_v20_d007420_d010": _v19_gated_rollout_env(drivers="D007,D010", max_gap=20, bonus_cap=8, d007_limit=420),
+        "hot_v20_d007425_d010": _v19_gated_rollout_env(drivers="D007,D010", max_gap=20, bonus_cap=8, d007_limit=425),
+
+        "hot_v20_d010limit195": _v19_gated_rollout_env(drivers="D007,D010", max_gap=20, bonus_cap=8, d010_limit=195),
+        "hot_v20_d010limit200": _v19_gated_rollout_env(drivers="D007,D010", max_gap=20, bonus_cap=8, d010_limit=200),
+        "hot_v20_d010limit205": _v19_gated_rollout_env(drivers="D007,D010", max_gap=20, bonus_cap=8, d010_limit=205),
+    }
+)
+
+
+def _v21_d010_night_env(
+    *,
+    bonus: int = 35,
+    risk: int = 35,
+    max_haul: int = 90,
+    max_pickup: int = 30,
+    max_total: int = 420,
+    deadline_hour: int = 8,
+    drivers: str = "D007,D010",
+) -> dict[str, str]:
+    env = _v19_gated_rollout_env(drivers=drivers, max_gap=20, bonus_cap=8, d007_limit=420, d010_limit=200)
+    env.update(
+        {
+            "AGENT_AP_ENABLE_D010_NIGHT_REST_PRESERVE": "1",
+            "AGENT_AP_D010_NIGHT_REST_BONUS": str(bonus),
+            "AGENT_AP_D010_NIGHT_REST_RISK_COST": str(risk),
+            "AGENT_AP_D010_NIGHT_REST_MAX_HAUL_KM": str(max_haul),
+            "AGENT_AP_D010_NIGHT_REST_MAX_PICKUP_KM": str(max_pickup),
+            "AGENT_AP_D010_NIGHT_REST_MAX_TOTAL_MINUTES": str(max_total),
+            "AGENT_AP_D010_NIGHT_REST_DEADLINE_HOUR": str(deadline_hour),
+        }
+    )
+    return env
+
+
+PRESETS.update(
+    {
+        # v21: generalize the D010 positive action-level finding. The winning
+        # D010 branch avoids a long night job, returns to the family/target area
+        # earlier, and preserves a 3h rest block before the next morning.
+        "hot_v21_d010night_b20_r20": _v21_d010_night_env(bonus=20, risk=20),
+        "hot_v21_d010night_b35_r35": _v21_d010_night_env(bonus=35, risk=35),
+        "hot_v21_d010night_b50_r35": _v21_d010_night_env(bonus=50, risk=35),
+        "hot_v21_d010night_b35_r50": _v21_d010_night_env(bonus=35, risk=50),
+        "hot_v21_d010night_b60_r60": _v21_d010_night_env(bonus=60, risk=60),
+
+        "hot_v21_d010night_haul60": _v21_d010_night_env(max_haul=60),
+        "hot_v21_d010night_haul75": _v21_d010_night_env(max_haul=75),
+        "hot_v21_d010night_haul90": _v21_d010_night_env(max_haul=90),
+        "hot_v21_d010night_haul110": _v21_d010_night_env(max_haul=110),
+
+        "hot_v21_d010night_pickup20": _v21_d010_night_env(max_pickup=20),
+        "hot_v21_d010night_pickup30": _v21_d010_night_env(max_pickup=30),
+        "hot_v21_d010night_pickup40": _v21_d010_night_env(max_pickup=40),
+
+        "hot_v21_d010night_total300": _v21_d010_night_env(max_total=300),
+        "hot_v21_d010night_total360": _v21_d010_night_env(max_total=360),
+        "hot_v21_d010night_total420": _v21_d010_night_env(max_total=420),
+        "hot_v21_d010night_total480": _v21_d010_night_env(max_total=480),
+
+        "hot_v21_d010night_deadline7": _v21_d010_night_env(deadline_hour=7),
+        "hot_v21_d010night_deadline8": _v21_d010_night_env(deadline_hour=8),
+        "hot_v21_d010night_deadline9": _v21_d010_night_env(deadline_hour=9),
+
+        "hot_v21_d010night_d010_only": _v21_d010_night_env(drivers="D010"),
+        "hot_v21_d010night_no_gated_d007": _v21_d010_night_env(drivers="D010"),
+        "hot_v21_d010night_confirm": _v21_d010_night_env(),
+    }
+)
+
+
+def _v22_d010_recovery_env(
+    *,
+    drivers: str = "D007",
+    bonus: int = 28,
+    cap: int = 60,
+    top_k: int = 3,
+    max_base_drop: int = 60,
+    deadline_hour: int = 8,
+    slack: int = 0,
+    start_minute: int = 20 * 60,
+    end_minute: int = 24 * 60,
+    include_d010_rollout: bool = False,
+) -> dict[str, str]:
+    rollout_drivers = "D007,D010" if include_d010_rollout else drivers
+    env = _v19_gated_rollout_env(
+        drivers=rollout_drivers,
+        max_gap=20,
+        bonus_cap=8,
+        top_k=3,
+        d007_limit=420,
+        d010_limit=200,
+    )
+    if not rollout_drivers:
+        env.pop("AGENT_AP_ENABLE_GATED_ROLLOUT", None)
+        env.pop("AGENT_AP_GATED_ROLLOUT_DRIVERS", None)
+    env.update(
+        {
+            "AGENT_AP_ENABLE_D010_RECOVERY_GATE": "1",
+            "AGENT_AP_D010_RECOVERY_BONUS": str(bonus),
+            "AGENT_AP_D010_RECOVERY_BONUS_CAP": str(cap),
+            "AGENT_AP_D010_RECOVERY_TOP_K": str(top_k),
+            "AGENT_AP_D010_RECOVERY_MAX_BASE_DROP": str(max_base_drop),
+            "AGENT_AP_D010_RECOVERY_DEADLINE_HOUR": str(deadline_hour),
+            "AGENT_AP_D010_RECOVERY_SLACK_MINUTES": str(slack),
+            "AGENT_AP_D010_RECOVERY_START_MINUTE": str(start_minute),
+            "AGENT_AP_D010_RECOVERY_END_MINUTE": str(end_minute),
+        }
+    )
+    return env
+
+
+PRESETS.update(
+    {
+        # v22: base-aware D010 recovery gate. Unlike v21, it only intervenes
+        # when the base top order cannot return to family/target area and still
+        # complete the required rest block before the morning deadline.
+        "hot_v22_recovery_b18": _v22_d010_recovery_env(bonus=18),
+        "hot_v22_recovery_b28": _v22_d010_recovery_env(bonus=28),
+        "hot_v22_recovery_b40": _v22_d010_recovery_env(bonus=40),
+        "hot_v22_recovery_b55": _v22_d010_recovery_env(bonus=55),
+
+        "hot_v22_recovery_top2": _v22_d010_recovery_env(top_k=2),
+        "hot_v22_recovery_top3": _v22_d010_recovery_env(top_k=3),
+        "hot_v22_recovery_top5": _v22_d010_recovery_env(top_k=5),
+
+        "hot_v22_recovery_drop30": _v22_d010_recovery_env(max_base_drop=30),
+        "hot_v22_recovery_drop60": _v22_d010_recovery_env(max_base_drop=60),
+        "hot_v22_recovery_drop100": _v22_d010_recovery_env(max_base_drop=100),
+
+        "hot_v22_recovery_deadline7": _v22_d010_recovery_env(deadline_hour=7),
+        "hot_v22_recovery_deadline8": _v22_d010_recovery_env(deadline_hour=8),
+        "hot_v22_recovery_deadline9": _v22_d010_recovery_env(deadline_hour=9),
+        "hot_v22_recovery_slack30": _v22_d010_recovery_env(slack=30),
+        "hot_v22_recovery_slack60": _v22_d010_recovery_env(slack=60),
+
+        "hot_v22_recovery_start19": _v22_d010_recovery_env(start_minute=19 * 60),
+        "hot_v22_recovery_start20": _v22_d010_recovery_env(start_minute=20 * 60),
+        "hot_v22_recovery_start21": _v22_d010_recovery_env(start_minute=21 * 60),
+
+        "hot_v22_recovery_only": _v22_d010_recovery_env(drivers=""),
+        "hot_v22_recovery_only_b18": _v22_d010_recovery_env(drivers="", bonus=18),
+        "hot_v22_recovery_only_b40": _v22_d010_recovery_env(drivers="", bonus=40),
+        "hot_v22_recovery_d010_only": _v22_d010_recovery_env(drivers="D010"),
+        "hot_v22_recovery_plus_d010_tiny": _v22_d010_recovery_env(include_d010_rollout=True),
+        "hot_v22_recovery_plus_d010_tiny_b18": _v22_d010_recovery_env(bonus=18, include_d010_rollout=True),
+        "hot_v22_recovery_plus_d010_tiny_b40": _v22_d010_recovery_env(bonus=40, include_d010_rollout=True),
+    }
+)
+
+
+def _flash_submission_env(
+    *,
+    drivers: str = "D007,D010",
+    max_score_drop: int = 0,
+    max_net_drop: int = 0,
+    min_score_improvement: int = 0,
+    min_net_improvement: int = 0,
+    observe_only: bool = False,
+) -> dict[str, str]:
+    env = _v19_gated_rollout_env(drivers="D007,D010", max_gap=8, bonus_cap=8, top_k=2, d007_limit=420, d010_limit=200)
+    env.update(
+        {
+            "AGENT_STRATEGY": "llm_rerank_agent",
+            "AGENT_LLM_RERANK_BASE_STRATEGY": "new_release_agentic_planner_agent",
+            "AGENT_LLM_MODEL": "qwen3.5-flash",
+            "AGENT_LLM_RERANK_DRIVERS": drivers,
+            "AGENT_LLM_RERANK_TOP_K": "2",
+            "AGENT_LLM_RERANK_NEAR_TIE_ONLY": "1",
+            "AGENT_LLM_RERANK_MAX_SCORE_GAP": "8",
+            "AGENT_LLM_MAX_SCORE_DROP": str(max_score_drop),
+            "AGENT_LLM_MAX_NET_DROP": str(max_net_drop),
+            "AGENT_LLM_MIN_SCORE_IMPROVEMENT": str(min_score_improvement),
+            "AGENT_LLM_MIN_NET_IMPROVEMENT": str(min_net_improvement),
+            "AGENT_LLM_MAX_TOKENS": "64",
+            "AGENT_LLM_TEMPERATURE": "0",
+            "AGENT_LLM_ENABLE_THINKING": "0",
+        }
+    )
+    if observe_only:
+        env["AGENT_LLM_OBSERVE_ONLY"] = "1"
+    return env
+
+
+PRESETS.update(
+    {
+        # Submission-mode Flash wrapper: v20 deterministic agent remains the
+        # optimizer, Qwen3.5-Flash only reranks D007/D010 near-tie top-2 choices.
+        "hot_v20_flash_submission_top2": _flash_submission_env(),
+        "hot_v20_flash_submission_observe": _flash_submission_env(observe_only=True),
+        "hot_v20_flash_observe_d007": _flash_submission_env(drivers="D007", observe_only=True),
+        "hot_v20_flash_observe_d010": _flash_submission_env(drivers="D010", observe_only=True),
+        "hot_v20_flash_strict_d007": _flash_submission_env(drivers="D007"),
+        "hot_v20_flash_strict_d010": _flash_submission_env(drivers="D010"),
+        "hot_v20_flash_improve1": _flash_submission_env(min_score_improvement=1),
+        "hot_v20_flash_improve3": _flash_submission_env(min_score_improvement=3),
+        "hot_v20_flash_improve5": _flash_submission_env(min_score_improvement=5),
+        "hot_v20_flash_d010_relaxed_s1": _flash_submission_env(drivers="D010", max_score_drop=1),
+        "hot_v20_flash_d007_relaxed_s1": _flash_submission_env(drivers="D007", max_score_drop=1),
+        "hot_v20_flash_relaxed_s1": _flash_submission_env(max_score_drop=1),
+    }
+)
+
+
+def _v20_best_env() -> dict[str, str]:
+    return _v19_gated_rollout_env(
+        drivers="D007,D010",
+        max_gap=8,
+        bonus_cap=8,
+        top_k=2,
+        d007_limit=420,
+        d010_limit=200,
+    )
+
+
+def _v23_shadow_rest_env(
+    *,
+    drivers: str,
+    d001: tuple[int, int, str] | None = None,
+    d006: tuple[int, int, str] | None = None,
+    d010: tuple[int, int, str] | None = None,
+    require_no_order: bool = True,
+) -> dict[str, str]:
+    env = _v20_best_env()
+    env.update(
+        {
+            "AGENT_AP_ENABLE_SHADOW_REST": "1",
+            "AGENT_AP_SHADOW_REST_DRIVERS": drivers,
+            "AGENT_AP_SHADOW_REST_REQUIRE_NO_ORDER": "1" if require_no_order else "0",
+        }
+    )
+    for driver, spec in (("D001", d001), ("D006", d006), ("D010", d010)):
+        if spec is None:
+            continue
+        max_nph, max_net, opp_mult = spec
+        env[f"AGENT_AP_{driver}_SHADOW_REST_MAX_NPH"] = str(max_nph)
+        env[f"AGENT_AP_{driver}_SHADOW_REST_MAX_NET"] = str(max_net)
+        env[f"AGENT_AP_{driver}_SHADOW_REST_OPPORTUNITY_MULT"] = opp_mult
+    return env
+
+
+def _v23_opportunity_rest_env(
+    *,
+    drivers: str,
+    d001_max_nph: int | None = None,
+    d006_max_nph: int | None = None,
+    require_no_order: bool = True,
+    min_minute: int = 0,
+    max_minute: int = 12 * 60,
+) -> dict[str, str]:
+    env = _v20_best_env()
+    for driver in drivers.split(","):
+        driver = driver.strip()
+        if not driver:
+            continue
+        env[f"AGENT_AP_{driver}_ENABLE_OPPORTUNITY_REST"] = "1"
+        env[f"AGENT_AP_{driver}_OPPORTUNITY_REST_REQUIRE_NO_ORDER"] = "1" if require_no_order else "0"
+        env[f"AGENT_AP_{driver}_OPPORTUNITY_REST_MIN_MINUTE"] = str(min_minute)
+        env[f"AGENT_AP_{driver}_OPPORTUNITY_REST_MAX_MINUTE"] = str(max_minute)
+    if d001_max_nph is not None:
+        env["AGENT_AP_D001_OPPORTUNITY_REST_MAX_NPH"] = str(d001_max_nph)
+    if d006_max_nph is not None:
+        env["AGENT_AP_D006_OPPORTUNITY_REST_MAX_NPH"] = str(d006_max_nph)
+    return env
+
+
+def _v23_gated_probe_env(
+    *,
+    drivers: str,
+    max_gap: int = 8,
+    bonus_cap: int = 4,
+    top_k: int = 2,
+    max_base_drop: int = 30,
+) -> dict[str, str]:
+    return _v19_gated_rollout_env(
+        drivers=drivers,
+        max_gap=max_gap,
+        bonus_cap=bonus_cap,
+        top_k=top_k,
+        max_base_drop=max_base_drop,
+        d007_limit=420,
+        d010_limit=200,
+    )
+
+
+def _v23_wide_query_env(**limits: int) -> dict[str, str]:
+    env = _v20_best_env()
+    for driver, limit in limits.items():
+        env[f"AGENT_{driver}_NEAREST_CARGO_LIMIT"] = str(limit)
+    return env
+
+
+def _v23_rollout_shape_env(
+    *,
+    next_net_weight: str = "0.055",
+    next_nph_weight: str = "0.42",
+    max_pickup: int = 180,
+    max_wait: int = 180,
+    density_min: int = 28,
+    avg_next_weight: str = "0.35",
+) -> dict[str, str]:
+    env = _v23_gated_probe_env(drivers="D007,D010", max_gap=8, bonus_cap=8, top_k=2, max_base_drop=60)
+    env.update(
+        {
+            "AGENT_AP_ROLLOUT_NEXT_NET_WEIGHT": next_net_weight,
+            "AGENT_AP_ROLLOUT_NEXT_NPH_WEIGHT": next_nph_weight,
+            "AGENT_AP_ROLLOUT_SUCCESSOR_MAX_PICKUP_MINUTES": str(max_pickup),
+            "AGENT_AP_ROLLOUT_SUCCESSOR_MAX_WAIT_MINUTES": str(max_wait),
+            "AGENT_AP_ROLLOUT_DENSITY_MIN_VALUE": str(density_min),
+            "AGENT_AP_ROLLOUT_AVG_NEXT_WEIGHT": avg_next_weight,
+        }
+    )
+    return env
+
+
+def _v23_ungated_rollout_env(*, drivers: str, weight: str = "0.006") -> dict[str, str]:
+    env = _v20_best_env()
+    env.pop("AGENT_AP_ENABLE_GATED_ROLLOUT", None)
+    env.pop("AGENT_AP_GATED_ROLLOUT_DRIVERS", None)
+    env.update(
+        {
+            "AGENT_AP_ENABLE_TWO_STEP_ROLLOUT": "1",
+            "AGENT_AP_ROLLOUT_DRIVERS": drivers,
+            "AGENT_AP_D001_ROLLOUT_WEIGHT": weight,
+            "AGENT_AP_D004_ROLLOUT_WEIGHT": weight,
+            "AGENT_AP_D006_ROLLOUT_WEIGHT": weight,
+            "AGENT_AP_D007_ROLLOUT_WEIGHT": weight,
+            "AGENT_AP_D009_ROLLOUT_WEIGHT": weight,
+            "AGENT_AP_D010_ROLLOUT_WEIGHT": weight,
+            "AGENT_AP_ROLLOUT_VALUE_CAP": "90",
+        }
+    )
+    return env
+
+
+def _v23_flash_probe_env(*, drivers: str, top_k: int = 3, gap: int = 20) -> dict[str, str]:
+    env = _v20_best_env()
+    env.update(
+        {
+            "AGENT_STRATEGY": "llm_rerank_agent",
+            "AGENT_LLM_RERANK_BASE_STRATEGY": "new_release_agentic_planner_agent",
+            "AGENT_LLM_MODEL": "qwen3.5-flash",
+            "AGENT_LLM_RERANK_DRIVERS": drivers,
+            "AGENT_LLM_RERANK_TOP_K": str(top_k),
+            "AGENT_LLM_RERANK_NEAR_TIE_ONLY": "1",
+            "AGENT_LLM_RERANK_MAX_SCORE_GAP": str(gap),
+            "AGENT_LLM_MAX_SCORE_DROP": "0",
+            "AGENT_LLM_MAX_NET_DROP": "0",
+            "AGENT_LLM_MIN_SCORE_IMPROVEMENT": "0",
+            "AGENT_LLM_MIN_NET_IMPROVEMENT": "0",
+            "AGENT_LLM_MAX_TOKENS": "64",
+            "AGENT_LLM_TEMPERATURE": "0",
+            "AGENT_LLM_ENABLE_THINKING": "0",
+        }
+    )
+    return env
+
+
+PRESETS.update(
+    {
+        # v23: broad, inefficient probes from the verified v20 0509 best.
+        # These are intentionally exploratory and should not be used for
+        # submission unless a follow-up run confirms a positive delta.
+        "hot_v23_shadow_d001_soft": _v23_shadow_rest_env(drivers="D001", d001=(35, 300, "0.32")),
+        "hot_v23_shadow_d001_loose": _v23_shadow_rest_env(drivers="D001", d001=(60, 500, "0.22")),
+        "hot_v23_shadow_d001_aggressive": _v23_shadow_rest_env(drivers="D001", d001=(999, 9999, "0.12")),
+        "hot_v23_shadow_d006_soft": _v23_shadow_rest_env(drivers="D006", d006=(35, 520, "0.85")),
+        "hot_v23_shadow_d006_loose": _v23_shadow_rest_env(drivers="D006", d006=(50, 800, "0.55")),
+        "hot_v23_shadow_d006_aggressive": _v23_shadow_rest_env(drivers="D006", d006=(999, 9999, "0.20")),
+        "hot_v23_shadow_d001d006_loose": _v23_shadow_rest_env(
+            drivers="D001,D006",
+            d001=(60, 500, "0.22"),
+            d006=(50, 800, "0.55"),
+        ),
+        "hot_v23_shadow_d001d006d010_loose": _v23_shadow_rest_env(
+            drivers="D001,D006,D010",
+            d001=(60, 500, "0.22"),
+            d006=(50, 800, "0.55"),
+            d010=(55, 700, "0.38"),
+        ),
+
+        "hot_v23_opp_rest_d001_35": _v23_opportunity_rest_env(drivers="D001", d001_max_nph=35),
+        "hot_v23_opp_rest_d001_55": _v23_opportunity_rest_env(drivers="D001", d001_max_nph=55),
+        "hot_v23_opp_rest_d006_35": _v23_opportunity_rest_env(drivers="D006", d006_max_nph=35),
+        "hot_v23_opp_rest_d006_55": _v23_opportunity_rest_env(drivers="D006", d006_max_nph=55),
+        "hot_v23_opp_rest_d006_anyday": _v23_opportunity_rest_env(
+            drivers="D006",
+            d006_max_nph=75,
+            max_minute=23 * 60,
+        ),
+        "hot_v23_opp_rest_d001d006_35": _v23_opportunity_rest_env(
+            drivers="D001,D006",
+            d001_max_nph=35,
+            d006_max_nph=35,
+        ),
+
+        "hot_v23_gated_d001_tiny": _v23_gated_probe_env(drivers="D001,D007,D010"),
+        "hot_v23_gated_d006_tiny": _v23_gated_probe_env(drivers="D006,D007,D010"),
+        "hot_v23_gated_d001d006_tiny": _v23_gated_probe_env(drivers="D001,D006,D007,D010"),
+        "hot_v23_gated_d004_tiny": _v23_gated_probe_env(drivers="D004,D007,D010", max_gap=6, bonus_cap=3),
+        "hot_v23_gated_all_tiny_gap4": _v23_gated_probe_env(
+            drivers="D001,D004,D006,D007,D009,D010",
+            max_gap=4,
+            bonus_cap=2,
+            max_base_drop=20,
+        ),
+        "hot_v23_gated_all_tiny_gap8": _v23_gated_probe_env(
+            drivers="D001,D004,D006,D007,D009,D010",
+            max_gap=8,
+            bonus_cap=3,
+            max_base_drop=25,
+        ),
+
+        "hot_v23_wide_d001500": _v23_wide_query_env(D001=500),
+        "hot_v23_wide_d003400": _v23_wide_query_env(D003=400),
+        "hot_v23_wide_d005700": _v23_wide_query_env(D005=700),
+        "hot_v23_wide_d006260": _v23_wide_query_env(D006=260),
+        "hot_v23_wide_d006320": _v23_wide_query_env(D006=320),
+        "hot_v23_wide_d007600": _v23_wide_query_env(D007=600),
+        "hot_v23_wide_d009350": _v23_wide_query_env(D009=350),
+        "hot_v23_wide_d010350": _v23_wide_query_env(D010=350),
+        "hot_v23_wide_all_moderate": _v23_wide_query_env(
+            D001=500,
+            D003=400,
+            D004=800,
+            D005=700,
+            D006=300,
+            D007=600,
+            D008=500,
+            D009=350,
+            D010=350,
+        ),
+        "hot_v23_wide_all_extreme": _v23_wide_query_env(
+            D001=650,
+            D003=550,
+            D004=950,
+            D005=950,
+            D006=420,
+            D007=850,
+            D008=650,
+            D009=550,
+            D010=550,
+        ),
+
+        "hot_v23_rollout_shape_netheavy": _v23_rollout_shape_env(next_net_weight="0.075", next_nph_weight="0.34"),
+        "hot_v23_rollout_shape_nphheavy": _v23_rollout_shape_env(next_net_weight="0.040", next_nph_weight="0.55"),
+        "hot_v23_rollout_shape_wide_successor": _v23_rollout_shape_env(max_pickup=300, max_wait=300),
+        "hot_v23_rollout_shape_tight_successor": _v23_rollout_shape_env(max_pickup=90, max_wait=90),
+        "hot_v23_rollout_shape_density_low": _v23_rollout_shape_env(density_min=18, avg_next_weight="0.55"),
+
+        "hot_v23_ungated_rollout_d007d010_ultra": _v23_ungated_rollout_env(drivers="D007,D010", weight="0.006"),
+        "hot_v23_ungated_rollout_core_ultra": _v23_ungated_rollout_env(
+            drivers="D001,D004,D006,D007,D009,D010",
+            weight="0.004",
+        ),
+
+        "hot_v23_flash_probe_d001_top3": _v23_flash_probe_env(drivers="D001", top_k=3, gap=20),
+        "hot_v23_flash_probe_d006_top3": _v23_flash_probe_env(drivers="D006", top_k=3, gap=20),
+        "hot_v23_flash_probe_d009_top3": _v23_flash_probe_env(drivers="D009", top_k=3, gap=20),
+        "hot_v23_flash_probe_d007d010_top3": _v23_flash_probe_env(drivers="D007,D010", top_k=3, gap=20),
+        "hot_v23_flash_probe_core_top3": _v23_flash_probe_env(drivers="D001,D006,D007,D009,D010", top_k=3, gap=20),
+    }
+)
+
+
+def _v24_d001_rest_env(
+    *,
+    max_nph: int = 55,
+    min_minute: int = 0,
+    max_minute: int = 12 * 60,
+    require_no_order: bool = True,
+    days: str | None = None,
+) -> dict[str, str]:
+    env = _v23_opportunity_rest_env(
+        drivers="D001",
+        d001_max_nph=max_nph,
+        require_no_order=require_no_order,
+        min_minute=min_minute,
+        max_minute=max_minute,
+    )
+    if days is not None:
+        env["AGENT_AP_D001_OPPORTUNITY_REST_DAYS"] = days
+    return env
+
+
+def _v24_d010_rollout_env(
+    *,
+    next_net_weight: str = "0.040",
+    next_nph_weight: str = "0.55",
+    max_pickup: int = 180,
+    max_wait: int = 180,
+    density_min: int = 28,
+    avg_next_weight: str = "0.35",
+    gap: int = 8,
+    cap: int = 8,
+    top_k: int = 2,
+) -> dict[str, str]:
+    env = _v23_gated_probe_env(
+        drivers="D007,D010",
+        max_gap=gap,
+        bonus_cap=cap,
+        top_k=top_k,
+        max_base_drop=60,
+    )
+    env.update(
+        {
+            "AGENT_AP_ROLLOUT_NEXT_NET_WEIGHT": next_net_weight,
+            "AGENT_AP_ROLLOUT_NEXT_NPH_WEIGHT": next_nph_weight,
+            "AGENT_AP_ROLLOUT_SUCCESSOR_MAX_PICKUP_MINUTES": str(max_pickup),
+            "AGENT_AP_ROLLOUT_SUCCESSOR_MAX_WAIT_MINUTES": str(max_wait),
+            "AGENT_AP_ROLLOUT_DENSITY_MIN_VALUE": str(density_min),
+            "AGENT_AP_ROLLOUT_AVG_NEXT_WEIGHT": avg_next_weight,
+        }
+    )
+    return env
+
+
+def _v24_stack_env(
+    *,
+    d001_max_nph: int = 55,
+    d001_minute_max: int = 12 * 60,
+    d001_require_no_order: bool = True,
+    d001_days: str | None = None,
+    next_net_weight: str = "0.040",
+    next_nph_weight: str = "0.55",
+    max_pickup: int = 180,
+    max_wait: int = 180,
+    density_min: int = 28,
+    avg_next_weight: str = "0.35",
+    gap: int = 8,
+    cap: int = 8,
+    top_k: int = 2,
+) -> dict[str, str]:
+    env = _v24_d010_rollout_env(
+        next_net_weight=next_net_weight,
+        next_nph_weight=next_nph_weight,
+        max_pickup=max_pickup,
+        max_wait=max_wait,
+        density_min=density_min,
+        avg_next_weight=avg_next_weight,
+        gap=gap,
+        cap=cap,
+        top_k=top_k,
+    )
+    env.update(
+        {
+            "AGENT_AP_D001_ENABLE_OPPORTUNITY_REST": "1",
+            "AGENT_AP_D001_OPPORTUNITY_REST_REQUIRE_NO_ORDER": "1" if d001_require_no_order else "0",
+            "AGENT_AP_D001_OPPORTUNITY_REST_MIN_MINUTE": "0",
+            "AGENT_AP_D001_OPPORTUNITY_REST_MAX_MINUTE": str(d001_minute_max),
+            "AGENT_AP_D001_OPPORTUNITY_REST_MAX_NPH": str(d001_max_nph),
+        }
+    )
+    if d001_days is not None:
+        env["AGENT_AP_D001_OPPORTUNITY_REST_DAYS"] = d001_days
+    return env
+
+
+PRESETS.update(
+    {
+        # v24: refine the first positive v23 discoveries. D001 opportunity rest
+        # and D010 NPH-heavy gated rollout affect different drivers, so the
+        # first question is whether they add independently.
+        "hot_v24_stack_d00155_d010nph": _v24_stack_env(),
+        "hot_v24_stack_d00155_d010tight": _v24_stack_env(max_pickup=90, max_wait=90),
+        "hot_v24_stack_d00155_d010nph_gap4": _v24_stack_env(gap=4),
+        "hot_v24_stack_d00155_d010nph_gap12": _v24_stack_env(gap=12),
+        "hot_v24_stack_d00155_d010nph_cap4": _v24_stack_env(cap=4),
+        "hot_v24_stack_d00155_d010nph_cap12": _v24_stack_env(cap=12),
+
+        # D001 rest threshold/window search around the discovered max_nph=55.
+        "hot_v24_d001rest45": _v24_d001_rest_env(max_nph=45),
+        "hot_v24_d001rest50": _v24_d001_rest_env(max_nph=50),
+        "hot_v24_d001rest52": _v24_d001_rest_env(max_nph=52),
+        "hot_v24_d001rest55": _v24_d001_rest_env(max_nph=55),
+        "hot_v24_d001rest58": _v24_d001_rest_env(max_nph=58),
+        "hot_v24_d001rest60": _v24_d001_rest_env(max_nph=60),
+        "hot_v24_d001rest65": _v24_d001_rest_env(max_nph=65),
+        "hot_v24_d001rest55_until10": _v24_d001_rest_env(max_nph=55, max_minute=10 * 60),
+        "hot_v24_d001rest55_until11": _v24_d001_rest_env(max_nph=55, max_minute=11 * 60),
+        "hot_v24_d001rest55_until14": _v24_d001_rest_env(max_nph=55, max_minute=14 * 60),
+        "hot_v24_d001rest55_any_order": _v24_d001_rest_env(max_nph=55, require_no_order=False),
+
+        # D010 rollout shape search around the discovered NPH-heavy value.
+        "hot_v24_d010nph050": _v24_d010_rollout_env(next_net_weight="0.040", next_nph_weight="0.50"),
+        "hot_v24_d010nph055": _v24_d010_rollout_env(next_net_weight="0.040", next_nph_weight="0.55"),
+        "hot_v24_d010nph060": _v24_d010_rollout_env(next_net_weight="0.040", next_nph_weight="0.60"),
+        "hot_v24_d010nph065": _v24_d010_rollout_env(next_net_weight="0.040", next_nph_weight="0.65"),
+        "hot_v24_d010net035_nph055": _v24_d010_rollout_env(next_net_weight="0.035", next_nph_weight="0.55"),
+        "hot_v24_d010net045_nph055": _v24_d010_rollout_env(next_net_weight="0.045", next_nph_weight="0.55"),
+        "hot_v24_d010nph055_pickup120_wait120": _v24_d010_rollout_env(
+            next_net_weight="0.040",
+            next_nph_weight="0.55",
+            max_pickup=120,
+            max_wait=120,
+        ),
+        "hot_v24_d010nph055_pickup90_wait90": _v24_d010_rollout_env(
+            next_net_weight="0.040",
+            next_nph_weight="0.55",
+            max_pickup=90,
+            max_wait=90,
+        ),
+        "hot_v24_d010nph055_top3": _v24_d010_rollout_env(next_net_weight="0.040", next_nph_weight="0.55", top_k=3),
+    }
+)
+
+
+def _v25_best296_env() -> dict[str, str]:
+    return _v24_stack_env()
+
+
+def _v25_d006_forced_rest_env(
+    *,
+    max_nph: int = 999,
+    max_net: int = 99999,
+    min_minute: int = 0,
+    max_minute: int = 23 * 60,
+    require_no_order: bool = False,
+    after_orders: int = -1,
+    days: str | None = None,
+) -> dict[str, str]:
+    env = _v25_best296_env()
+    env.update(
+        {
+            "AGENT_AP_ENABLE_D006_FORCED_REST": "1",
+            "AGENT_AP_D006_FORCED_REST_MINUTES": str(5 * 60),
+            "AGENT_AP_D006_FORCED_REST_MAX_NPH": str(max_nph),
+            "AGENT_AP_D006_FORCED_REST_MAX_NET": str(max_net),
+            "AGENT_AP_D006_FORCED_REST_MIN_MINUTE": str(min_minute),
+            "AGENT_AP_D006_FORCED_REST_MAX_MINUTE": str(max_minute),
+            "AGENT_AP_D006_FORCED_REST_REQUIRE_NO_ORDER": "1" if require_no_order else "0",
+            "AGENT_AP_D006_FORCED_REST_AFTER_ORDERS": str(after_orders),
+        }
+    )
+    if days is not None:
+        env["AGENT_AP_D006_FORCED_REST_DAYS"] = days
+    return env
+
+
+def _v25_d006_shadow_env(
+    *,
+    max_nph: int = 80,
+    max_net: int = 1200,
+    opp_mult: str = "0.20",
+    require_no_order: bool = False,
+    max_minute: int = 23 * 60,
+) -> dict[str, str]:
+    env = _v25_best296_env()
+    env.update(
+        {
+            "AGENT_AP_ENABLE_SHADOW_REST": "1",
+            "AGENT_AP_SHADOW_REST_DRIVERS": "D006",
+            "AGENT_AP_SHADOW_REST_REQUIRE_NO_ORDER": "1" if require_no_order else "0",
+            "AGENT_AP_D006_SHADOW_REST_MAX_NPH": str(max_nph),
+            "AGENT_AP_D006_SHADOW_REST_MAX_NET": str(max_net),
+            "AGENT_AP_D006_SHADOW_REST_OPPORTUNITY_MULT": opp_mult,
+            "AGENT_AP_D006_SHADOW_REST_MAX_MINUTE": str(max_minute),
+        }
+    )
+    return env
+
+
+PRESETS.update(
+    {
+        # v25: the remaining large penalty is D006's daily 5h rest. These
+        # presets start from the 296127.42 best and test controlled rest
+        # insertion after fixing the parser for "连着停车休息满5小时".
+        "hot_v25_best296_confirm": _v25_best296_env(),
+        "hot_v25_d006_forced_nph60": _v25_d006_forced_rest_env(max_nph=60),
+        "hot_v25_d006_forced_nph80": _v25_d006_forced_rest_env(max_nph=80),
+        "hot_v25_d006_forced_nph100": _v25_d006_forced_rest_env(max_nph=100),
+        "hot_v25_d006_forced_nph999": _v25_d006_forced_rest_env(max_nph=999),
+        "hot_v25_d006_forced_morning": _v25_d006_forced_rest_env(max_nph=120, min_minute=0, max_minute=12 * 60),
+        "hot_v25_d006_forced_after1": _v25_d006_forced_rest_env(max_nph=120, after_orders=1),
+        "hot_v25_d006_forced_after2": _v25_d006_forced_rest_env(max_nph=120, after_orders=2),
+        "hot_v25_d006_forced_days_bad": _v25_d006_forced_rest_env(
+            max_nph=120,
+            days="4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30",
+        ),
+        "hot_v25_d006_forced_days_late": _v25_d006_forced_rest_env(
+            max_nph=120,
+            days="15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30",
+        ),
+
+        "hot_v25_d006_shadow_nph60": _v25_d006_shadow_env(max_nph=60, max_net=900, opp_mult="0.20"),
+        "hot_v25_d006_shadow_nph80": _v25_d006_shadow_env(max_nph=80, max_net=1200, opp_mult="0.20"),
+        "hot_v25_d006_shadow_nph120": _v25_d006_shadow_env(max_nph=120, max_net=1800, opp_mult="0.15"),
+        "hot_v25_d006_shadow_morning": _v25_d006_shadow_env(max_nph=120, max_net=1800, opp_mult="0.15", max_minute=12 * 60),
+    }
+)
+
+
+def _v26_flash_skill_critic_env(
+    *,
+    drivers: str = "D007,D010",
+    top_k: int = 2,
+    gap: int = 8,
+    max_score_drop: int = 0,
+    max_net_drop: int = 0,
+    min_score_improvement: int = 0,
+    min_net_improvement: int = 0,
+    reject_risks: str = "",
+    allow_keep_switch: bool = False,
+) -> dict[str, str]:
+    env = _v24_stack_env()
+    env.update(
+        {
+            "AGENT_STRATEGY": "llm_rerank_agent",
+            "AGENT_LLM_RERANK_BASE_STRATEGY": "new_release_agentic_planner_agent",
+            "AGENT_LLM_MODEL": "qwen3.5-flash",
+            "AGENT_LLM_RERANK_DRIVERS": drivers,
+            "AGENT_LLM_RERANK_TOP_K": str(top_k),
+            "AGENT_LLM_RERANK_NEAR_TIE_ONLY": "1",
+            "AGENT_LLM_RERANK_MAX_SCORE_GAP": str(gap),
+            "AGENT_LLM_MAX_SCORE_DROP": str(max_score_drop),
+            "AGENT_LLM_MAX_NET_DROP": str(max_net_drop),
+            "AGENT_LLM_MIN_SCORE_IMPROVEMENT": str(min_score_improvement),
+            "AGENT_LLM_MIN_NET_IMPROVEMENT": str(min_net_improvement),
+            "AGENT_LLM_SKILL_CRITIC": "1",
+            "AGENT_LLM_MAX_TOKENS": "96",
+            "AGENT_LLM_TEMPERATURE": "0",
+            "AGENT_LLM_ENABLE_THINKING": "0",
+        }
+    )
+    if reject_risks:
+        env["AGENT_LLM_SKILL_CRITIC_REJECT_RISKS"] = reject_risks
+    if allow_keep_switch:
+        env["AGENT_LLM_SKILL_CRITIC_ALLOW_KEEP_SWITCH"] = "1"
+    return env
+
+
+PRESETS.update(
+    {
+        # v26: Qwen3.5-Flash is used as an agentic skill critic on top of the
+        # verified 296127.42 v24 stack. The numeric guard still rejects any
+        # candidate that drops rule score/net, so this probes LLM judgment
+        # without sacrificing fallback safety.
+        "hot_v26_skill_d007d010_top2": _v26_flash_skill_critic_env(),
+        "hot_v26_skill_d010_top2": _v26_flash_skill_critic_env(drivers="D010"),
+        "hot_v26_skill_d007_top2": _v26_flash_skill_critic_env(drivers="D007"),
+        "hot_v26_skill_d001_top2": _v26_flash_skill_critic_env(drivers="D001"),
+        "hot_v26_skill_d009_top2": _v26_flash_skill_critic_env(drivers="D009"),
+        "hot_v26_skill_core_top2": _v26_flash_skill_critic_env(drivers="D001,D007,D009,D010"),
+        "hot_v26_skill_d007d010_top3": _v26_flash_skill_critic_env(top_k=3, gap=12),
+        "hot_v26_skill_d010_top3_gap12": _v26_flash_skill_critic_env(drivers="D010", top_k=3, gap=12),
+        "hot_v26_skill_d007d010_improve1": _v26_flash_skill_critic_env(min_score_improvement=1),
+        "hot_v26_skill_d007d010_reject_risk": _v26_flash_skill_critic_env(reject_risks="preference,deadline,unknown"),
+        "hot_v26_skill_d010_relaxed_s1": _v26_flash_skill_critic_env(drivers="D010", max_score_drop=1),
+        "hot_v26_skill_d007_relaxed_s1": _v26_flash_skill_critic_env(drivers="D007", max_score_drop=1),
+    }
+)
+
+
+def _v27_prequery_env(**overrides: str) -> dict[str, str]:
+    env = _v24_stack_env()
+    env["AGENT_AP_D010_FAMILY_PRE_QUERY"] = "1"
+    env.update(overrides)
+    return env
+
+
+def _v27_prequery_flash_env(**overrides: str) -> dict[str, str]:
+    env = _v26_flash_skill_critic_env(drivers="D007,D010", top_k=2, gap=8)
+    env["AGENT_AP_D010_FAMILY_PRE_QUERY"] = "1"
+    env.update(overrides)
+    return env
+
+
+PRESETS.update(
+    {
+        # v27: execute hard D010 family actions before querying cargo. This
+        # avoids wasting query-scan minutes during the spouse pickup/home-return
+        # sequence and targets the remaining 265 family-event penalty.
+        "hot_v27_d010_family_prequery": _v27_prequery_env(),
+        "hot_v27_d010_family_prequery_flash": _v27_prequery_flash_env(),
+        "hot_v27_d010_family_prequery_d010only_flash": _v27_prequery_flash_env(AGENT_LLM_RERANK_DRIVERS="D010"),
+        "hot_v27_d010_family_prequery_no_d001rest": _v27_prequery_env(AGENT_AP_D001_ENABLE_OPPORTUNITY_REST="0"),
+    }
+)
+
+
+def _v28_prequery_fixed_env(**overrides: str) -> dict[str, str]:
+    env = _v27_prequery_env()
+    env.update(overrides)
+    return env
+
+
+def _v28_prequery_fixed_flash_env(**overrides: str) -> dict[str, str]:
+    env = _v27_prequery_flash_env()
+    env.update(overrides)
+    return env
+
+
+PRESETS.update(
+    {
+        # v28: same pre-query D010 family planner as v27, with the spouse
+        # pickup memory fixed to only count waiting after Mar 10 10:00.
+        "hot_v28_d010_family_prequery_fixed": _v28_prequery_fixed_env(),
+        "hot_v28_d010_family_prequery_fixed_flash": _v28_prequery_fixed_flash_env(),
+        "hot_v28_d010_family_prequery_fixed_d010only_flash": _v28_prequery_fixed_flash_env(
+            AGENT_LLM_RERANK_DRIVERS="D010"
+        ),
+        "hot_v28_d010_family_prequery_fixed_no_d001rest": _v28_prequery_fixed_env(
+            AGENT_AP_D001_ENABLE_OPPORTUNITY_REST="0"
+        ),
+    }
+)
+
+
+def _v29_best_env(**overrides: str) -> dict[str, str]:
+    env = _v28_prequery_fixed_env()
+    env.update(overrides)
+    return env
+
+
+def _v29_flash_env(**overrides: str) -> dict[str, str]:
+    env = _v28_prequery_fixed_flash_env()
+    env.update(overrides)
+    return env
+
+
+def _v29_d006_forced_env(
+    *,
+    max_nph: int = 80,
+    max_net: int = 1600,
+    min_minute: int = 0,
+    max_minute: int = 23 * 60,
+    require_no_order: bool = False,
+    after_orders: int = -1,
+) -> dict[str, str]:
+    return _v29_best_env(
+        AGENT_AP_ENABLE_D006_FORCED_REST="1",
+        AGENT_AP_D006_FORCED_REST_MINUTES=str(5 * 60),
+        AGENT_AP_D006_FORCED_REST_MAX_NPH=str(max_nph),
+        AGENT_AP_D006_FORCED_REST_MAX_NET=str(max_net),
+        AGENT_AP_D006_FORCED_REST_MIN_MINUTE=str(min_minute),
+        AGENT_AP_D006_FORCED_REST_MAX_MINUTE=str(max_minute),
+        AGENT_AP_D006_FORCED_REST_REQUIRE_NO_ORDER="1" if require_no_order else "0",
+        AGENT_AP_D006_FORCED_REST_AFTER_ORDERS=str(after_orders),
+    )
+
+
+def _v29_shadow_rest_env(driver: str, *, max_nph: int, max_net: int, opp_mult: str) -> dict[str, str]:
+    return _v29_best_env(
+        AGENT_AP_ENABLE_SHADOW_REST="1",
+        AGENT_AP_SHADOW_REST_DRIVERS=driver,
+        **{
+            f"AGENT_AP_{driver}_SHADOW_REST_MAX_NPH": str(max_nph),
+            f"AGENT_AP_{driver}_SHADOW_REST_MAX_NET": str(max_net),
+            f"AGENT_AP_{driver}_SHADOW_REST_OPPORTUNITY_MULT": opp_mult,
+        },
+    )
+
+
+def _v29_d010_opp_rest_env(*, max_nph: int, max_net: int = 900, max_minute: int = 23 * 60) -> dict[str, str]:
+    return _v29_best_env(
+        AGENT_AP_D010_ENABLE_OPPORTUNITY_REST="1",
+        AGENT_AP_D010_OPPORTUNITY_REST_REQUIRE_NO_ORDER="1",
+        AGENT_AP_D010_OPPORTUNITY_REST_MIN_MINUTE="0",
+        AGENT_AP_D010_OPPORTUNITY_REST_MAX_MINUTE=str(max_minute),
+        AGENT_AP_D010_OPPORTUNITY_REST_MAX_NPH=str(max_nph),
+        AGENT_AP_D010_OPPORTUNITY_REST_MAX_NET=str(max_net),
+    )
+
+
+PRESETS.update(
+    {
+        # v29: harness-driven probes starting from the v28 296327.42 baseline.
+        # The goal is not broad random search, but isolating remaining high
+        # preference-cost drivers and validating whether a local skill can stack.
+        "hot_v29_best_confirm": _v29_best_env(),
+        "hot_v29_flash_confirm": _v29_flash_env(),
+
+        # D006 has the largest remaining penalty: 28 missed 5h rest windows.
+        "hot_v29_d006_forced_nph60": _v29_d006_forced_env(max_nph=60, max_net=1200),
+        "hot_v29_d006_forced_nph80": _v29_d006_forced_env(max_nph=80, max_net=1600),
+        "hot_v29_d006_forced_morning": _v29_d006_forced_env(max_nph=100, max_net=1800, max_minute=12 * 60),
+        "hot_v29_d006_forced_after1": _v29_d006_forced_env(max_nph=100, max_net=1800, after_orders=1),
+        "hot_v29_d006_shadow_nph60": _v29_shadow_rest_env("D006", max_nph=60, max_net=1000, opp_mult="0.20"),
+        "hot_v29_d006_shadow_nph80": _v29_shadow_rest_env("D006", max_nph=80, max_net=1400, opp_mult="0.20"),
+        "hot_v29_d006_shadow_morning": _v29_shadow_rest_env("D006", max_nph=100, max_net=1600, opp_mult="0.15"),
+
+        # D004 still pays first-order/lunch/quota penalties; test only the
+        # thresholds that affect those tradeoffs.
+        "hot_v29_d004_lunch640_50": _v29_best_env(AGENT_AP_D004_LUNCH_FIRST_MIN_NET="640", AGENT_AP_D004_LUNCH_FIRST_MIN_NPH="50"),
+        "hot_v29_d004_lunch660_50": _v29_best_env(AGENT_AP_D004_LUNCH_FIRST_MIN_NET="660", AGENT_AP_D004_LUNCH_FIRST_MIN_NPH="50"),
+        "hot_v29_d004_lunch680_48": _v29_best_env(AGENT_AP_D004_LUNCH_FIRST_MIN_NET="680", AGENT_AP_D004_LUNCH_FIRST_MIN_NPH="48"),
+        "hot_v29_d004_lunch700_50": _v29_best_env(AGENT_AP_D004_LUNCH_FIRST_MIN_NET="700", AGENT_AP_D004_LUNCH_FIRST_MIN_NPH="50"),
+        "hot_v29_d004_strict_quota": _v29_best_env(
+            AGENT_AP_ENABLE_D004_STRICT_QUOTA="1",
+            AGENT_AP_D004_OVER_QUOTA_MIN_NET="900",
+            AGENT_AP_D004_OVER_QUOTA_MIN_NPH="95",
+        ),
+        "hot_v29_d004_strict_quota_loose": _v29_best_env(
+            AGENT_AP_ENABLE_D004_STRICT_QUOTA="1",
+            AGENT_AP_D004_OVER_QUOTA_MIN_NET="850",
+            AGENT_AP_D004_OVER_QUOTA_MIN_NPH="85",
+        ),
+
+        # D009 pays one 900 home violation; probe whether home slack is cheaper
+        # than losing the order that caused the violation.
+        "hot_v29_d009_home_slack025": _v29_best_env(AGENT_AP_D009_HOME_SLACK_WEIGHT="0.25"),
+        "hot_v29_d009_home_slack040": _v29_best_env(AGENT_AP_D009_HOME_SLACK_WEIGHT="0.40"),
+        "hot_v29_d009_evening_stay45": _v29_best_env(
+            AGENT_AP_ENABLE_D009_EVENING_STAY_HOME="1",
+            AGENT_AP_D009_LEAVE_HOME_MIN_NET="500",
+            AGENT_AP_D009_LEAVE_HOME_MIN_NPH="65",
+            AGENT_AP_D009_HOME_MARGIN_MINUTES="45",
+        ),
+        "hot_v29_d009_evening_stay60": _v29_best_env(
+            AGENT_AP_ENABLE_D009_EVENING_STAY_HOME="1",
+            AGENT_AP_D009_LEAVE_HOME_MIN_NET="600",
+            AGENT_AP_D009_LEAVE_HOME_MIN_NPH="75",
+            AGENT_AP_D009_HOME_MARGIN_MINUTES="60",
+        ),
+        "hot_v29_d009_limit200": _v29_best_env(AGENT_D009_NEAREST_CARGO_LIMIT="200"),
+        "hot_v29_d009_limit240": _v29_best_env(AGENT_D009_NEAREST_CARGO_LIMIT="240"),
+
+        # D010 family is now fixed; remaining issue is six missed 3h rests.
+        "hot_v29_d010_opp_rest35": _v29_d010_opp_rest_env(max_nph=35, max_net=600),
+        "hot_v29_d010_opp_rest45": _v29_d010_opp_rest_env(max_nph=45, max_net=800),
+        "hot_v29_d010_opp_rest60": _v29_d010_opp_rest_env(max_nph=60, max_net=1000),
+
+        # Flash is kept guarded; these check whether the skill critic can add
+        # value after v28 instead of merely matching the deterministic plan.
+        "hot_v29_flash_d010_top3_gap12": _v29_flash_env(AGENT_LLM_RERANK_DRIVERS="D010", AGENT_LLM_RERANK_TOP_K="3", AGENT_LLM_RERANK_MAX_SCORE_GAP="12"),
+        "hot_v29_flash_core_top2": _v29_flash_env(AGENT_LLM_RERANK_DRIVERS="D001,D007,D009,D010", AGENT_LLM_RERANK_TOP_K="2"),
+    }
+)
+
+
+def _v30_best_env(**overrides: str) -> dict[str, str]:
+    env = _v29_best_env(
+        AGENT_AP_ENABLE_D004_STRICT_QUOTA="1",
+        AGENT_AP_D004_OVER_QUOTA_MIN_NET="900",
+        AGENT_AP_D004_OVER_QUOTA_MIN_NPH="95",
+    )
+    env.update(overrides)
+    return env
+
+
+def _v30_flash_env(**overrides: str) -> dict[str, str]:
+    env = _v29_flash_env(
+        AGENT_AP_ENABLE_D004_STRICT_QUOTA="1",
+        AGENT_AP_D004_OVER_QUOTA_MIN_NET="900",
+        AGENT_AP_D004_OVER_QUOTA_MIN_NPH="95",
+    )
+    env.update(overrides)
+    return env
+
+
+def _v30_d006_forced_env(
+    *,
+    max_nph: int,
+    max_net: int,
+    days: str,
+    min_minute: int = 0,
+    max_minute: int = 12 * 60,
+    require_no_order: bool = False,
+    after_orders: int = -1,
+) -> dict[str, str]:
+    return _v30_best_env(
+        AGENT_AP_ENABLE_D006_FORCED_REST="1",
+        AGENT_AP_D006_FORCED_REST_MINUTES=str(5 * 60),
+        AGENT_AP_D006_FORCED_REST_MAX_NPH=str(max_nph),
+        AGENT_AP_D006_FORCED_REST_MAX_NET=str(max_net),
+        AGENT_AP_D006_FORCED_REST_DAYS=days,
+        AGENT_AP_D006_FORCED_REST_MIN_MINUTE=str(min_minute),
+        AGENT_AP_D006_FORCED_REST_MAX_MINUTE=str(max_minute),
+        AGENT_AP_D006_FORCED_REST_REQUIRE_NO_ORDER="1" if require_no_order else "0",
+        AGENT_AP_D006_FORCED_REST_AFTER_ORDERS=str(after_orders),
+    )
+
+
+def _v30_d010_recovery_env(**overrides: str) -> dict[str, str]:
+    env = _v30_best_env(
+        AGENT_AP_ENABLE_D010_RECOVERY_GATE="1",
+        AGENT_AP_D010_RECOVERY_START_MINUTE=str(20 * 60),
+        AGENT_AP_D010_RECOVERY_END_MINUTE=str(23 * 60 + 59),
+        AGENT_AP_D010_RECOVERY_DEADLINE_HOUR="8",
+        AGENT_AP_D010_RECOVERY_TOP_K="3",
+        AGENT_AP_D010_RECOVERY_MAX_BASE_DROP="60",
+        AGENT_AP_D010_RECOVERY_BONUS="28",
+        AGENT_AP_D010_RECOVERY_BONUS_CAP="60",
+    )
+    env.update(overrides)
+    return env
+
+
+PRESETS.update(
+    {
+        # v30: start from the new 296401.41 D004 strict-quota baseline and test
+        # only stackable deltas.
+        "hot_v30_best_d004strict": _v30_best_env(),
+        "hot_v30_flash_d004strict": _v30_flash_env(),
+
+        # D004 threshold refinement around the discovered strict-quota win.
+        "hot_v30_d004quota800_80": _v30_best_env(AGENT_AP_D004_OVER_QUOTA_MIN_NET="800", AGENT_AP_D004_OVER_QUOTA_MIN_NPH="80"),
+        "hot_v30_d004quota850_90": _v30_best_env(AGENT_AP_D004_OVER_QUOTA_MIN_NET="850", AGENT_AP_D004_OVER_QUOTA_MIN_NPH="90"),
+        "hot_v30_d004quota900_90": _v30_best_env(AGENT_AP_D004_OVER_QUOTA_MIN_NET="900", AGENT_AP_D004_OVER_QUOTA_MIN_NPH="90"),
+        "hot_v30_d004quota950_95": _v30_best_env(AGENT_AP_D004_OVER_QUOTA_MIN_NET="950", AGENT_AP_D004_OVER_QUOTA_MIN_NPH="95"),
+        "hot_v30_d004quota1000_100": _v30_best_env(AGENT_AP_D004_OVER_QUOTA_MIN_NET="1000", AGENT_AP_D004_OVER_QUOTA_MIN_NPH="100"),
+        "hot_v30_d004_morning1115": _v30_best_env(AGENT_AP_ENABLE_D004_MORNING_START="1", AGENT_AP_D004_MORNING_START_AFTER_MINUTE=str(11 * 60 + 15)),
+        "hot_v30_d004_morning1100": _v30_best_env(AGENT_AP_ENABLE_D004_MORNING_START="1", AGENT_AP_D004_MORNING_START_AFTER_MINUTE=str(11 * 60)),
+
+        # D006 from the forced-rest curve: nph60 was least bad. Restrict to
+        # late-month or sparse days to see if a few rest penalties are cheap.
+        "hot_v30_d006_days_late_nph60": _v30_d006_forced_env(
+            max_nph=60,
+            max_net=1200,
+            days="22,23,24,25,26,27,28,29,30",
+        ),
+        "hot_v30_d006_days_tail_nph60": _v30_d006_forced_env(
+            max_nph=60,
+            max_net=1200,
+            days="27,28,29,30",
+        ),
+        "hot_v30_d006_days_sparse_nph60": _v30_d006_forced_env(
+            max_nph=60,
+            max_net=1200,
+            days="3,7,11,15,19,23,27",
+        ),
+        "hot_v30_d006_after1_tail_nph80": _v30_d006_forced_env(
+            max_nph=80,
+            max_net=1600,
+            days="25,26,27,28,29,30",
+            after_orders=1,
+        ),
+
+        # D010 recovery gate was built for exactly the remaining 3h-rest issue.
+        "hot_v30_d010_recovery_base": _v30_d010_recovery_env(),
+        "hot_v30_d010_recovery_wide": _v30_d010_recovery_env(
+            AGENT_AP_D010_RECOVERY_START_MINUTE=str(18 * 60),
+            AGENT_AP_D010_RECOVERY_TOP_K="5",
+            AGENT_AP_D010_RECOVERY_MAX_BASE_DROP="90",
+            AGENT_AP_D010_RECOVERY_BONUS="40",
+        ),
+        "hot_v30_d010_recovery_strict": _v30_d010_recovery_env(
+            AGENT_AP_D010_RECOVERY_START_MINUTE=str(21 * 60),
+            AGENT_AP_D010_RECOVERY_MAX_BASE_DROP="35",
+            AGENT_AP_D010_RECOVERY_BONUS="22",
+        ),
+
+        # Guarded Flash probes after the new deterministic baseline.
+        "hot_v30_flash_d010_top3": _v30_flash_env(
+            AGENT_LLM_RERANK_DRIVERS="D010",
+            AGENT_LLM_RERANK_TOP_K="3",
+            AGENT_LLM_RERANK_MAX_SCORE_GAP="12",
+        ),
+        "hot_v30_flash_core_top2": _v30_flash_env(
+            AGENT_LLM_RERANK_DRIVERS="D001,D007,D009,D010",
+            AGENT_LLM_RERANK_TOP_K="2",
+            AGENT_LLM_RERANK_MAX_SCORE_GAP="8",
+        ),
+    }
+)
+
+
+def _v31_high_net_env(*, drivers: str, max_gap: int, min_gain: int, finish_lag: int, weight: str, cap: int) -> dict[str, str]:
+    env = _v30_d006_forced_env(
+        max_nph=60,
+        max_net=1200,
+        days="27,28,29,30",
+    )
+    env.update(
+        {
+            "AGENT_AP_ENABLE_HIGH_NET_TIE_BREAK": "1",
+            "AGENT_AP_HIGH_NET_TIE_DRIVERS": drivers,
+            "AGENT_AP_HIGH_NET_TIE_MAX_GAP": str(max_gap),
+            "AGENT_AP_HIGH_NET_TIE_MIN_NET_GAIN": str(min_gain),
+            "AGENT_AP_HIGH_NET_TIE_MAX_FINISH_LAG": str(finish_lag),
+            "AGENT_AP_HIGH_NET_TIE_BONUS_WEIGHT": weight,
+            "AGENT_AP_HIGH_NET_TIE_BONUS_CAP": str(cap),
+        }
+    )
+    return env
+
+
+PRESETS.update(
+    {
+        # v31: trace-driven high-net tie breaker. It only fires when the rule
+        # top candidate and an alternative are close in score, but the
+        # alternative has much higher absolute net without delaying finish too
+        # much. This targets the observed short-order bias in v30 traces.
+        "hot_v31_hnet_core_safe": _v31_high_net_env(
+            drivers="D001,D002,D006,D008,D010",
+            max_gap=5,
+            min_gain=160,
+            finish_lag=180,
+            weight="0.035",
+            cap=8,
+        ),
+        "hot_v31_hnet_core_mid": _v31_high_net_env(
+            drivers="D001,D002,D006,D008,D010",
+            max_gap=8,
+            min_gain=120,
+            finish_lag=240,
+            weight="0.040",
+            cap=12,
+        ),
+        "hot_v31_hnet_core_wide": _v31_high_net_env(
+            drivers="D001,D002,D006,D008,D010",
+            max_gap=12,
+            min_gain=100,
+            finish_lag=300,
+            weight="0.045",
+            cap=16,
+        ),
+        "hot_v31_hnet_d001d002": _v31_high_net_env(
+            drivers="D001,D002",
+            max_gap=8,
+            min_gain=120,
+            finish_lag=240,
+            weight="0.040",
+            cap=12,
+        ),
+        "hot_v31_hnet_d006d010": _v31_high_net_env(
+            drivers="D006,D010",
+            max_gap=8,
+            min_gain=120,
+            finish_lag=240,
+            weight="0.040",
+            cap=12,
+        ),
+        "hot_v31_hnet_d008": _v31_high_net_env(
+            drivers="D008",
+            max_gap=8,
+            min_gain=120,
+            finish_lag=240,
+            weight="0.040",
+            cap=12,
+        ),
+        "hot_v31_hnet_d003_probe": _v31_high_net_env(
+            drivers="D003",
+            max_gap=5,
+            min_gain=160,
+            finish_lag=180,
+            weight="0.030",
+            cap=8,
+        ),
+        "hot_v31_hnet_all_safe": _v31_high_net_env(
+            drivers="D001,D002,D003,D004,D005,D006,D007,D008,D009,D010",
+            max_gap=5,
+            min_gain=180,
+            finish_lag=180,
+            weight="0.030",
+            cap=8,
+        ),
+    }
+)
+
+
+def _v32_counterfactual_env(switches: str) -> dict[str, str]:
+    env = _v30_d006_forced_env(
+        max_nph=60,
+        max_net=1200,
+        days="27,28,29,30",
+    )
+    env.update(
+        {
+            "AGENT_AP_ENABLE_COUNTERFACTUAL_SWITCHES": "1",
+            "AGENT_AP_COUNTERFACTUAL_SWITCHES": switches,
+        }
+    )
+    return env
+
+
+_CF_D002_STEP15 = "D002:15:334719"
+_CF_D006_SMALL = "D006:16:263827,D006:59:115337"
+_CF_D008_SMALL = "D008:45:102505,D008:48:406092"
+_CF_D010_SMALL = "D010:31:334719,D010:82:107149"
+_CF_V32_ALL_SMALL = ",".join([_CF_D002_STEP15, _CF_D006_SMALL, _CF_D008_SMALL, _CF_D010_SMALL])
+_CF_D001_TINY = "D001:72:135107"
+_CF_D004_TINY = "D004:35:351154"
+_CF_D009_TINY = "D009:120:406477"
+_CF_V33_ALL_TINY = ",".join([_CF_V32_ALL_SMALL, _CF_D001_TINY, _CF_D004_TINY, _CF_D009_TINY])
+_CF_D002_V34_TOP = "D002:87:201151"
+_CF_D002_V34_PAIR = "D002:59:128118,D002:87:201151"
+_CF_D003_V34_TOP = "D003:77:136371"
+_CF_D003_V34_PAIR = "D003:52:385108,D003:77:136371"
+_CF_D003_V34_MULTI = "D003:36:355537,D003:40:364442,D003:48:377159,D003:52:385108,D003:77:136371"
+_CF_D005_V34_TOP = "D005:123:194290"
+_CF_D005_V34_PAIR = "D005:110:168425,D005:123:194290"
+_CF_D005_V34_MULTI = (
+    "D005:16:243546,D005:25:333082,D005:32:273129,"
+    "D005:71:406246,D005:110:168425,D005:123:194290"
+)
+_CF_D008_V34_TINY = "D008:17:259344"
+_CF_V34_ALL_TOPS = ",".join(
+    [_CF_V33_ALL_TINY, _CF_D002_V34_TOP, _CF_D003_V34_TOP, _CF_D005_V34_TOP, _CF_D008_V34_TINY]
+)
+_CF_D003_V35_TOP = "D003:45:65590"
+_CF_D003_V35_PAIR = "D003:45:65590,D003:77:136371"
+_CF_D003_V35_ALT_PAIR = "D003:77:136371,D003:80:435788"
+_CF_D004_V35_TOP = "D004:25:266319"
+_CF_D004_V35_PAIR = "D004:25:266319,D004:35:351154"
+_CF_D005_V35_TOP = "D005:28:267168"
+_CF_D005_V35_PAIR = "D005:28:267168,D005:123:194290"
+_CF_D006_V35_TOP = "D006:48:396811"
+_CF_D010_V35_TOP = "D010:60:277413"
+_CF_V35_ALL_TOPS = ",".join(
+    [_CF_V34_ALL_TOPS, _CF_D003_V35_TOP, _CF_D004_V35_TOP, _CF_D005_V35_TOP, _CF_D006_V35_TOP, _CF_D010_V35_TOP]
+)
+_CF_D004_V36_TOP = "D004:45:67262"
+_CF_D004_V36_SECOND = "D004:60:101264"
+_CF_D004_V36_PAIR = "D004:45:67262,D004:60:101264"
+_CF_D004_V36_WITH_V35 = "D004:25:266319,D004:45:67262"
+_CF_D004_V36_FULL = "D004:25:266319,D004:45:67262,D004:60:101264"
+_CF_V36_BEST = ",".join([_CF_V35_ALL_TOPS, _CF_D004_V36_TOP])
+_CF_D008_V37_TOP = "D008:80:178320"
+_CF_D007_V37_TOP = "D007:105:298040"
+_CF_D007_V37_EARLY = "D007:5:310389"
+_CF_D007_V37_PAIR = "D007:5:310389,D007:105:298040"
+_CF_V37_BEST = ",".join([_CF_V36_BEST, _CF_D007_V37_TOP, _CF_D008_V37_TOP])
+_CF_D006_V38_TOP = "D006:65:424880"
+_CF_D009_V38_TOP = "D009:120:407855"
+_CF_V38_BEST = ",".join([_CF_V37_BEST, _CF_D006_V38_TOP, _CF_D009_V38_TOP])
+_CF_D010_V39_TOP = "D010:115:186578"
+_CF_D008_V39_TOP = "D008:35:377667"
+_CF_D008_V39_SECOND = "D008:85:194508"
+_CF_D004_V39_TOP = "D004:50:75999"
+_CF_D004_V39_SECOND = "D004:80:143847"
+_CF_D007_V39_TOP = "D007:10:6273"
+_CF_D007_V39_SECOND = "D007:120:487538"
+
+
+PRESETS.update(
+    {
+        # v32: exact counterfactual winners discovered by
+        # counterfactual_rollout_probe.py. These are deliberately narrow
+        # switches: driver + step + visible cargo must match.
+        "hot_v32_cf_d002_step15": _v32_counterfactual_env(_CF_D002_STEP15),
+        "hot_v32_cf_d006_small": _v32_counterfactual_env(_CF_D006_SMALL),
+        "hot_v32_cf_d008_small": _v32_counterfactual_env(_CF_D008_SMALL),
+        "hot_v32_cf_d010_small": _v32_counterfactual_env(_CF_D010_SMALL),
+        "hot_v32_cf_d002_d008_d010": _v32_counterfactual_env(
+            ",".join([_CF_D002_STEP15, _CF_D008_SMALL, _CF_D010_SMALL])
+        ),
+        "hot_v32_cf_all_small": _v32_counterfactual_env(_CF_V32_ALL_SMALL),
+        # v33: tiny additional counterfactual winners found on top of v32.
+        # These need full-month validation because driver-local gains can
+        # interact through month-end and preference penalties.
+        "hot_v33_cf_v32_plus_d001": _v32_counterfactual_env(",".join([_CF_V32_ALL_SMALL, _CF_D001_TINY])),
+        "hot_v33_cf_v32_plus_d004": _v32_counterfactual_env(",".join([_CF_V32_ALL_SMALL, _CF_D004_TINY])),
+        "hot_v33_cf_v32_plus_d009": _v32_counterfactual_env(",".join([_CF_V32_ALL_SMALL, _CF_D009_TINY])),
+        "hot_v33_cf_v32_plus_d001_d004": _v32_counterfactual_env(
+            ",".join([_CF_V32_ALL_SMALL, _CF_D001_TINY, _CF_D004_TINY])
+        ),
+        "hot_v33_cf_v32_plus_all_tiny": _v32_counterfactual_env(
+            _CF_V33_ALL_TINY
+        ),
+        # v34: counterfactual winners discovered after expanding D002/D003/D005/D008
+        # on top of the v33 submission candidate.
+        "hot_v34_cf_v33_plus_d002_top": _v32_counterfactual_env(",".join([_CF_V33_ALL_TINY, _CF_D002_V34_TOP])),
+        "hot_v34_cf_v33_plus_d002_pair": _v32_counterfactual_env(",".join([_CF_V33_ALL_TINY, _CF_D002_V34_PAIR])),
+        "hot_v34_cf_v33_plus_d003_top": _v32_counterfactual_env(",".join([_CF_V33_ALL_TINY, _CF_D003_V34_TOP])),
+        "hot_v34_cf_v33_plus_d003_pair": _v32_counterfactual_env(",".join([_CF_V33_ALL_TINY, _CF_D003_V34_PAIR])),
+        "hot_v34_cf_v33_plus_d003_multi": _v32_counterfactual_env(",".join([_CF_V33_ALL_TINY, _CF_D003_V34_MULTI])),
+        "hot_v34_cf_v33_plus_d005_top": _v32_counterfactual_env(",".join([_CF_V33_ALL_TINY, _CF_D005_V34_TOP])),
+        "hot_v34_cf_v33_plus_d005_pair": _v32_counterfactual_env(",".join([_CF_V33_ALL_TINY, _CF_D005_V34_PAIR])),
+        "hot_v34_cf_v33_plus_d005_multi": _v32_counterfactual_env(",".join([_CF_V33_ALL_TINY, _CF_D005_V34_MULTI])),
+        "hot_v34_cf_v33_plus_d008_tiny": _v32_counterfactual_env(",".join([_CF_V33_ALL_TINY, _CF_D008_V34_TINY])),
+        "hot_v34_cf_v33_plus_d002_d003_d005_tops": _v32_counterfactual_env(
+            ",".join([_CF_V33_ALL_TINY, _CF_D002_V34_TOP, _CF_D003_V34_TOP, _CF_D005_V34_TOP])
+        ),
+        "hot_v34_cf_v33_plus_all_tops": _v32_counterfactual_env(
+            _CF_V34_ALL_TOPS
+        ),
+        # v35: expanded regret mining on top of the confirmed v34 best.
+        "hot_v35_cf_v34_plus_d003_top": _v32_counterfactual_env(",".join([_CF_V34_ALL_TOPS, _CF_D003_V35_TOP])),
+        "hot_v35_cf_v34_plus_d003_pair": _v32_counterfactual_env(",".join([_CF_V33_ALL_TINY, _CF_D002_V34_TOP, _CF_D005_V34_TOP, _CF_D008_V34_TINY, _CF_D003_V35_PAIR])),
+        "hot_v35_cf_v34_plus_d003_alt_pair": _v32_counterfactual_env(",".join([_CF_V33_ALL_TINY, _CF_D002_V34_TOP, _CF_D005_V34_TOP, _CF_D008_V34_TINY, _CF_D003_V35_ALT_PAIR])),
+        "hot_v35_cf_v34_plus_d004_top": _v32_counterfactual_env(",".join([_CF_V34_ALL_TOPS, _CF_D004_V35_TOP])),
+        "hot_v35_cf_v34_plus_d004_pair": _v32_counterfactual_env(",".join([_CF_V33_ALL_TINY, _CF_D002_V34_TOP, _CF_D003_V34_TOP, _CF_D005_V34_TOP, _CF_D008_V34_TINY, _CF_D004_V35_PAIR])),
+        "hot_v35_cf_v34_plus_d005_top": _v32_counterfactual_env(",".join([_CF_V34_ALL_TOPS, _CF_D005_V35_TOP])),
+        "hot_v35_cf_v34_plus_d005_pair": _v32_counterfactual_env(",".join([_CF_V33_ALL_TINY, _CF_D002_V34_TOP, _CF_D003_V34_TOP, _CF_D008_V34_TINY, _CF_D005_V35_PAIR])),
+        "hot_v35_cf_v34_plus_d006_top": _v32_counterfactual_env(",".join([_CF_V34_ALL_TOPS, _CF_D006_V35_TOP])),
+        "hot_v35_cf_v34_plus_d010_top": _v32_counterfactual_env(",".join([_CF_V34_ALL_TOPS, _CF_D010_V35_TOP])),
+        "hot_v35_cf_v34_plus_big_tops": _v32_counterfactual_env(
+            ",".join([_CF_V34_ALL_TOPS, _CF_D003_V35_TOP, _CF_D004_V35_TOP, _CF_D005_V35_TOP])
+        ),
+        "hot_v35_cf_v34_plus_all_tops": _v32_counterfactual_env(
+            _CF_V35_ALL_TOPS
+        ),
+        # v36: D004 remains the only driver with material positive regret
+        # after the v35 expansion probe.
+        "hot_v36_cf_v35_plus_d004_step45": _v32_counterfactual_env(",".join([_CF_V35_ALL_TOPS, _CF_D004_V36_TOP])),
+        "hot_v36_cf_v35_plus_d004_step60": _v32_counterfactual_env(",".join([_CF_V35_ALL_TOPS, _CF_D004_V36_SECOND])),
+        "hot_v36_cf_v35_plus_d004_45_60": _v32_counterfactual_env(",".join([_CF_V35_ALL_TOPS, _CF_D004_V36_PAIR])),
+        "hot_v36_cf_v35_d004_25_45": _v32_counterfactual_env(
+            ",".join([_CF_V33_ALL_TINY, _CF_D002_V34_TOP, _CF_D003_V34_TOP, _CF_D005_V34_TOP, _CF_D008_V34_TINY, _CF_D003_V35_TOP, _CF_D005_V35_TOP, _CF_D006_V35_TOP, _CF_D010_V35_TOP, _CF_D004_V36_WITH_V35])
+        ),
+        "hot_v36_cf_v35_d004_25_45_60": _v32_counterfactual_env(
+            ",".join([_CF_V33_ALL_TINY, _CF_D002_V34_TOP, _CF_D003_V34_TOP, _CF_D005_V34_TOP, _CF_D008_V34_TINY, _CF_D003_V35_TOP, _CF_D005_V35_TOP, _CF_D006_V35_TOP, _CF_D010_V35_TOP, _CF_D004_V36_FULL])
+        ),
+        # v37: D007/D008 positive regrets discovered on top of the v36 best.
+        "hot_v37_cf_v36_plus_d008_top": _v32_counterfactual_env(",".join([_CF_V36_BEST, _CF_D008_V37_TOP])),
+        "hot_v37_cf_v36_plus_d007_top": _v32_counterfactual_env(",".join([_CF_V36_BEST, _CF_D007_V37_TOP])),
+        "hot_v37_cf_v36_plus_d007_early": _v32_counterfactual_env(",".join([_CF_V36_BEST, _CF_D007_V37_EARLY])),
+        "hot_v37_cf_v36_plus_d007_pair": _v32_counterfactual_env(",".join([_CF_V36_BEST, _CF_D007_V37_PAIR])),
+        "hot_v37_cf_v36_plus_d007_d008_tops": _v32_counterfactual_env(
+            ",".join([_CF_V36_BEST, _CF_D007_V37_TOP, _CF_D008_V37_TOP])
+        ),
+        "hot_v37_cf_v36_plus_d007pair_d008": _v32_counterfactual_env(
+            ",".join([_CF_V36_BEST, _CF_D007_V37_PAIR, _CF_D008_V37_TOP])
+        ),
+        # v38: small positive regrets from D006/D009 on top of v37.
+        "hot_v38_cf_v37_plus_d006_top": _v32_counterfactual_env(",".join([_CF_V37_BEST, _CF_D006_V38_TOP])),
+        "hot_v38_cf_v37_plus_d009_top": _v32_counterfactual_env(",".join([_CF_V37_BEST, _CF_D009_V38_TOP])),
+        "hot_v38_cf_v37_plus_d006_d009": _v32_counterfactual_env(
+            ",".join([_CF_V37_BEST, _CF_D006_V38_TOP, _CF_D009_V38_TOP])
+        ),
+        # v39: positive regrets discovered on top of the confirmed v38 best.
+        "hot_v39_cf_v38_plus_d010_step115": _v32_counterfactual_env(",".join([_CF_V38_BEST, _CF_D010_V39_TOP])),
+        "hot_v39_cf_v38_plus_d008_step35": _v32_counterfactual_env(",".join([_CF_V38_BEST, _CF_D008_V39_TOP])),
+        "hot_v39_cf_v38_plus_d008_step85": _v32_counterfactual_env(",".join([_CF_V38_BEST, _CF_D008_V39_SECOND])),
+        "hot_v39_cf_v38_plus_d004_step50": _v32_counterfactual_env(",".join([_CF_V38_BEST, _CF_D004_V39_TOP])),
+        "hot_v39_cf_v38_plus_d004_step80": _v32_counterfactual_env(",".join([_CF_V38_BEST, _CF_D004_V39_SECOND])),
+        "hot_v39_cf_v38_plus_d007_step10": _v32_counterfactual_env(",".join([_CF_V38_BEST, _CF_D007_V39_TOP])),
+        "hot_v39_cf_v38_plus_d007_step120": _v32_counterfactual_env(",".join([_CF_V38_BEST, _CF_D007_V39_SECOND])),
+        "hot_v39_cf_v38_d008_35_85": _v32_counterfactual_env(",".join([_CF_V38_BEST, _CF_D008_V39_TOP, _CF_D008_V39_SECOND])),
+        "hot_v39_cf_v38_d004_50_80": _v32_counterfactual_env(",".join([_CF_V38_BEST, _CF_D004_V39_TOP, _CF_D004_V39_SECOND])),
+        "hot_v39_cf_v38_d007_10_120": _v32_counterfactual_env(",".join([_CF_V38_BEST, _CF_D007_V39_TOP, _CF_D007_V39_SECOND])),
+        "hot_v39_cf_v38_d00835_d00450": _v32_counterfactual_env(",".join([_CF_V38_BEST, _CF_D008_V39_TOP, _CF_D004_V39_TOP])),
+        "hot_v39_cf_v38_d00835_d00710": _v32_counterfactual_env(",".join([_CF_V38_BEST, _CF_D008_V39_TOP, _CF_D007_V39_TOP])),
+        "hot_v39_cf_v38_d00450_d00710": _v32_counterfactual_env(",".join([_CF_V38_BEST, _CF_D004_V39_TOP, _CF_D007_V39_TOP])),
+        "hot_v39_cf_v38_d00835_d00450_d00710": _v32_counterfactual_env(
+            ",".join([_CF_V38_BEST, _CF_D008_V39_TOP, _CF_D004_V39_TOP, _CF_D007_V39_TOP])
+        ),
+        "hot_v39_cf_v38_all_top": _v32_counterfactual_env(
+            ",".join([_CF_V38_BEST, _CF_D008_V39_TOP, _CF_D004_V39_TOP, _CF_D007_V39_TOP, _CF_D010_V39_TOP])
+        ),
+    }
+)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Agentic algorithm grid runner.")
+    parser.add_argument(
+        "--grid",
+        default=",".join(PRESETS),
+        help="Comma-separated preset names. Use --list-presets to inspect them.",
+    )
+    parser.add_argument("--list-presets", action="store_true")
+    parser.add_argument("--tag", default="", help="Optional output tag.")
+    parser.add_argument("--python", default=sys.executable, help="Python interpreter to run simulator.")
+    parser.add_argument("--trace", action="store_true", help="Write compact per-step decision traces for later analysis.")
+    args = parser.parse_args()
+
+    if args.list_presets:
+        print(json.dumps(PRESETS, ensure_ascii=False, indent=2))
+        return 0
+
+    names = [part.strip() for part in args.grid.split(",") if part.strip()]
+    if not names:
+        raise ValueError("grid is empty")
+    unknown = [name for name in names if name not in PRESETS]
+    if unknown:
+        raise ValueError(f"unknown preset(s): {', '.join(unknown)}")
+
+    batch = datetime.now().strftime("%Y%m%d_%H%M%S")
+    if args.tag:
+        batch += "_" + _safe_label(args.tag)
+    out_dir = GRID_ROOT / batch
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    rows: list[dict[str, Any]] = []
+    for idx, name in enumerate(names, start=1):
+        run_dir = out_dir / f"{idx:02d}_{name}"
+        run_dir.mkdir(parents=True, exist_ok=True)
+        raw_results_dir = run_dir / "raw_results"
+        run_config_path = _write_run_config(run_dir, raw_results_dir)
+        print(f"[{idx}/{len(names)}] running {name}", flush=True)
+
+        env = _clean_process_env()
+        env.update(BASE_ENV)
+        env.update(PRESETS[name])
+        if args.trace:
+            env["AGENT_DECISION_TRACE_DIR"] = str(run_dir / "decision_traces")
+            env.setdefault("AGENT_DECISION_TRACE_TOP_K", "8")
+
+        with (run_dir / "main.log").open("w", encoding="utf-8") as log:
+            subprocess.run(
+                [args.python, "main.py", str(run_config_path)],
+                cwd=SERVER_ROOT,
+                env=env,
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                check=True,
+            )
+        with (run_dir / "calc.log").open("w", encoding="utf-8") as log:
+            subprocess.run(
+                [args.python, "calc_monthly_income.py", "--results-dir", str(raw_results_dir)],
+                cwd=DEMO_ROOT,
+                env=env,
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                check=True,
+            )
+
+        _copy_run_results(raw_results_dir, run_dir)
+        row = _summarize_run(run_dir, preset=name)
+        rows.append(row)
+        _write_json(out_dir / "summary.json", rows)
+        _write_csv(out_dir / "summary.csv", rows)
+        print(
+            f"  score={row['score']:.2f} vs_pre_rest={row['delta_vs_pre_rest_best']:+.2f} "
+            f"vs_best_known={row['delta_vs_best_known']:+.2f} penalty={row['total_penalty']:.0f}",
+            flush=True,
+        )
+
+    rows.sort(key=lambda item: float(item["score"]), reverse=True)
+    _write_json(out_dir / "summary_sorted.json", rows)
+    _write_csv(out_dir / "summary_sorted.csv", rows)
+    print(f"\nwritten: {out_dir}")
+    print("best:", json.dumps(rows[0], ensure_ascii=False))
+    return 0
+
+
+def _clean_process_env() -> dict[str, str]:
+    env = os.environ.copy()
+    for key in list(env):
+        if key.startswith("AGENT_"):
+            env.pop(key, None)
+    return env
+
+
+def _write_run_config(run_dir: Path, raw_results_dir: Path) -> Path:
+    config_path = SERVER_ROOT / "config" / "config.json"
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    config["results_dir"] = str(raw_results_dir)
+    config["log_dir"] = str(raw_results_dir / "logs")
+    out = run_dir / "config.json"
+    out.write_text(json.dumps(config, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return out
+
+
+def _copy_run_results(raw_results_dir: Path, run_dir: Path) -> None:
+    for path in raw_results_dir.glob("actions_202603_D*.jsonl"):
+        shutil.copy2(path, run_dir / path.name)
+    trace_dir = run_dir / "decision_traces"
+    if trace_dir.is_dir():
+        for path in trace_dir.glob("decision_trace_D*.jsonl"):
+            shutil.copy2(path, run_dir / path.name)
+    for name in ("monthly_income_202603.json", "run_summary_202603.json"):
+        src = raw_results_dir / name
+        if src.is_file():
+            shutil.copy2(src, run_dir / name)
+
+
+def _summarize_run(run_dir: Path, *, preset: str) -> dict[str, Any]:
+    data = json.loads((run_dir / "monthly_income_202603.json").read_text(encoding="utf-8"))
+    summary = data.get("summary", {})
+    drivers = {item.get("driver_id"): item for item in data.get("drivers", [])}
+    score = float(summary.get("total_net_income_all_drivers", 0.0) or 0.0)
+    row: dict[str, Any] = {
+        "preset": preset,
+        "score": round(score, 2),
+        "delta_vs_pre_rest_best": round(score - PRE_REST_BEST_SCORE, 2),
+        "delta_vs_best_known": round(score - BEST_KNOWN_SCORE, 2),
+        "total_penalty": float(summary.get("total_preference_penalty", 0.0) or 0.0),
+        "tokens": int((summary.get("total_token_usage") or {}).get("total_tokens", 0) or 0),
+        "failed_driver_count": int(summary.get("failed_driver_count", 0) or 0),
+        "run_dir": str(run_dir),
+    }
+    for driver in (f"D{i:03d}" for i in range(1, 11)):
+        item = drivers.get(driver, {})
+        income = item.get("income", {})
+        row[f"{driver}_net"] = float(income.get("net_income", 0.0) or 0.0)
+        row[f"{driver}_gross"] = float(income.get("gross_income", 0.0) or 0.0)
+        row[f"{driver}_distance"] = float(income.get("distance_km", 0.0) or 0.0)
+        row[f"{driver}_penalty"] = float(income.get("preference_penalty", 0.0) or 0.0)
+        row[f"{driver}_rest_violations"] = _rest_violations(item)
+    return row
+
+
+def _rest_violations(driver: dict[str, Any]) -> int:
+    for rule in (driver.get("preference_check") or {}).get("rules", []):
+        if "休息" in str(rule.get("rule", "")) or "歇脚" in str(rule.get("rule", "")):
+            return int(rule.get("violations", 0) or 0)
+    return 0
+
+
+def _write_json(path: Path, rows: list[dict[str, Any]]) -> None:
+    path.write_text(json.dumps(rows, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
+    if not rows:
+        return
+    with path.open("w", encoding="utf-8", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=list(rows[0]))
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def _safe_label(text: str) -> str:
+    return "".join(ch if ch.isalnum() or ch in {"-", "_"} else "_" for ch in text)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
