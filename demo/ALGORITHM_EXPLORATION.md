@@ -5,10 +5,10 @@
 当前最好可复现分数：
 
 ```text
-score = 305852.15
-preset = hot_v39_cf_v38_all_top
-penalty = 13065.0
-result_dir = results/grid_agentic_algo/20260522_222759_v39_layered_agent_check/05_hot_v39_cf_v38_all_top
+score = 307355.19
+preset = hot_v47_cf_v46_d00486_d009170_waits
+penalty = 13165.0
+result_dir = results/grid_agentic_algo/20260523_025528_v47_action_wait_distill_check/04_hot_v47_cf_v46_d00486_d009170_waits
 ```
 
 这套分数不是靠单点阈值堆出来的，核心是把司机拆成不同画像后做收益-扣分权衡，并在关键决策步使用反事实回放验证“换一个候选货源是否让整个月更优”：
@@ -19,7 +19,7 @@ D004: 每日订单配额，超过 3 单后只接高净收益高 NPH 单
 D006: 月末低机会窗口补休，不全月强制休息
 D009: 回家罚分在当前数据上多数时候值得支付
 D010: 家事事件 pre-query，避免 query scan 推进时间造成固定罚分
-v32/v33/v34/v35/v36/v37/v38/v39: 对关键步骤做 candidate-level counterfactual rollout，验证后写回窄触发记忆
+v32-v47: 对关键步骤做 candidate/action-level counterfactual rollout，验证后写回窄触发记忆和状态蒸馏门
 ```
 
 ## 已发现的关键规律
@@ -51,6 +51,10 @@ v32/v33/v34/v35/v36/v37/v38/v39: 对关键步骤做 candidate-level counterfactu
 13. v38 证明低优先级司机也还有小而稳定的链路收益。D006 step65 与 D009 step120 在 v37 底座上均为正，组合后从 `303285.96` 提升到 `303592.37`，总罚分仍为 `13565`。这说明当前方向没有收敛，剩余提升更像“关键步候选替换 + 完整月度验证”的累积，而不是全局阈值微调。
 
 14. v39 证明官方分享里的“Route Plan + Driver Memory + 安全执行层”方向可以落到真实分数。D008 step35 是最大新增点，D004 step50、D007 step10、D010 step115 可跨司机叠加，分数从 `303592.37` 提升到 `305852.15`，总罚分降到 `13065`。
+
+15. v40 证明 v39 后仍有同司机次级正样本可叠加。D008 step85 与 D007 step120 在 v39 all-top 路径上继续有效，组合后到 `306208.27`，罚分保持 `13065`；D004 step80 与 D004 step50 路径等价，没有额外贡献。
+
+16. v45-v47 证明探索不能只看接哪个货，还要把 `wait/reposition` 作为同等动作分支。D004 step70、D009 step165 是 cargo-level 正样本；D004 step86 wait30、D009 step170 wait120 是 action-level 正样本。组合后当前最好达到 `307355.19`，说明受控 Agent 要比较完整动作，而不是只 rerank 货源。
 
 ## 为什么不能继续一点点试阈值
 
@@ -611,3 +615,380 @@ D010 step115 -> cargo 186578: 单司机 +87.48，无新增罚分
 4. D010 step115 是小但干净的收益点，说明家事司机在事件后仍有后期链路修正空间。
 
 5. Agent 化改造没有破坏底座：同一轮中 v38 仍稳定复现 `303592.37`。新增 memory/route/risk 特征可作为解释层和后续泛化层继续推进。
+
+## 2026-05-22 v40 次级正样本叠加验证
+
+新增最好结果：
+
+```text
+hot_v40_cf_v39_plus_d00885_d007120
+score = 306208.27
+penalty = 13065.0
+相对 v39 = +356.12
+```
+
+组合结果：
+
+```text
+v39 best: 305852.15
+v39 + D008 step85: 306073.30，+221.15
+v39 + D007 step120: 305987.12，+134.97
+v39 + D004 step80: 305852.15，+0.00
+v39 + D008 step85 + D007 step120: 306208.27，+356.12
+v39 + all seconds: 306208.27，与 D00885+D007120 同分
+```
+
+### 新启发
+
+1. D008 是当前最值得继续挖的司机。step35 与 step85 可共存，说明 D008 的收益不是一个偶然货源，而是多阶段路径规划缺口。
+
+2. D007 step10 与 step120 可共存，且不再出现 step5 那种冲突，说明 D007 的有效正样本集中在更稳定的中后段链路。
+
+3. D004 step80 与 step50 路径等价，不应加入提交解释中的有效新增点。
+
+4. 当前新增仍然不靠 LLM token，主收益来自合法接口下的 trajectory regret mining，可以继续把它包装为 memory-guided route planner。
+
+## 2026-05-22 v41 单位时间收益层实验
+
+官方分享强调“重视单位时间收益”，本轮把它实现成可开关的 Agent 层，而不是让 LLM 自己算：
+
+```text
+unit_time_route_value =
+  current_net_per_hour
+  + successor_nph_value
+  + reachable_successor_density
+  - wait_cost
+  - pickup_cost
+  - long_order_occupancy_cost
+```
+
+实现位置：
+
+```text
+agent/feature_strategies/new_release_agentic_planner_agent.py
+agent/model_decision_service.py
+run_agentic_algo_grid.py
+```
+
+验证结果：
+
+```text
+v40 baseline: 306208.27，penalty 13065
+D007 unit-time light: 306208.27，无变化
+D007 unit-time mid: 306208.27，无变化
+D008 unit-time light: 303804.52，-2403.75，penalty +400
+D008 unit-time mid: 303804.52，-2403.75，penalty +400
+D007+D008 unit-time: 303804.52，跟 D008 单开一致
+core light: 306208.27，无变化
+core min_nph: 303746.66，-2461.61，penalty +400
+```
+
+### 新启发
+
+1. 单位时间收益是必要特征，但不能粗暴作为额外 bonus。D008 一开 unit-time 就从 `35701.44` 净收益跌到 `33297.69`，罚分从 `800` 升到 `1200`，说明它破坏的是多步路径链，而不是单笔利润。
+
+2. D007 对轻/中等 unit-time scorer 不敏感，说明 v40 的 D007 路径已被当前规则锁定，单纯 NPH bonus 不足以触发新的有效分叉。
+
+3. `core_light` 不变但 `core_min_nph` 掉分，说明“低 NPH 惩罚”会误杀有长期价值的低速/长占用订单。比赛目标不是最高 NPH，而是 `当前净收益 + 后继状态价值 - 罚分风险`。
+
+4. 下一步不能继续盲扫 NPH 权重。需要做 `V_hat(time, location, driver_state)` 状态价值估计：用 counterfactual winner/loser 回放差异，学习哪些完单后状态会带来高价值后继链。
+
+5. D008 是最好的 teacher driver。它同时有 step35、step80、step85 多个正样本，且 unit-time 反例明显，适合抽取“为什么牺牲当前单位收益反而长期更赚”的状态模式。
+
+### D008 失败分叉回放
+
+对比：
+
+```text
+base = hot_v40_cf_v39_plus_d00885_d007120
+new  = hot_v41_cf_v40_unit_d008_light
+```
+
+结果：
+
+```text
+D008 net_delta = -2403.75
+D008 gross_delta = -2662.29
+D008 distance_delta = -439.03
+D008 penalty_delta = +400
+D008 accepted_orders: 62 -> 58
+first divergence: step 62
+```
+
+关键分叉：
+
+```text
+v40 step62: cargo 139843, pickup 34.27km, haul 221.80km, end 2026-03-22 18:45, pos -> (22.62,114.18)
+v41 step62: cargo 137667, pickup 47.40km, haul 32.62km,  end 2026-03-22 11:37, pos -> (23.54,115.80)
+```
+
+表面上 v41 选择更短、更快的订单，单位时间直觉更好；但后续链路更差。v40 虽然在 step62 占用时间更长，却把司机送回更好的珠三角区域，后面能接：
+
+```text
+140485 -> 147461 -> 150207 -> 152736 -> 449206 -> 161945 -> 291771 ...
+```
+
+而 v41 进入 `(23.54,115.8)` 后出现更多等待和更差衔接，最终少 4 个有效接单并增加罚分。
+
+这说明未来收益不能用 `当前 NPH` 或 `订单耗时短` 直接近似。正确的状态价值应该更像：
+
+```text
+V_hat(after_state) =
+  destination_market_value(time_window, location_region)
+  + chain_continuity_value
+  + remaining_month_opportunity
+  - preference_penalty_risk
+  - isolation_risk
+```
+
+下一轮 v42 应该先围绕 D008 step62 这种样本构造 `isolation_risk / hot-region-return-value`，再推广到其他司机。
+
+### 下一步实验方向
+
+```text
+1. 对比 v40 与 D008 unit-time 失败轨迹，定位第一个偏离 step。
+2. 导出偏离 step 的候选特征：cargo_id、NPH、net、finish_time、end_city、reachable_successors、best_successor_nph、penalty_delta。
+3. 把 winner/loser 转成 regret training row，形成状态价值表。
+4. 新增 v42 state-value scorer，只在候选分差较小或 route-plan 冲突时启用。
+5. 保留 v40 作为提交底座，v42 必须超过 `306208.27` 才能替换。
+```
+
+## 2026-05-23 v42 潜在市场价值实验
+
+v41 暴露的问题是：当前可见后继单会误导 Agent。D008 step62 中，`137667` 的 visible successors 很多，但后续实际断链；`139843` 去深圳龙岗，当前可见后继为 0，却触发了后面更好的链路。
+
+因此 v42 尝试把“未来未上线货源”抽象成潜在市场状态价值：
+
+```text
+latent_market_value: 完单后区域/时间窗的未来机会先验
+latent_isolation_risk: 弱区域、假繁荣区域、夜间孤岛风险
+```
+
+验证结果：
+
+```text
+v40 baseline: 306208.27，penalty 13065
+latent D008 tiny: 306208.27，无变化
+latent D008 light: 306208.27，无变化
+latent D008 mid: 298939.17，D008 净收益 35701.44 -> 28432.34
+latent D008 strong: 301818.65，D008 净收益 35701.44 -> 31311.82，penalty +200
+latent core light: 300495.48，多司机同时掉分，penalty +1200
+latent + unit D008: 298939.17，与 latent mid 同分
+```
+
+### 新启发
+
+1. 用户纠偏是正确的：弱区域/强区域不是核心判断角度，只是影响后续机会的一个 proxy。把区域先验作为主权重，会把 Agent 带偏。
+
+2. tiny/light 不改变路径，说明小权重安全但无收益；mid/strong 大幅掉分，说明粗区域先验一旦能改变决策，就会覆盖真实收益链。
+
+3. core_light 比单司机更差，说明区域先验不能跨司机共享。每个司机的偏好、休息罚分、车辆状态、时间窗都不同，同一个强区域对不同司机的边际价值不同。
+
+4. 潜在市场价值仍然有用，但只能进入 `V_hat(after_state)` 的特征集合，不能单独主导动作选择。
+
+5. 下一步需要改成 gated state-value critic：
+
+```text
+if top candidates score gap is small
+or visible-successor value conflicts with latent state value
+or current action enters known bad trajectory pattern:
+    apply V_hat(after_state)
+else:
+    keep deterministic base rule
+```
+
+`V_hat` 应该包含：
+
+```text
+current_net
+net_per_hour
+finish_time_bucket
+remaining_month_days
+destination_lat_lng / city
+visible_successor_count
+visible_successor_best_nph
+latent_market_proxy
+isolation_proxy
+preference_risk_delta
+rest/home/family state
+```
+
+v42 不应作为提交策略，只作为反例与特征工程保留。当前提交底座仍是 v40 `306208.27`。
+
+## 2026-05-23 v43 Gated State-Value Critic 实验
+
+v43 不再把强/弱区域作为主判断，而是把它放进 gated `V_hat(after_state)`。触发条件：
+
+```text
+top 候选近似同分
+或 visible successor 与 latent state value 冲突
+```
+
+验证结果：
+
+```text
+v40 baseline: 306208.27，penalty 13065
+state D008 tiny: 304294.89，D008 net 35701.44 -> 33788.06，penalty +400
+state D008 light: 304294.89，同 tiny
+state D008 conflict: 304294.89，同 tiny
+state D008 mid: 299519.65，D008 net 35701.44 -> 29012.82，penalty +800
+state D007+D008 light: 303816.33，D007/D008 均掉分
+```
+
+### 新启发
+
+1. gated 比 v42 安全一些，但仍然会在关键分叉误改。说明问题不是“是否 gated”，而是 `V_hat` 手写公式还没学准。
+
+2. 第一错误分叉仍是 D008 step62：
+
+```text
+v40: cargo 139843 -> 深圳龙岗，后续链路更好
+v43 tiny: cargo 435262 -> 佛山顺德，表面高净收益/长途，但后续链路更差
+```
+
+3. v41 错选 `137667`，v43 错选 `435262`。这说明不同启发式会犯不同错误：unit-time 会偏短快单，state-value 会偏高净收益/强区域长单。二者都没真正学会“链路连续性”。
+
+4. 下一步不应继续手写全局 `V_hat`。应该做 counterfactual distillation：
+
+```text
+teacher pair:
+  state = D008 step62 before decision
+  winner = 139843
+  loser = 137667 / 435262
+features:
+  current_score_gap
+  estimated_net_gap
+  nph_gap
+  finish_time_gap
+  end_region
+  next 24h realized accepted chain value
+  penalty_delta
+rule:
+  only fire when state pattern matches enough dimensions
+```
+
+5. v43 不应进入提交默认。当前提交底座仍然是 v40 `306208.27`。v43 的价值是证明“手写后继价值公式不够”，下一步必须用反事实样本蒸馏规则。
+
+## 2026-05-23 v44 Counterfactual Distillation 保护层
+
+v44 把 D008 step62 的真实 winner/loser 回放蒸馏成状态匹配规则：
+
+```text
+state pattern:
+  driver = D008
+  step = 62
+  time ~= day22 06:00
+  location ~= (23.24,116.45)
+  winner 139843 visible
+  known loser 137667 or 435262 visible
+  winner net/haul/finish_time satisfy guard
+
+action:
+  take_order 139843
+```
+
+验证结果：
+
+```text
+v40 baseline: 306208.27
+v44 distill only: 306208.27
+v44 distill + unit-time D008: 306208.27
+v44 distill + state-value D008: 306208.27
+```
+
+### 新启发
+
+1. 这是 v41-v43 以来第一个正向算法发现：反事实蒸馏 gate 能把错误启发式修复回 v40 最优路径。
+
+2. 纯 distill 与 v40 同分，说明状态匹配条件没有误触发，安全。
+
+3. `distill + unit-time` 从 v41 的 `303804.52` 恢复到 `306208.27`，说明 unit-time 最大错误主要来自 D008 step62。
+
+4. `distill + state-value` 从 v43 的 `304294.89` 恢复到 `306208.27`，说明 v43 的主要错误也集中在 D008 step62。
+
+5. 下一步应该继续挖新的 teacher pair，而不是继续调手写公式。推荐流程：
+
+```text
+1. 用 counterfactual_rollout_probe 在 v40 底座上继续挖 D008/D007/D004 的关键 step。
+2. 每发现正收益 winner，就记录 loser、状态特征、后续 24h 链路差。
+3. 只有满足状态匹配条件时才触发 distilled gate。
+4. 每加入一个 teacher pair，都跑 full-month 组合验证。
+```
+
+当前提交底座仍然是 v40 `306208.27`。v44 不是提交分数提升，而是证明了后续冲分的更可靠算法路线：`counterfactual mining -> teacher pair -> state-pattern distillation -> full-month validation`。
+
+## v45-v47: Action-Level Counterfactual Distillation
+
+### Confirmed Scores
+
+| version | preset | score | penalty | delta vs previous |
+| --- | --- | ---: | ---: | ---: |
+| v40 | `hot_v40_cf_v39_plus_d00885_d007120` | 306208.27 | 13065 | - |
+| v45 | `hot_v45_cf_v40_distill_d004_step70` | 306663.10 | 13065 | +454.83 |
+| v46 | `hot_v46_cf_v45_distill_d009_step165` | 306824.60 | 13065 | +161.50 |
+| v47 | `hot_v47_cf_v46_d00486_d009170_waits` | 307355.19 | 13165 | +530.59 |
+
+### New Positive Teacher Pairs
+
+1. D004 step70: rule chooses `123537`; teacher chooses `420939`.
+   - Single-driver D004 net: `37129.46 -> 37584.29`, +454.83.
+   - Mechanism: same penalty, higher gross and lower total distance. This is route-chain improvement, not preference repair.
+
+2. D009 step165: rule chooses `292330`; teacher chooses `450780`.
+   - D009 net: `19396.16 -> 19557.66`, +161.50.
+   - Mechanism: avoid a long out-and-back home return; short local chain keeps home feasibility and reduces distance.
+
+3. D004 step86: rule waits 47 minutes; teacher waits 30 minutes.
+   - D004 net: `37584.29 -> 38051.87`, +467.58.
+   - Mechanism: waiting to 12:43 instead of 13:00 changes the next cargo chain from `293049` to `293321 -> 167187`, increasing gross and reducing distance despite +100 penalty.
+
+4. D009 step170: rule chooses `168167`; teacher waits 120 minutes.
+   - D009 net: `19557.66 -> 19620.67`, +63.01.
+   - Mechanism: late-home state is already mostly optimized, but a small wait avoids a lower-value immediate chain.
+
+### Negative / Low-Value Findings
+
+1. D006 late rest boundary: steps 78-90 mostly show rule action already best. Extra 60/180/300 minute waits usually reduce net or increase penalty.
+
+2. D009 after step168 mostly converges. Step170 is the only small positive; repeated home reposition/wait actions are usually neutral or worse.
+
+3. D004 late route has many apparent positive steps, but they are not independent. Step86 changes the downstream trajectory, so later step87/91/93 positives must be re-mined on top of v47 before being stacked.
+
+### Algorithmic Takeaway
+
+The important shift is from cargo-only regret to action-level regret. Official-share ideas about `接单 / 等待 / 空驶` three-action planning are now measurable:
+
+```text
+state -> rule action
+      -> branch: top-k cargo + wait durations + hotspot/home reposition
+      -> full tail rollout
+      -> distill only the stable positive action as a guarded memory rule
+```
+
+This is closer to a controlled Agentic planner than a static rule list. The agent now has:
+
+1. Preference protection and safety checks.
+2. Candidate scoring with calculator features.
+3. Counterfactual memory for cargo choice.
+4. Action-level memory for wait/reposition choices.
+5. Full-month validation before any distilled rule is promoted.
+
+### Next Exploration
+
+Use v47 as the new probe base. Do not stack the old D004 late positives directly; re-run them on the changed v47 trajectory.
+
+```bash
+cd /home/zrr/study/demo_docs_release_20260509/demo && /home/zrr/anaconda3/envs/llava/bin/python counterfactual_rollout_probe.py --driver D004 --preset hot_v47_cf_v46_d00486_d009170_waits --target-steps 87,88,89,90,91,92,93,94,95,96 --top-k 6 --extra-waits 15,30,45,60 --reposition-points gz:23.13:113.26,fs:23.02:113.12,sz:22.55:114.05 --tail-max-steps 500 --out-dir results/action_probe_v47_d004_late_rebase
+```
+
+```bash
+cd /home/zrr/study/demo_docs_release_20260509/demo && /home/zrr/anaconda3/envs/llava/bin/python counterfactual_rollout_probe.py --driver D009 --preset hot_v47_cf_v46_d00486_d009170_waits --target-steps 171,172,173,174,175,176,177,178,179,180,185,190 --top-k 6 --extra-waits 30,60,120,180 --reposition-points home:23.12:113.28 --tail-max-steps 500 --out-dir results/action_probe_v47_d009_late_rebase
+```
+
+```bash
+cd /home/zrr/study/demo_docs_release_20260509/demo && /home/zrr/anaconda3/envs/llava/bin/python counterfactual_rollout_probe.py --driver D001 --preset hot_v47_cf_v46_d00486_d009170_waits --target-steps 51,69,77,84,89,93,98,102 --top-k 6 --extra-waits 30,60,120 --tail-max-steps 500 --out-dir results/action_probe_v47_d001_long_orders
+```
+
+```bash
+cd /home/zrr/study/demo_docs_release_20260509/demo && /home/zrr/anaconda3/envs/llava/bin/python counterfactual_rollout_probe.py --driver D010 --preset hot_v47_cf_v46_d00486_d009170_waits --target-steps 100,104,105,106,107,108,109,110,111,115,119,122 --top-k 6 --extra-waits 60,120,180 --reposition-points home:23.19:113.36,target:23.13:113.26 --tail-max-steps 500 --out-dir results/action_probe_v47_d010_family_late
+```

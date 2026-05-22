@@ -1,0 +1,8 @@
+__pycache__/
+*.py[cod]
+
+demo/results/
+demo/server/data/
+demo/server/config/config.json
+
+.DS_Store

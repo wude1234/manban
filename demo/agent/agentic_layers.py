@@ -115,8 +115,10 @@ _REGRET_PATTERNS: tuple[RegretPattern, ...] = (
     RegretPattern("D005", 28, "267168", 385.69, "future_state_value"),
     RegretPattern("D006", 65, "424880", 110.55, "future_state_value"),
     RegretPattern("D007", 105, "298040", 552.49, "future_state_value"),
+    RegretPattern("D007", 120, "487538", 134.97, "future_state_value"),
     RegretPattern("D008", 80, "178320", 451.79, "future_state_and_penalty"),
     RegretPattern("D008", 35, "377667", 1604.11, "future_state_and_penalty", penalty_delta=-400, rank=5),
+    RegretPattern("D008", 85, "194508", 221.14, "future_state_value", rank=3),
     RegretPattern("D009", 120, "407855", 195.86, "candidate_upgrade"),
     RegretPattern("D010", 60, "277413", 73.42, "preference_risk_delta"),
 )

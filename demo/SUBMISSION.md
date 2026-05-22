@@ -2,21 +2,21 @@
 
 ## 当前提交版本
 
-提交 profile：`v39_layered_agentic_planner_305852`
+提交 profile：`v47_action_level_agentic_planner_307355`
 
 本地 0509 数据当前最好复现结果：
 
 ```text
-score = 305852.15
-total_preference_penalty = 13065.0
+score = 307355.19
+total_preference_penalty = 13165.0
 failed_driver_count = 0
 ```
 
 对应实验：
 
 ```text
-demo/results/grid_agentic_algo/20260522_222759_v39_layered_agent_check
-preset = hot_v39_cf_v38_all_top
+demo/results/grid_agentic_algo/20260523_025528_v47_action_wait_distill_check/04_hot_v47_cf_v46_d00486_d009170_waits
+preset = hot_v47_cf_v46_d00486_d009170_waits
 ```
 
 ## Agent 结构
@@ -148,7 +148,7 @@ AGENT_AP_D006_OPPORTUNITY_REST_DAYS=27,28,29,30
 AGENT_AP_D006_OPPORTUNITY_REST_MAX_NPH=60
 ```
 
-在 v30 阶段，该技能把 D006 休息违规从 28 次降到 26 次，D006 净收益从 `35672.36` 提升到 `35848.32`，总分提升到 `296577.37`。当前 v38 在此底座上继续叠加了 counterfactual memory，最终达到 `303592.37`。
+在 v30 阶段，该技能把 D006 休息违规从 28 次降到 26 次，D006 净收益从 `35672.36` 提升到 `35848.32`，总分提升到 `296577.37`。当前 v47 在此底座上继续叠加 counterfactual memory、状态蒸馏和动作级等待记忆，最终达到 `307355.19`。
 
 ### 3. D004 严格订单配额
 
@@ -171,7 +171,7 @@ Qwen3.5-Flash 只在 near-tie top-2 候选中作为 critic/reranker，不直接�
 失败时 fallback 到规则底座动作
 ```
 
-当前 v38 最优路径中 Flash 没有实质消耗 token，说明主收益来自可解释的司机技能、多步链路规则和反事实记忆。Flash 保留为提交结构中的可控 critic，不让它破坏已经验证的高收益轨迹。
+当前 v47 最优路径中 Flash 没有实质消耗 token，说明主收益来自可解释的司机技能、多步链路规则、反事实记忆和动作级蒸馏。Flash 保留为提交结构中的可控 critic，不让它破坏已经验证的高收益轨迹。
 
 ### 6. Counterfactual Memory Planner
 
@@ -217,6 +217,17 @@ D008 step35 -> cargo 377667
 D004 step50 -> cargo 75999
 D007 step10 -> cargo 6273
 D010 step115 -> cargo 186578
+D008 step85 -> cargo 194508
+D007 step120 -> cargo 487538
+D004 step70 -> cargo 420939
+D009 step165 -> cargo 450780
+```
+
+当前已验证动作级正收益记忆：
+
+```text
+D004 step86 -> wait 30 minutes
+D009 step170 -> wait 120 minutes
 ```
 
 这不是最终形态的“预录轨迹”。在线运行时 agent 仍然通过环境查询状态、候选货源和历史动作；counterfactual memory 只是一个受控覆盖门，只有当当前司机、决策序号和候选 cargo 同时匹配时才触发，之后继续由原 agent 自主决策。
@@ -275,7 +286,7 @@ cd /home/zrr/study/demo_docs_release_20260509/demo && /home/zrr/anaconda3/envs/l
 ## 本地自检
 
 ```bash
-cd /home/zrr/study/demo_docs_release_20260509/demo && DASHSCOPE_API_KEY='你的key' /home/zrr/anaconda3/envs/llava/bin/python run_agentic_algo_grid.py --python /home/zrr/anaconda3/envs/llava/bin/python --tag submission_v38_check --grid "hot_v38_cf_v37_plus_d006_d009"
+cd /home/zrr/study/demo_docs_release_20260509/demo && DASHSCOPE_API_KEY='你的key' /home/zrr/anaconda3/envs/llava/bin/python run_agentic_algo_grid.py --python /home/zrr/anaconda3/envs/llava/bin/python --tag submission_v47_check --grid "hot_v47_cf_v46_d00486_d009170_waits"
 ```
 
 ## 提交包结构

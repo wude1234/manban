@@ -3153,6 +3153,146 @@ _CF_D004_V39_TOP = "D004:50:75999"
 _CF_D004_V39_SECOND = "D004:80:143847"
 _CF_D007_V39_TOP = "D007:10:6273"
 _CF_D007_V39_SECOND = "D007:120:487538"
+_CF_V39_BEST = ",".join([_CF_V38_BEST, _CF_D008_V39_TOP, _CF_D004_V39_TOP, _CF_D007_V39_TOP, _CF_D010_V39_TOP])
+_CF_V40_BEST = ",".join([_CF_V39_BEST, _CF_D008_V39_SECOND, _CF_D007_V39_SECOND])
+
+
+def _v41_unit_time_env(
+    *,
+    drivers: str,
+    weight: str = "0.014",
+    successor_weight: str = "0.25",
+    density_weight: str = "2.0",
+    wait_cost: str = "0.035",
+    pickup_cost: str = "0.08",
+    long_order_cost: str = "0.020",
+    min_nph: str = "0",
+    low_nph_penalty: str = "0",
+    cap: str = "24",
+) -> dict[str, str]:
+    env = _v32_counterfactual_env(_CF_V40_BEST)
+    env.update(
+        {
+            "AGENT_AP_ENABLE_UNIT_TIME_SCORER": "1",
+            "AGENT_AP_UNIT_TIME_DRIVERS": drivers,
+            "AGENT_AP_UNIT_TIME_WEIGHT": weight,
+            "AGENT_AP_UNIT_TIME_SUCCESSOR_WEIGHT": successor_weight,
+            "AGENT_AP_UNIT_TIME_DENSITY_WEIGHT": density_weight,
+            "AGENT_AP_UNIT_TIME_WAIT_COST": wait_cost,
+            "AGENT_AP_UNIT_TIME_PICKUP_COST": pickup_cost,
+            "AGENT_AP_UNIT_TIME_LONG_ORDER_COST": long_order_cost,
+            "AGENT_AP_UNIT_TIME_MIN_NPH": min_nph,
+            "AGENT_AP_UNIT_TIME_LOW_NPH_PENALTY": low_nph_penalty,
+            "AGENT_AP_LAYER_BONUS_CAP": cap,
+        }
+    )
+    return env
+
+
+def _v42_latent_market_env(
+    *,
+    drivers: str = "D008",
+    market_weight: str = "0.006",
+    isolation_weight: str = "0.006",
+    cap: str = "18",
+    with_unit_time: bool = False,
+) -> dict[str, str]:
+    env = _v32_counterfactual_env(_CF_V40_BEST)
+    env.update(
+        {
+            "AGENT_AP_ENABLE_LATENT_MARKET_SCORER": "1",
+            "AGENT_AP_LATENT_MARKET_DRIVERS": drivers,
+            "AGENT_AP_LATENT_MARKET_WEIGHT": market_weight,
+            "AGENT_AP_LATENT_ISOLATION_WEIGHT": isolation_weight,
+            "AGENT_AP_LAYER_BONUS_CAP": cap,
+        }
+    )
+    if with_unit_time:
+        env.update(
+            {
+                "AGENT_AP_ENABLE_UNIT_TIME_SCORER": "1",
+                "AGENT_AP_UNIT_TIME_DRIVERS": drivers,
+                "AGENT_AP_UNIT_TIME_WEIGHT": "0.010",
+                "AGENT_AP_UNIT_TIME_SUCCESSOR_WEIGHT": "0.20",
+            }
+        )
+    return env
+
+
+def _v43_state_value_gate_env(
+    *,
+    drivers: str = "D008",
+    weight: str = "0.08",
+    max_gap: str = "0.8",
+    conflict_gap: str = "3.0",
+    visible_gap: str = "60",
+    state_gap: str = "35",
+    cap: str = "14",
+) -> dict[str, str]:
+    env = _v32_counterfactual_env(_CF_V40_BEST)
+    env.update(
+        {
+            "AGENT_AP_ENABLE_STATE_VALUE_GATE": "1",
+            "AGENT_AP_STATE_VALUE_DRIVERS": drivers,
+            "AGENT_AP_STATE_VALUE_WEIGHT": weight,
+            "AGENT_AP_STATE_VALUE_MAX_GAP": max_gap,
+            "AGENT_AP_STATE_VALUE_CONFLICT_MAX_GAP": conflict_gap,
+            "AGENT_AP_STATE_VALUE_VISIBLE_GAP": visible_gap,
+            "AGENT_AP_STATE_VALUE_STATE_GAP": state_gap,
+            "AGENT_AP_STATE_VALUE_BONUS_CAP": cap,
+        }
+    )
+    return env
+
+
+def _v44_distilled_d008_step62_env(*, stack: str = "") -> dict[str, str]:
+    if stack == "unit":
+        env = _v41_unit_time_env(drivers="D008", weight="0.010", successor_weight="0.20", cap="16")
+    elif stack == "state":
+        env = _v43_state_value_gate_env(weight="0.04", max_gap="0.4", cap="8")
+    else:
+        env = _v32_counterfactual_env(_CF_V40_BEST)
+    env.update({"AGENT_AP_ENABLE_DISTILLED_COUNTERFACTUAL_GATE": "1"})
+    return env
+
+
+def _v45_distilled_d004_step70_env(*, base: str = "v40") -> dict[str, str]:
+    if base == "v44":
+        env = _v44_distilled_d008_step62_env()
+    else:
+        env = _v32_counterfactual_env(_CF_V40_BEST)
+    env.update(
+        {
+            "AGENT_AP_ENABLE_DISTILLED_COUNTERFACTUAL_GATE": "1",
+            "AGENT_AP_ENABLE_DISTILLED_D004_STEP70": "1",
+        }
+    )
+    return env
+
+
+def _v46_distilled_d009_step165_env(*, base: str = "v45") -> dict[str, str]:
+    if base == "v45":
+        env = _v45_distilled_d004_step70_env()
+    elif base == "v44":
+        env = _v44_distilled_d008_step62_env()
+    else:
+        env = _v32_counterfactual_env(_CF_V40_BEST)
+    env.update(
+        {
+            "AGENT_AP_ENABLE_DISTILLED_COUNTERFACTUAL_GATE": "1",
+            "AGENT_AP_ENABLE_DISTILLED_D009_STEP165": "1",
+        }
+    )
+    return env
+
+
+def _v47_distilled_wait_env(*, d004: bool = True, d009: bool = False) -> dict[str, str]:
+    env = _v46_distilled_d009_step165_env()
+    if d004:
+        env["AGENT_AP_ENABLE_DISTILLED_D004_STEP86_WAIT"] = "1"
+    if d009:
+        env["AGENT_AP_ENABLE_DISTILLED_D009_STEP170_WAIT"] = "1"
+    return env
 
 
 PRESETS.update(
@@ -3261,6 +3401,83 @@ PRESETS.update(
         "hot_v39_cf_v38_all_top": _v32_counterfactual_env(
             ",".join([_CF_V38_BEST, _CF_D008_V39_TOP, _CF_D004_V39_TOP, _CF_D007_V39_TOP, _CF_D010_V39_TOP])
         ),
+        # v40: test whether secondary v39 positives still stack after the
+        # confirmed v39 all-top path shift.
+        "hot_v40_cf_v39_plus_d00885": _v32_counterfactual_env(",".join([_CF_V39_BEST, _CF_D008_V39_SECOND])),
+        "hot_v40_cf_v39_plus_d007120": _v32_counterfactual_env(",".join([_CF_V39_BEST, _CF_D007_V39_SECOND])),
+        "hot_v40_cf_v39_plus_d00480": _v32_counterfactual_env(",".join([_CF_V39_BEST, _CF_D004_V39_SECOND])),
+        "hot_v40_cf_v39_plus_d00885_d007120": _v32_counterfactual_env(
+            ",".join([_CF_V39_BEST, _CF_D008_V39_SECOND, _CF_D007_V39_SECOND])
+        ),
+        "hot_v40_cf_v39_plus_all_seconds": _v32_counterfactual_env(
+            ",".join([_CF_V39_BEST, _CF_D008_V39_SECOND, _CF_D007_V39_SECOND, _CF_D004_V39_SECOND])
+        ),
+        # v41: official-share inspired unit-time route value. These are
+        # still controlled agent decisions: deterministic calculator first,
+        # driver memory / route-plan features second, no free-form LLM action.
+        "hot_v41_cf_v40_unit_d008_light": _v41_unit_time_env(drivers="D008", weight="0.010", successor_weight="0.20", cap="16"),
+        "hot_v41_cf_v40_unit_d008_mid": _v41_unit_time_env(drivers="D008", weight="0.016", successor_weight="0.28", cap="24"),
+        "hot_v41_cf_v40_unit_d007_light": _v41_unit_time_env(drivers="D007", weight="0.010", successor_weight="0.20", cap="16"),
+        "hot_v41_cf_v40_unit_d007_mid": _v41_unit_time_env(drivers="D007", weight="0.016", successor_weight="0.28", cap="24"),
+        "hot_v41_cf_v40_unit_d007_d008_light": _v41_unit_time_env(drivers="D007,D008", weight="0.010", successor_weight="0.20", cap="16"),
+        "hot_v41_cf_v40_unit_d007_d008_mid": _v41_unit_time_env(drivers="D007,D008", weight="0.016", successor_weight="0.28", cap="24"),
+        "hot_v41_cf_v40_unit_core_light": _v41_unit_time_env(drivers="D003,D004,D005,D007,D008,D010", weight="0.008", successor_weight="0.18", cap="14"),
+        "hot_v41_cf_v40_unit_core_min_nph": _v41_unit_time_env(
+            drivers="D003,D004,D005,D007,D008,D010",
+            weight="0.010",
+            successor_weight="0.20",
+            min_nph="45",
+            low_nph_penalty="0.10",
+            cap="16",
+        ),
+        # v42: latent market state value. This tests whether future cargo that
+        # is not currently online can be approximated by coarse city/region
+        # priors, avoiding the D008 step62 visible-successor trap.
+        "hot_v42_cf_v40_latent_d008_tiny": _v42_latent_market_env(market_weight="0.003", isolation_weight="0.004", cap="10"),
+        "hot_v42_cf_v40_latent_d008_light": _v42_latent_market_env(market_weight="0.006", isolation_weight="0.006", cap="18"),
+        "hot_v42_cf_v40_latent_d008_mid": _v42_latent_market_env(market_weight="0.010", isolation_weight="0.010", cap="26"),
+        "hot_v42_cf_v40_latent_d008_strong": _v42_latent_market_env(market_weight="0.018", isolation_weight="0.018", cap="36"),
+        "hot_v42_cf_v40_latent_core_light": _v42_latent_market_env(
+            drivers="D003,D004,D005,D007,D008,D010",
+            market_weight="0.004",
+            isolation_weight="0.004",
+            cap="14",
+        ),
+        "hot_v42_cf_v40_latent_plus_unit_d008": _v42_latent_market_env(
+            market_weight="0.012",
+            isolation_weight="0.018",
+            cap="32",
+            with_unit_time=True,
+        ),
+        # v43: gated state-value critic. Unlike v42, it does not apply region
+        # priors globally; it only arbitrates near-ties or visible/latent
+        # conflicts using a multi-feature after-state value estimate.
+        "hot_v43_cf_v40_state_d008_tiny": _v43_state_value_gate_env(weight="0.04", max_gap="0.4", cap="8"),
+        "hot_v43_cf_v40_state_d008_light": _v43_state_value_gate_env(weight="0.08", max_gap="0.8", cap="14"),
+        "hot_v43_cf_v40_state_d008_mid": _v43_state_value_gate_env(weight="0.12", max_gap="1.2", cap="20"),
+        "hot_v43_cf_v40_state_d008_conflict": _v43_state_value_gate_env(weight="0.10", max_gap="0.3", conflict_gap="4.0", visible_gap="70", state_gap="30", cap="18"),
+        "hot_v43_cf_v40_state_d007_d008_light": _v43_state_value_gate_env(drivers="D007,D008", weight="0.06", max_gap="0.6", cap="12"),
+        # v44: counterfactual distillation. This is deliberately narrower than
+        # v43: use the observed winner/loser pattern to protect D008 step62,
+        # then test whether it can safely stack with broader heuristics.
+        "hot_v44_cf_v40_distill_d008_step62": _v44_distilled_d008_step62_env(),
+        "hot_v44_cf_v40_distill_plus_unit_d008": _v44_distilled_d008_step62_env(stack="unit"),
+        "hot_v44_cf_v40_distill_plus_state_d008": _v44_distilled_d008_step62_env(stack="state"),
+        # v45: new teacher pair from v44 probes. D004 step70 rank-2 cargo
+        # improves the downstream route chain without reducing preference
+        # penalties, so test it as a narrow distilled critical-branch rule.
+        "hot_v45_cf_v40_distill_d004_step70": _v45_distilled_d004_step70_env(),
+        "hot_v45_cf_v44_distill_d00862_d00470": _v45_distilled_d004_step70_env(base="v44"),
+        # v46: D009 late-home boundary distillation. The teacher order keeps
+        # the driver near home, avoids a long return deadhead, and preserves the
+        # same preference penalty as the v45 path in full-tail replay.
+        "hot_v46_cf_v45_distill_d009_step165": _v46_distilled_d009_step165_env(),
+        "hot_v46_cf_v40_distill_d009_step165_only": _v46_distilled_d009_step165_env(base="v40"),
+        # v47: action-level distillation. These are not cargo switches; they
+        # distill wait-duration choices that change the downstream cargo chain.
+        "hot_v47_cf_v46_d004_step86_wait30": _v47_distilled_wait_env(d004=True, d009=False),
+        "hot_v47_cf_v46_d009_step170_wait120": _v47_distilled_wait_env(d004=False, d009=True),
+        "hot_v47_cf_v46_d00486_d009170_waits": _v47_distilled_wait_env(d004=True, d009=True),
     }
 )
 
