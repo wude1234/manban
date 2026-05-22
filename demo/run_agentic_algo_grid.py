@@ -3295,6 +3295,19 @@ def _v47_distilled_wait_env(*, d004: bool = True, d009: bool = False) -> dict[st
     return env
 
 
+def _v48_phase_gate_env(*, d010: bool = False, d004: bool = False, d009: str = "") -> dict[str, str]:
+    env = _v47_distilled_wait_env(d004=True, d009=True)
+    if d010:
+        env["AGENT_AP_ENABLE_DISTILLED_D010_STEP100_WAIT"] = "1"
+    if d004:
+        env["AGENT_AP_ENABLE_DISTILLED_D004_STEP87"] = "1"
+    if d009 in {"172", "both"}:
+        env["AGENT_AP_ENABLE_DISTILLED_D009_STEP172"] = "1"
+    if d009 in {"178", "both"}:
+        env["AGENT_AP_ENABLE_DISTILLED_D009_STEP178_WAIT"] = "1"
+    return env
+
+
 PRESETS.update(
     {
         # v32: exact counterfactual winners discovered by
@@ -3478,6 +3491,18 @@ PRESETS.update(
         "hot_v47_cf_v46_d004_step86_wait30": _v47_distilled_wait_env(d004=True, d009=False),
         "hot_v47_cf_v46_d009_step170_wait120": _v47_distilled_wait_env(d004=False, d009=True),
         "hot_v47_cf_v46_d00486_d009170_waits": _v47_distilled_wait_env(d004=True, d009=True),
+        # v48: phase-level action gates found by probing all three action
+        # types on top of v47.  D010 step100 wait60 is the main signal; D004
+        # step87 and D009 late fixes are smaller optional add-ons.
+        "hot_v48_cf_v47_d010_step100_wait60": _v48_phase_gate_env(d010=True),
+        "hot_v48_cf_v47_d004_step87": _v48_phase_gate_env(d004=True),
+        "hot_v48_cf_v47_d009_step172": _v48_phase_gate_env(d009="172"),
+        "hot_v48_cf_v47_d009_step178_wait120": _v48_phase_gate_env(d009="178"),
+        "hot_v48_cf_v47_d010_d004": _v48_phase_gate_env(d010=True, d004=True),
+        "hot_v48_cf_v47_d010_d009tiny": _v48_phase_gate_env(d010=True, d009="both"),
+        "hot_v48_cf_v47_d010_d004_d009172": _v48_phase_gate_env(d010=True, d004=True, d009="172"),
+        "hot_v48_cf_v47_d010_d004_d009178": _v48_phase_gate_env(d010=True, d004=True, d009="178"),
+        "hot_v48_cf_v47_d010_d004_d009tiny": _v48_phase_gate_env(d010=True, d004=True, d009="both"),
     }
 )
 

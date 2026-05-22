@@ -5,10 +5,10 @@
 当前最好可复现分数：
 
 ```text
-score = 307355.19
-preset = hot_v47_cf_v46_d00486_d009170_waits
-penalty = 13165.0
-result_dir = results/grid_agentic_algo/20260523_025528_v47_action_wait_distill_check/04_hot_v47_cf_v46_d00486_d009170_waits
+score = 307670.65
+preset = hot_v48_cf_v47_d010_d004_d009178
+penalty = 12465.0
+result_dir = results/grid_agentic_algo/20260523_034757_v48_d009_split_combo/03_hot_v48_cf_v47_d010_d004_d009178
 ```
 
 这套分数不是靠单点阈值堆出来的，核心是把司机拆成不同画像后做收益-扣分权衡，并在关键决策步使用反事实回放验证“换一个候选货源是否让整个月更优”：
@@ -19,7 +19,7 @@ D004: 每日订单配额，超过 3 单后只接高净收益高 NPH 单
 D006: 月末低机会窗口补休，不全月强制休息
 D009: 回家罚分在当前数据上多数时候值得支付
 D010: 家事事件 pre-query，避免 query scan 推进时间造成固定罚分
-v32-v47: 对关键步骤做 candidate/action-level counterfactual rollout，验证后写回窄触发记忆和状态蒸馏门
+v32-v48: 对关键步骤做 candidate/action-level counterfactual rollout，验证后写回窄触发记忆、状态蒸馏门和 phase-level action gate
 ```
 
 ## 已发现的关键规律
@@ -55,6 +55,8 @@ v32-v47: 对关键步骤做 candidate/action-level counterfactual rollout，验�
 15. v40 证明 v39 后仍有同司机次级正样本可叠加。D008 step85 与 D007 step120 在 v39 all-top 路径上继续有效，组合后到 `306208.27`，罚分保持 `13065`；D004 step80 与 D004 step50 路径等价，没有额外贡献。
 
 16. v45-v47 证明探索不能只看接哪个货，还要把 `wait/reposition` 作为同等动作分支。D004 step70、D009 step165 是 cargo-level 正样本；D004 step86 wait30、D009 step170 wait120 是 action-level 正样本。组合后当前最好达到 `307355.19`，说明受控 Agent 要比较完整动作，而不是只 rerank 货源。
+
+17. v48 证明“阶段级动作门控”是新的高收益角度。D010 step100 wait60 不是单点等货，而是在月末家事/休息边界把后续链整体后移，罚分 `1565 -> 1265` 且 gross 略升，单点 +212.52；D004 step87 cargo164073 降低罚分与里程，+74.36；D009 step178 wait120 小幅降低长返程链路，+28.58。组合后当前最好 `307670.65`，罚分降到 `12465`。
 
 ## 为什么不能继续一点点试阈值
 
@@ -991,4 +993,62 @@ cd /home/zrr/study/demo_docs_release_20260509/demo && /home/zrr/anaconda3/envs/l
 
 ```bash
 cd /home/zrr/study/demo_docs_release_20260509/demo && /home/zrr/anaconda3/envs/llava/bin/python counterfactual_rollout_probe.py --driver D010 --preset hot_v47_cf_v46_d00486_d009170_waits --target-steps 100,104,105,106,107,108,109,110,111,115,119,122 --top-k 6 --extra-waits 60,120,180 --reposition-points home:23.19:113.36,target:23.13:113.26 --tail-max-steps 500 --out-dir results/action_probe_v47_d010_family_late
+```
+
+## v48: Phase-Level Action Gate
+
+### Confirmed Scores
+
+| preset | score | penalty | delta vs v47 | finding |
+| --- | ---: | ---: | ---: | --- |
+| `hot_v47_cf_v46_d00486_d009170_waits` | 307355.19 | 13165 | - | v47 baseline |
+| `hot_v48_cf_v47_d010_step100_wait60` | 307567.71 | 12865 | +212.52 | D010 wait60 phase gate |
+| `hot_v48_cf_v47_d004_step87` | 307429.55 | 12765 | +74.36 | D004 late cargo repair |
+| `hot_v48_cf_v47_d009_step172` | 307358.80 | 13165 | +3.61 | too small, not mainline |
+| `hot_v48_cf_v47_d009_step178_wait120` | 307383.77 | 13165 | +28.58 | D009 late wait gate |
+| `hot_v48_cf_v47_d010_d004` | 307642.07 | 12465 | +286.88 | D010 and D004 stack cleanly |
+| `hot_v48_cf_v47_d010_d004_d009172` | 307645.68 | 12465 | +290.49 | step172 tiny gain |
+| `hot_v48_cf_v47_d010_d004_d009178` | 307670.65 | 12465 | +315.46 | current best |
+| `hot_v48_cf_v47_d010_d004_d009tiny` | 307645.68 | 12465 | +290.49 | step172 changes path and blocks step178 |
+
+### New Discovery
+
+The new angle is not another global scoring formula. It is phase-level action arbitration:
+
+```text
+current state
+-> compare take_order / wait / reposition as first-class actions
+-> full-tail rollout verifies month score
+-> distill only stable phase pattern into guarded online action
+```
+
+D010 step100 is the most important teacher. The rule takes `290384` immediately from `(23.48, 114.79)` at 2026-03-23 16:20. The teacher waits 60 minutes first, then still takes the same high-value chain but shifts the downstream schedule enough to reduce D010 preference penalty from `1565` to `1265` and slightly increase gross. This is exactly the official-share point: sometimes the best decision is not a better cargo, but a better timing action.
+
+D004 step87 chooses `164073` instead of `293321`. It sacrifices some gross but cuts penalty and distance, showing month-end D004 should price order-slot and penalty boundary more strongly than raw long-haul gross.
+
+D009 step178 wait120 works, while step172 and step178 together do not. This confirms same-driver path dependence: an earlier tiny cargo repair can destroy a later better wait repair. For one driver, pick the best compatible subset, not all positive rows.
+
+### Next Exploration Direction
+
+1. Rebase on v48 and probe D010 after step100. The wait60 changed the D010 path; old steps 104-106 positives are now no longer independent.
+2. Probe D004 after step87. The old step88/89/94/96 positives must be re-mined on the new D004 path.
+3. Search phase gates for D006 and D001 low-opportunity windows: not hard rest, but `wait 30/60/120` only when it shifts rest penalty without destroying gross.
+4. Add reposition branches near end-of-month only after wait/cargo probes, because v47 showed blind hotspot reposition is usually worse.
+
+### Recommended Commands
+
+```bash
+cd /home/zrr/study/demo_docs_release_20260509/demo && /home/zrr/anaconda3/envs/llava/bin/python counterfactual_rollout_probe.py --driver D010 --preset hot_v48_cf_v47_d010_d004_d009178 --target-steps 101,102,103,104,105,106,107,108,109,110,111,112 --top-k 6 --extra-waits 30,60,90,120,180 --reposition-points home:23.19:113.36,target:23.13:113.26,gz:23.13:113.26 --tail-max-steps 500 --out-dir results/action_probe_v48_d010_after_wait_rebase
+```
+
+```bash
+cd /home/zrr/study/demo_docs_release_20260509/demo && /home/zrr/anaconda3/envs/llava/bin/python counterfactual_rollout_probe.py --driver D004 --preset hot_v48_cf_v47_d010_d004_d009178 --target-steps 88,89,90,91,92,93,94,95,96,97,98 --top-k 6 --extra-waits 15,30,45,60,90 --reposition-points gz:23.13:113.26,fs:23.02:113.12,sz:22.55:114.05 --tail-max-steps 500 --out-dir results/action_probe_v48_d004_after_step87_rebase
+```
+
+```bash
+cd /home/zrr/study/demo_docs_release_20260509/demo && /home/zrr/anaconda3/envs/llava/bin/python counterfactual_rollout_probe.py --driver D006 --preset hot_v48_cf_v47_d010_d004_d009178 --target-steps 60,65,70,75,80,85,90,95,100 --top-k 6 --extra-waits 30,60,120,180,300 --reposition-points gz:23.13:113.26,fs:23.02:113.12,sz:22.55:114.05 --tail-max-steps 500 --out-dir results/action_probe_v48_d006_phase_waits
+```
+
+```bash
+cd /home/zrr/study/demo_docs_release_20260509/demo && /home/zrr/anaconda3/envs/llava/bin/python counterfactual_rollout_probe.py --driver D001 --preset hot_v48_cf_v47_d010_d004_d009178 --target-steps 51,60,69,77,84,89,93,98,102 --top-k 6 --extra-waits 30,60,120,180,300 --reposition-points gz:23.13:113.26,sz:22.55:114.05 --tail-max-steps 500 --out-dir results/action_probe_v48_d001_phase_waits
 ```

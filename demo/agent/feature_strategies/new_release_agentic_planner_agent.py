@@ -600,6 +600,14 @@ def _distilled_counterfactual_action(status: dict[str, Any], viable: list[dict[s
         return _d009_step165_distilled_action(status, viable)
     if driver_id == "D009" and step == 170 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D009_STEP170_WAIT", False):
         return _d009_step170_wait_distilled_action(status, viable)
+    if driver_id == "D010" and step == 100 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D010_STEP100_WAIT", False):
+        return _d010_step100_wait_distilled_action(status, viable)
+    if driver_id == "D004" and step == 87 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D004_STEP87", False):
+        return _d004_step87_distilled_action(status, viable)
+    if driver_id == "D009" and step == 172 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D009_STEP172", False):
+        return _d009_step172_distilled_action(status, viable)
+    if driver_id == "D009" and step == 178 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D009_STEP178_WAIT", False):
+        return _d009_step178_wait_distilled_action(status, viable)
     return None
 
 
@@ -716,6 +724,85 @@ def _d009_step170_wait_distilled_action(status: dict[str, Any], viable: list[dic
     if haversine_km(lat, lng, D009_HOME[0], D009_HOME[1]) > _env_float("AGENT_AP_D009_STEP170_HOME_RADIUS_KM", 5.0):
         return None
     return {"action": "wait", "params": {"duration_minutes": _env_int("AGENT_AP_D009_STEP170_WAIT_MINUTES", 120)}}
+
+
+def _d010_step100_wait_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:
+    loser_ids = _env_str_set("AGENT_AP_D010_STEP100_LOSER_IDS", "290384,151344")
+    if not any(_feature_by_cargo_id(viable, cargo_id) is not None for cargo_id in loser_ids):
+        return None
+    progress = int(status.get("simulation_progress_minutes", 0) or 0)
+    day = progress // 1440
+    minute = progress % 1440
+    lat = float(status.get("current_lat", 0.0) or 0.0)
+    lng = float(status.get("current_lng", 0.0) or 0.0)
+    if day != _env_int("AGENT_AP_D010_STEP100_DAY", 22):
+        return None
+    if not (_env_int("AGENT_AP_D010_STEP100_MIN_MINUTE", 16 * 60 + 20) <= minute <= _env_int("AGENT_AP_D010_STEP100_MAX_MINUTE", 17 * 60 + 10)):
+        return None
+    if haversine_km(lat, lng, 23.48, 114.79) > _env_float("AGENT_AP_D010_STEP100_LOCATION_RADIUS_KM", 12.0):
+        return None
+    return {"action": "wait", "params": {"duration_minutes": _env_int("AGENT_AP_D010_STEP100_WAIT_MINUTES", 60)}}
+
+
+def _d004_step87_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:
+    winner_id = os.getenv("AGENT_AP_D004_STEP87_WINNER_ID", "164073").strip()
+    winner = _feature_by_cargo_id(viable, winner_id)
+    if winner is None:
+        return None
+    loser_ids = _env_str_set("AGENT_AP_D004_STEP87_LOSER_IDS", "293321")
+    if not any(_feature_by_cargo_id(viable, cargo_id) is not None for cargo_id in loser_ids):
+        return None
+    progress = int(status.get("simulation_progress_minutes", 0) or 0)
+    minute = progress % 1440
+    lat = float(status.get("current_lat", 0.0) or 0.0)
+    lng = float(status.get("current_lng", 0.0) or 0.0)
+    if not (_env_int("AGENT_AP_D004_STEP87_MIN_MINUTE", 13 * 60 + 20) <= minute <= _env_int("AGENT_AP_D004_STEP87_MAX_MINUTE", 14 * 60 + 5)):
+        return None
+    if haversine_km(lat, lng, 23.61, 116.68) > _env_float("AGENT_AP_D004_STEP87_LOCATION_RADIUS_KM", 8.0):
+        return None
+    min_net = _env_float("AGENT_AP_D004_STEP87_WINNER_MIN_NET", 650.0)
+    max_pickup = _env_float("AGENT_AP_D004_STEP87_WINNER_MAX_PICKUP_KM", 55.0)
+    if float(winner.get("estimated_net", 0.0)) < min_net:
+        return None
+    if float(winner.get("pickup_km", 9999.0)) > max_pickup:
+        return None
+    return {"action": "take_order", "params": {"cargo_id": winner_id}}
+
+
+def _d009_step172_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:
+    winner_id = os.getenv("AGENT_AP_D009_STEP172_WINNER_ID", "296607").strip()
+    winner = _feature_by_cargo_id(viable, winner_id)
+    if winner is None:
+        return None
+    loser_ids = _env_str_set("AGENT_AP_D009_STEP172_LOSER_IDS", "296528")
+    if not any(_feature_by_cargo_id(viable, cargo_id) is not None for cargo_id in loser_ids):
+        return None
+    progress = int(status.get("simulation_progress_minutes", 0) or 0)
+    minute = progress % 1440
+    lat = float(status.get("current_lat", 0.0) or 0.0)
+    lng = float(status.get("current_lng", 0.0) or 0.0)
+    if not (_env_int("AGENT_AP_D009_STEP172_MIN_MINUTE", 15 * 60 + 10) <= minute <= _env_int("AGENT_AP_D009_STEP172_MAX_MINUTE", 15 * 60 + 50)):
+        return None
+    if haversine_km(lat, lng, 22.77, 113.76) > _env_float("AGENT_AP_D009_STEP172_LOCATION_RADIUS_KM", 8.0):
+        return None
+    if haversine_km(float(winner.get("end_lat", 0.0)), float(winner.get("end_lng", 0.0)), D009_HOME[0], D009_HOME[1]) > _env_float("AGENT_AP_D009_STEP172_MAX_END_HOME_KM", 45.0):
+        return None
+    return {"action": "take_order", "params": {"cargo_id": winner_id}}
+
+
+def _d009_step178_wait_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:
+    loser_ids = _env_str_set("AGENT_AP_D009_STEP178_LOSER_IDS", "298327")
+    if not any(_feature_by_cargo_id(viable, cargo_id) is not None for cargo_id in loser_ids):
+        return None
+    progress = int(status.get("simulation_progress_minutes", 0) or 0)
+    minute = progress % 1440
+    lat = float(status.get("current_lat", 0.0) or 0.0)
+    lng = float(status.get("current_lng", 0.0) or 0.0)
+    if not (_env_int("AGENT_AP_D009_STEP178_MIN_MINUTE", 8 * 60) <= minute <= _env_int("AGENT_AP_D009_STEP178_MAX_MINUTE", 8 * 60 + 45)):
+        return None
+    if haversine_km(lat, lng, D009_HOME[0], D009_HOME[1]) > _env_float("AGENT_AP_D009_STEP178_HOME_RADIUS_KM", 5.0):
+        return None
+    return {"action": "wait", "params": {"duration_minutes": _env_int("AGENT_AP_D009_STEP178_WAIT_MINUTES", 120)}}
 
 
 def _feature_by_cargo_id(features: list[dict[str, Any]], cargo_id: str) -> dict[str, Any] | None:

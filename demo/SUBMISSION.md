@@ -2,21 +2,21 @@
 
 ## 当前提交版本
 
-提交 profile：`v47_action_level_agentic_planner_307355`
+提交 profile：`v48_phase_gate_agentic_planner_307670`
 
 本地 0509 数据当前最好复现结果：
 
 ```text
-score = 307355.19
-total_preference_penalty = 13165.0
+score = 307670.65
+total_preference_penalty = 12465.0
 failed_driver_count = 0
 ```
 
 对应实验：
 
 ```text
-demo/results/grid_agentic_algo/20260523_025528_v47_action_wait_distill_check/04_hot_v47_cf_v46_d00486_d009170_waits
-preset = hot_v47_cf_v46_d00486_d009170_waits
+demo/results/grid_agentic_algo/20260523_034757_v48_d009_split_combo/03_hot_v48_cf_v47_d010_d004_d009178
+preset = hot_v48_cf_v47_d010_d004_d009178
 ```
 
 ## Agent 结构
@@ -221,6 +221,7 @@ D008 step85 -> cargo 194508
 D007 step120 -> cargo 487538
 D004 step70 -> cargo 420939
 D009 step165 -> cargo 450780
+D004 step87 -> cargo 164073
 ```
 
 当前已验证动作级正收益记忆：
@@ -228,6 +229,8 @@ D009 step165 -> cargo 450780
 ```text
 D004 step86 -> wait 30 minutes
 D009 step170 -> wait 120 minutes
+D010 step100 -> wait 60 minutes
+D009 step178 -> wait 120 minutes
 ```
 
 这不是最终形态的“预录轨迹”。在线运行时 agent 仍然通过环境查询状态、候选货源和历史动作；counterfactual memory 只是一个受控覆盖门，只有当当前司机、决策序号和候选 cargo 同时匹配时才触发，之后继续由原 agent 自主决策。
@@ -286,7 +289,7 @@ cd /home/zrr/study/demo_docs_release_20260509/demo && /home/zrr/anaconda3/envs/l
 ## 本地自检
 
 ```bash
-cd /home/zrr/study/demo_docs_release_20260509/demo && DASHSCOPE_API_KEY='你的key' /home/zrr/anaconda3/envs/llava/bin/python run_agentic_algo_grid.py --python /home/zrr/anaconda3/envs/llava/bin/python --tag submission_v47_check --grid "hot_v47_cf_v46_d00486_d009170_waits"
+cd /home/zrr/study/demo_docs_release_20260509/demo && DASHSCOPE_API_KEY='你的key' /home/zrr/anaconda3/envs/llava/bin/python run_agentic_algo_grid.py --python /home/zrr/anaconda3/envs/llava/bin/python --tag submission_v48_check --grid "hot_v48_cf_v47_d010_d004_d009178"
 ```
 
 ## 提交包结构
