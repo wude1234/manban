@@ -5,7 +5,7 @@
 0509 当前稳定最好：
 
 ```text
-score = 311234.76
+score = 311679.70
 penalty = 11865.0
 failed_driver_count = 0
 ```
@@ -14,12 +14,12 @@ failed_driver_count = 0
 
 ```text
 AGENT_STRATEGY = new_release_agentic_planner_agent
-profile = hot_v56_core_new_all6
+profile = hot_v57_d00761_d010121
 base = v30 driver-specific planner
-upgrade = v32-v56 counterfactual memory + phase action gates + low-efficiency route repair
+upgrade = v32-v57 counterfactual memory + phase action gates + low-efficiency route repair
 ```
 
-这个结果的意义不是最高分本身，而是说明：0508 上有效的司机独立规则迁移到 0509 后仍成立，且“轨迹记录 + 反事实回放 + 规则蒸馏”的 agentic harness 能继续从固定底座中挖出真实长期收益。v56 的新增收益没有降低总罚分，而是在同罚分下修复 D003/D006/D007/D002 的后继路线状态。
+这个结果的意义不是最高分本身，而是说明：0508 上有效的司机独立规则迁移到 0509 后仍成立，且“轨迹记录 + 反事实回放 + 规则蒸馏”的 agentic harness 能继续从固定底座中挖出真实长期收益。v56/v57 的新增收益没有降低总罚分，而是在同罚分下修复 D003/D006/D007/D002/D010 的后继路线状态。
 
 ## 2. 核心发现
 
@@ -41,6 +41,7 @@ upgrade = v32-v56 counterfactual memory + phase action gates + low-efficiency ro
 - v38 证明 D006/D009 的二次反事实替换仍能叠加。D006 step65 与 D009 step120 把分数继续推到 `303592.37`，罚分保持 `13565`，说明当前方向还没有完全收敛。
 - v55/v56 证明 `wait/reposition/take_order` 必须作为同级动作比较。v55 主动空驶把分数推到 `310370.12`；v56 再通过低效率关键步 full-tail 反事实，把分数推到 `311234.76`。
 - v56 的核心增益不是降罚，而是 route repair：D003 step80、D006 step17、D007 step114、D002 step78、D003 step10 均在偏好罚分不变时提升整月净收益。
+- v57 证明自动选点可以继续找到同罚分收益。D007 step61 `cargo93774` 与 D010 step121 `cargo200361` 可跨司机叠加，把分数推到 `311679.70`；D010 step118 虽单点为正，但与 step121 冲突。
 - D004 的 v56 负结果说明“修罚分”不是万能方向。对高空驶/日程问题强行等或空驶会损失更多 gross，后续 D004 应转向更早的日内槽位规划。
 
 ### 2.2 明确负方向
@@ -350,13 +351,13 @@ score =
 判断标准：
 
 ```text
-当前 0509 最好 = 311234.76
+当前 0509 最好 = 311679.70
 任何算法只有超过这个分数，才算新的提交候选。
 如果总分不涨但某司机涨，需要看是否被其他司机互相干扰。
 如果罚分下降但总分下降，不能采纳。
 ```
 
-## 9. v32-v56 新策略：Counterfactual Memory Planner
+## 9. v32-v57 新策略：Counterfactual Memory Planner
 
 当前最有效的探索范式：
 
@@ -403,6 +404,8 @@ D007: step105 cargo298040
 D008: step80 cargo178320
 D006: step65 cargo424880
 D009: step120 cargo407855
+D007: step61 cargo93774
+D010: step121 cargo200361
 ```
 
 下一步不是无限追加固定 step，而是归纳这些动作为什么赢：
@@ -432,11 +435,11 @@ v21 的负实验说明短单偏好不能全局化。step87 中 base 长单本来
 
 ## 8. 最终提交策略建议
 
-当前 0509 最好已更新为 v56：
+当前 0509 最好已更新为 v57：
 
 ```text
-hot_v56_core_new_all6
-score = 311234.76
+hot_v57_d00761_d010121
+score = 311679.70
 penalty = 11865
 ```
 
@@ -448,12 +451,12 @@ score = 310370.12
 penalty = 11865
 ```
 
-如果后续 D003/D005/D006/D007/D008/D010 等未充分覆盖司机继续挖掘跑出更高组合，再替换提交底座；否则 v56 作为当前提交候选。
+如果后续 D003/D005/D006/D007/D008/D010 等未充分覆盖司机继续挖掘跑出更高组合，再替换提交底座；否则 v57 作为当前提交候选。
 
 提交前原则：
 
 ```text
-只并入超过 311234.76 的策略。
+只并入超过 311679.70 的策略。
 固定 step switch 必须经过完整月度验证。
 同司机多个 switch 必须组合验证，不能只看单点最高。
 D009 gated、D007 top5、D010 limit205、v21 night preserve 等旧负方向继续排除。

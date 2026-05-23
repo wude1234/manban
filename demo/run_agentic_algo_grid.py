@@ -3686,6 +3686,37 @@ def _v56_d007_late_env(
     return env
 
 
+def _v57_action_regret_env(
+    *,
+    d007_61: bool = False,
+    d010_118: bool = False,
+    d010_121: bool = False,
+) -> dict[str, str]:
+    env = _v56_d007_late_env(
+        d007_114_sw=True,
+        d007_122_wait=True,
+        d003_80=True,
+        d006_17=True,
+        d002_78=True,
+        d003_10=True,
+    )
+    switches = [
+        item.strip()
+        for item in env.get("AGENT_AP_COUNTERFACTUAL_SWITCHES", "").split(",")
+        if item.strip()
+    ]
+    if d007_61:
+        switches.append("D007:61:93774")
+    if d010_118:
+        switches.append("D010:118:186578")
+    if d010_121:
+        switches.append("D010:121:200361")
+    if switches:
+        env["AGENT_AP_ENABLE_COUNTERFACTUAL_SWITCHES"] = "1"
+        env["AGENT_AP_COUNTERFACTUAL_SWITCHES"] = ",".join(switches)
+    return env
+
+
 PRESETS.update(
     {
         # v32: exact counterfactual winners discovered by
@@ -4068,6 +4099,14 @@ PRESETS.update(
             d002_78=True,
             d003_10=True,
         ),
+        "hot_v57_base_v56": _v57_action_regret_env(),
+        "hot_v57_d00761_93774": _v57_action_regret_env(d007_61=True),
+        "hot_v57_d010118_186578": _v57_action_regret_env(d010_118=True),
+        "hot_v57_d010121_200361": _v57_action_regret_env(d010_121=True),
+        "hot_v57_d010118_d010121": _v57_action_regret_env(d010_118=True, d010_121=True),
+        "hot_v57_d00761_d010118": _v57_action_regret_env(d007_61=True, d010_118=True),
+        "hot_v57_d00761_d010121": _v57_action_regret_env(d007_61=True, d010_121=True),
+        "hot_v57_all3": _v57_action_regret_env(d007_61=True, d010_118=True, d010_121=True),
     }
 )
 

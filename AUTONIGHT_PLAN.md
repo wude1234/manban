@@ -14,13 +14,13 @@
 ## Current Best
 
 ```text
-version = v56 validated submission default
-preset = hot_v56_core_new_all6
-score = 311234.76
+version = v57 validated submission default
+preset = hot_v57_d00761_d010121
+score = 311679.70
 penalty = 11865
-run_dir = demo/results/grid_agentic_algo/20260523_203303_submission_v56_check/01_hot_v56_core_new_all6
-default_run = demo/results/actions_202603_*_20260523_210412.jsonl + demo/results/monthly_income_202603.json
-last_commit = pending v56 commit
+run_dir = demo/results/grid_agentic_algo/20260523_213118_autonight_v57_combo_grid/07_hot_v57_d00761_d010121
+default_run = demo/results/actions_202603_*_20260523_220313.jsonl + demo/results/monthly_income_202603.json
+last_commit = 23ab35e v56 counterfactual route planner score 311234
 ```
 
 核心发现：
@@ -32,22 +32,28 @@ wait / take_order / reposition 必须作为同级动作做 full-tail rollout
 跨司机正样本通常可以组合，但仍需完整月度验证
 query 后状态会造成 trace step time 与 agent decision time 错位，phase guard 需要足够宽但仍由候选货源/位置约束兜底
 action-level teacher must override older cargo-level switch on the same driver/step
+auto-selected suspicious steps must still be judged by full-tail rollout; high pickup/wait/reposition signals are filters, not policy rules
 ```
 
 ## Active Experiments
 
-当前正在基于 v56 best 做下一轮自动探索：
+当前正在基于 v57 validated best 做下一轮自动探索：
 
 ```text
-status = v56 promoted and default submission path validated; commit in progress
-purpose = next mine from v56 trajectory after commit; do not continue from v55
-current_best_grid = demo/results/grid_agentic_algo/20260523_203303_submission_v56_check/01_hot_v56_core_new_all6
+status = v57 promoted, grid-confirmed, default submission path validated
+purpose = commit v57, then continue mining from v57 trajectory
+current_best_grid = demo/results/grid_agentic_algo/20260523_213118_autonight_v57_combo_grid/07_hot_v57_d00761_d010121
 completed_probe_dirs =
   results/autonight_v56_d002_inefficiency_probe
   results/autonight_v56_d003_inefficiency_probe
   results/autonight_v56_d004_inefficiency_probe
   results/autonight_v56_d006_rest_inefficiency_probe
   results/autonight_v56_d007_late_rebase_probe
+  results/autonight_v57_d003_wait_tail_regret
+  results/autonight_v57_d005_action_regret
+  results/autonight_v57_d007_mid_action_regret
+  results/autonight_v57_d008_action_regret
+  results/autonight_v57_d010_mid_action_regret
 ```
 
 上一轮基于 v48 best 并行探索 5 条线，均已完成：
@@ -446,6 +452,42 @@ The gain comes from counterfactual route repair: same-driver state is shifted in
 D003 is again a main battlefield; step80 plus step10 jointly improve gross and reduce distance under the same deadhead penalty cap.
 D006 still pays the 5200 rest penalty, but an early cargo replacement improves later chain value by +219.65 without changing violations.
 D007 late action choices are mutually exclusive; full-grid validation picks step114 reposition in the all6 path, not the standalone step122 wait.
+```
+
+### v57 automatic step selection result
+
+```text
+tool = demo/select_probe_steps.py
+probe_summary = demo/results/autonight_v57_action_regret_summary.md
+grid = demo/results/grid_agentic_algo/20260523_213118_autonight_v57_combo_grid
+validation = demo/results/grid_agentic_algo/20260523_215534_submission_v57_check/01_hot_v57_d00761_d010121
+default_run = demo/results/actions_202603_*_20260523_220313.jsonl + demo/results/monthly_income_202603.json
+best = hot_v57_d00761_d010121
+score = 311679.70
+delta_vs_v56 = +444.94
+penalty = 11865
+```
+
+Promoted:
+
+```text
+D007 step61 cargo93774 over cargo97521: +279.72, penalty unchanged.
+D010 step121 cargo200361 over cargo196038: +165.22, penalty unchanged.
+```
+
+Rejected / not promoted:
+
+```text
+D010 step118 cargo186578 is +87.48 alone, but conflicts with step121; all3 falls to 311601.96.
+D003/D005/D008 suspicious high-deadhead or long-wait steps mostly keep the rule action; hotspot reposition is usually negative.
+```
+
+Interpretation:
+
+```text
+High pickup distance, long wait, or hotspot reposition are only probe selectors, not policy rules.
+The new gain again comes from same-penalty route repair, not from reducing preference penalties.
+Cross-driver positives can stack, but same-driver positives still need subset/rebase validation.
 ```
 
 ### D008 phase actions

@@ -5,10 +5,10 @@
 当前最好可复现分数：
 
 ```text
-score = 311234.76
-preset = hot_v56_core_new_all6
+score = 311679.70
+preset = hot_v57_d00761_d010121
 penalty = 11865.0
-result_dir = results/grid_agentic_algo/20260523_203303_submission_v56_check/01_hot_v56_core_new_all6
+result_dir = results/grid_agentic_algo/20260523_213118_autonight_v57_combo_grid/07_hot_v57_d00761_d010121
 ```
 
 这套分数不是靠单点阈值堆出来的，核心是把司机拆成不同画像后做收益-扣分权衡，并在关键决策步使用反事实回放验证“换一个候选货源是否让整个月更优”：
@@ -19,7 +19,7 @@ D004: 每日订单配额，超过 3 单后只接高净收益高 NPH 单
 D006: 月末低机会窗口补休，不全月强制休息
 D009: 回家罚分在当前数据上多数时候值得支付
 D010: 家事事件 pre-query，避免 query scan 推进时间造成固定罚分
-v32-v56: 对关键步骤做 candidate/action-level counterfactual rollout，验证后写回窄触发记忆、状态蒸馏门和 phase-level action gate
+v32-v57: 对关键步骤做 candidate/action-level counterfactual rollout，验证后写回窄触发记忆、状态蒸馏门和 phase-level action gate
 ```
 
 ## 已发现的关键规律
@@ -73,6 +73,8 @@ v32-v56: 对关键步骤做 candidate/action-level counterfactual rollout，验�
 24. v56 的 D007 是典型同司机路径冲突案例。step114 主动空驶 SW 单点 +201.22，step122 wait30 单点 +208.42，但二者组合不能叠加；在 all6 组合中最终由 step114 分支主导。结论仍是：同司机正样本必须做 subset/rebase，不能贪心全开。
 
 25. v56 的 D004 负结果同样重要。针对 D004 高空驶、午间、晚首单等 15 个关键 step 做 take/wait/reposition 反事实，没有一个正收益动作。说明 D004 当前的日程罚分不是可轻易修的漏洞，强行等/空驶常用几百罚分换掉上千 gross；下一步 D004 要做更早的槽位规划，而不是高空驶 step 替换。
+
+26. v57 证明自动选点 + action regret 仍能继续涨分，但“高空驶/长等待”只是筛选信号，不是直接决策规则。`select_probe_steps.py` 从 v56 轨迹中选出 D003/D005/D007/D008/D010 的可疑步，再对 top-k 接单、等待、热点迁移做 full-tail 回放。结果 D003/D005/D008 大多保持原动作最优，D007 step61 改 `cargo93774` 单点 +279.72，D010 step121 改 `cargo200361` 单点 +165.22，跨司机组合达到 `311679.70`。D010 step118 单点 +87.48，但与 step121 同司机冲突，all3 回落到 `311601.96`，不推广。
 
 ## 为什么不能继续一点点试阈值
 
