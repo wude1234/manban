@@ -14,12 +14,12 @@
 ## Current Best
 
 ```text
-version = v54 candidate
-preset = hot_v54_d00289_200633
-score = 309885.45
-penalty = 12165
-run_dir = demo/results/grid_agentic_algo/20260523_175706_submission_v54_check/01_hot_v54_d00289_200633
-last_commit = 2dea679 add shared exploration tooling and simulator docs
+version = v55 candidate
+preset = hot_v55_d010100_d00780_d009200
+score = 310370.12
+penalty = 11865
+run_dir = demo/results/grid_agentic_algo/20260523_190658_submission_v55_check/01_hot_v55_d010100_d00780_d009200
+last_commit = 8e27b06 v54 d002 branch planner score 309885
 ```
 
 核心发现：
@@ -39,9 +39,9 @@ action-level teacher must override older cargo-level switch on the same driver/s
 
 ```text
 grid_tag = autonight_v54_d002_d004_tail
-status = v54 grid completed
-purpose = continue from v54 best; D002 step89 cargo200633 is promoted
-previous_grid = demo/results/grid_agentic_algo/20260523_172232_autonight_v54_d002_d004_tail
+status = v55 grid completed
+purpose = continue from v55 best; D010/D007 active reposition and D009 late wait are promoted
+previous_grid = demo/results/grid_agentic_algo/20260523_184012_autonight_v55_broad_action_grid
 ```
 
 上一轮基于 v48 best 并行探索 5 条线，均已完成：
@@ -352,6 +352,39 @@ Interpretation:
 v54 的 D002 step89 是一个完整分支，不是后面还需要补丁的半成品。
 D003/D006/D008 当前已被 phase/action teachers 保护得很强，在这些中后段 target 上继续挖收益很低。
 下一轮应转向低净收益司机和未充分覆盖中段：D001/D005/D007/D009/D010，以及更早的 high-regret branch。
+```
+
+### v55 broad action grid
+
+```text
+grid = demo/results/grid_agentic_algo/20260523_184012_autonight_v55_broad_action_grid
+validation = demo/results/grid_agentic_algo/20260523_190658_submission_v55_check/01_hot_v55_d010100_d00780_d009200
+best = hot_v55_d010100_d00780_d009200
+score = 310370.12
+delta_vs_v54 = +484.67
+penalty = 11865
+```
+
+Promoted:
+
+```text
+D010 step100 reposition DG: +363.94, penalty 1265 -> 965 for D010.
+D007 step80 reposition GZ: +67.48, path-level improvement without penalty change.
+D009 step200 wait60: +53.25, small month-end wait repair.
+```
+
+Rejected:
+
+```text
+D009 step178 reposition HY remains negative in full-grid combination despite local positive probe.
+D005 step110 cargo170270 only +4.39, too small to promote before stronger validation.
+```
+
+Interpretation:
+
+```text
+Active reposition is now validated as a first-class Agent action. It works when a specific driver phase has a poor after-state, not as a global hotspot bias.
+The high-yield pattern is: identify phase where wait/take_order leads to low future state value, branch to a reposition point, then validate full-month.
 ```
 
 ### D008 phase actions

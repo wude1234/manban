@@ -3592,6 +3592,53 @@ def _v54_d002_tail_env(
     return env
 
 
+def _v55_broad_action_env(
+    *,
+    d010_100_dg: bool = False,
+    d007_80_gz: bool = False,
+    d009_178_hy: bool = False,
+    d009_200_wait: bool = False,
+) -> dict[str, str]:
+    env = _v54_d002_tail_env(d002_89=True)
+    if d010_100_dg:
+        env.update(
+            {
+                "AGENT_AP_ENABLE_DISTILLED_D010_STEP100_REPOS_DG": "1",
+                "AGENT_AP_D010_STEP100_REPOS_MIN_MINUTE": str(16 * 60),
+                "AGENT_AP_D010_STEP100_REPOS_MAX_MINUTE": str(18 * 60),
+                "AGENT_AP_D010_STEP100_REPOS_LOCATION_RADIUS_KM": "18",
+            }
+        )
+    if d007_80_gz:
+        env.update(
+            {
+                "AGENT_AP_ENABLE_DISTILLED_D007_STEP80_REPOS_GZ": "1",
+                "AGENT_AP_D007_STEP80_MIN_MINUTE": str(4 * 60),
+                "AGENT_AP_D007_STEP80_MAX_MINUTE": str(13 * 60),
+                "AGENT_AP_D007_STEP80_LOCATION_RADIUS_KM": "25",
+            }
+        )
+    if d009_178_hy:
+        env.update(
+            {
+                "AGENT_AP_ENABLE_DISTILLED_D009_STEP178_REPOS_HY": "1",
+                "AGENT_AP_D009_STEP178_REPOS_MIN_MINUTE": str(9 * 60),
+                "AGENT_AP_D009_STEP178_REPOS_MAX_MINUTE": str(12 * 60),
+                "AGENT_AP_D009_STEP178_REPOS_LOCATION_RADIUS_KM": "20",
+            }
+        )
+    if d009_200_wait:
+        env.update(
+            {
+                "AGENT_AP_ENABLE_DISTILLED_D009_STEP200_WAIT": "1",
+                "AGENT_AP_D009_STEP200_MIN_MINUTE": str(8 * 60),
+                "AGENT_AP_D009_STEP200_MAX_MINUTE": str(15 * 60),
+                "AGENT_AP_D009_STEP200_LOCATION_RADIUS_KM": "10",
+            }
+        )
+    return env
+
+
 PRESETS.update(
     {
         # v32: exact counterfactual winners discovered by
@@ -3932,6 +3979,23 @@ PRESETS.update(
         "hot_v54_d002_all": _v54_d002_tail_env(d002_87=True, d002_89=True, d002_90=True, d002_91=True),
         "hot_v54_d00289_d00495": _v54_d002_tail_env(d002_89=True, d004_95=True),
         "hot_v54_d002_best_probe_d00495": _v54_d002_tail_env(d002_87=True, d002_89=True, d004_95=True),
+        # v55: broad action probes from v54. D010 step100 is a new active
+        # reposition candidate replacing the earlier wait teacher.
+        "hot_v55_base_v54": _v55_broad_action_env(),
+        "hot_v55_d010100_repos_dg": _v55_broad_action_env(d010_100_dg=True),
+        "hot_v55_d00780_repos_gz": _v55_broad_action_env(d007_80_gz=True),
+        "hot_v55_d009178_repos_hy": _v55_broad_action_env(d009_178_hy=True),
+        "hot_v55_d009200_wait60": _v55_broad_action_env(d009_200_wait=True),
+        "hot_v55_d010100_d00780": _v55_broad_action_env(d010_100_dg=True, d007_80_gz=True),
+        "hot_v55_d010100_d009200": _v55_broad_action_env(d010_100_dg=True, d009_200_wait=True),
+        "hot_v55_d00780_d009200": _v55_broad_action_env(d007_80_gz=True, d009_200_wait=True),
+        "hot_v55_d010100_d00780_d009200": _v55_broad_action_env(
+            d010_100_dg=True, d007_80_gz=True, d009_200_wait=True
+        ),
+        "hot_v55_d010100_d009178": _v55_broad_action_env(d010_100_dg=True, d009_178_hy=True),
+        "hot_v55_all_broad": _v55_broad_action_env(
+            d010_100_dg=True, d007_80_gz=True, d009_178_hy=True, d009_200_wait=True
+        ),
     }
 )
 
