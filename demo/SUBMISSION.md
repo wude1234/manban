@@ -2,12 +2,12 @@
 
 ## 当前提交版本
 
-提交 profile：`v53_priority_agentic_planner_309601`
+提交 profile：`v54_d002_branch_agentic_planner_309885`
 
 本地 0509 数据当前最好复现结果：
 
 ```text
-score = 309601.27
+score = 309885.45
 total_preference_penalty = 12165.0
 failed_driver_count = 0
 ```
@@ -15,8 +15,8 @@ failed_driver_count = 0
 对应实验：
 
 ```text
-demo/results/grid_agentic_algo/20260523_092432_submission_v53_check/01_hot_v53_d00880_wait240
-preset = hot_v53_d00880_wait240
+demo/results/grid_agentic_algo/20260523_175706_submission_v54_check/01_hot_v54_d00289_200633
+preset = hot_v54_d00289_200633
 ```
 
 v49 相比 v48 的新增有效动作：
@@ -32,11 +32,14 @@ D010 step123 cargo205150: 月末尾部候选改选，接入更高价值后续链
 D007 step119 wait30: 短等待对齐后续货源释放窗口，提升尾部链路收益
 D005 step128 reposition FS: 主动空驶到佛山附近，改善最后阶段位置状态
 D008 step80 wait240: 覆盖旧 cargo switch，等待后接入更高价值跨日长链
+D002 step89 cargo200633: 月末凌晨不继续等 240 分钟，直接接入更高价值短链，后续尾段净收益 +284.18
 ```
 
 v52 的关键修正不是新增普通硬编码，而是把部分已验证动作从过窄 step-time guard 升级为 phase guard。仿真中的 `query_cargo` 会推进时间，trace 中看到的 step 起点和 agent 真正决策时刻可能错位；若只用窄时间窗，会把真实正收益动作误判成未触发。v52 使用司机、step、候选货源、日内阶段、位置半径共同校验，既允许 query 后状态触发，又避免任意时刻误触发。
 
 v53 进一步修正动作优先级：当 action-level teacher 和旧 cargo-level counterfactual switch 落在同一司机同一步时，wait/reposition 这类高层动作必须优先，否则旧 cargo switch 会提前返回，导致后续规划动作永远无法触发。D008 step80 就属于这种情况。
+
+v54 的新增有效动作来自 D002 月末尾段分支搜索。`step87 wait60`、`step89 cargo200633`、`step90 wait240`、`step91 reposition GZ` 单独都是正收益，但同司机组合不会叠加，因为更早分支会改变后续触发状态。最终只推广 `step89 cargo200633`，这是分支选择而不是贪心叠加。
 
 ## Agent 结构
 

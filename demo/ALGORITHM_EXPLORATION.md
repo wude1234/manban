@@ -5,10 +5,10 @@
 当前最好可复现分数：
 
 ```text
-score = 309601.27
-preset = hot_v53_d00880_wait240
+score = 309885.45
+preset = hot_v54_d00289_200633
 penalty = 12165.0
-result_dir = results/grid_agentic_algo/20260523_092432_submission_v53_check/01_hot_v53_d00880_wait240
+result_dir = results/grid_agentic_algo/20260523_175706_submission_v54_check/01_hot_v54_d00289_200633
 ```
 
 这套分数不是靠单点阈值堆出来的，核心是把司机拆成不同画像后做收益-扣分权衡，并在关键决策步使用反事实回放验证“换一个候选货源是否让整个月更优”：
@@ -62,7 +62,9 @@ v32-v48: 对关键步骤做 candidate/action-level counterfactual rollout，验�
 
 19. v52 证明之前部分“无效动作”其实是 guard 过窄导致未触发。仿真中 `query_cargo` 会推进时间，trace step 起点和 agent 真正决策时刻存在错位。把 D010/D007/D005 的尾部动作改成 query 后可触发的 phase guard 后，D010 step123、D007 step119、D005 step128 可以跨司机叠加，新最好达到 `309373.04`。
 
-20. v53 证明 action-level teacher 需要高于 cargo-level counterfactual switch。D008 step80 的 full-tail probe 显示 `wait240` 比旧 cargo `178320` 高 `+228.23`，但最初 online gate 一直 no-op，因为旧 `D008:80:178320` cargo switch 在 pre_action 中先返回。修复优先级后，D008 step80 wait240 生效，当前最好达到 `309601.27`。D009 step178 HY reposition 在单局部有正收益，但与旧 wait teacher 冲突后 full-grid 下降 `-28.58`，不推广。
+20. v53 证明 action-level teacher 需要高于 cargo-level counterfactual switch。D008 step80 的 full-tail probe 显示 `wait240` 比旧 cargo `178320` 高 `+228.23`，但最初 online gate 一直 no-op，因为旧 `D008:80:178320` cargo switch 在 pre_action 中先返回。修复优先级后，D008 step80 wait240 生效，最好达到 `309601.27`。D009 step178 HY reposition 在单局部有正收益，但与旧 wait teacher 冲突后 full-grid 下降 `-28.58`，不推广。
+
+21. v54 证明同一司机月末动作需要做“分支选择”而不是“正样本叠加”。在 v53 路径上，D002 step87 wait60、step89 cargo200633、step90 wait240、step91 reposition GZ 单点均为正收益，其中 step89 最高，完整月达到 `309885.45`。但 step87+step89、step89+step90、step89+step91 均不超过 step89 单点，说明更早动作会改变后续状态，导致晚一点的 teacher 不再适用。最终推广 D002 step89 cargo200633。
 
 ## 为什么不能继续一点点试阈值
 

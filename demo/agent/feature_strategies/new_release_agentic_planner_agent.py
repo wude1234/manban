@@ -570,6 +570,8 @@ def _counterfactual_switch_overridden(driver_id: str, step: int) -> bool:
     # their original precedence.
     if driver_id == "D006" and step == 65 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D006_STEP65_WAIT", False):
         return True
+    if driver_id == "D002" and step == 87 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D002_STEP87_WAIT", False):
+        return True
     if driver_id == "D008" and step == 80 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D008_STEP80_WAIT", False):
         return True
     return False
@@ -643,6 +645,14 @@ def _distilled_counterfactual_action(status: dict[str, Any], viable: list[dict[s
         return _d006_step99_repos_gz_distilled_action(status, viable)
     if driver_id == "D006" and step == 100 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D006_STEP100_WAIT", False):
         return _d006_step100_wait_distilled_action(status)
+    if driver_id == "D002" and step == 87 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D002_STEP87_WAIT", False):
+        return _d002_step87_wait_distilled_action(status, viable)
+    if driver_id == "D002" and step == 89 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D002_STEP89", False):
+        return _d002_step89_distilled_action(status, viable)
+    if driver_id == "D002" and step == 90 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D002_STEP90_WAIT", False):
+        return _d002_step90_wait_distilled_action(status, viable)
+    if driver_id == "D002" and step == 91 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D002_STEP91_REPOS_GZ", False):
+        return _d002_step91_repos_gz_distilled_action(status, viable)
     if driver_id == "D001" and step == 77 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D001_STEP77_WAIT", False):
         return _d001_step77_wait_distilled_action(status, viable)
     if driver_id == "D001" and step == 93 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D001_STEP93_WAIT", False):
@@ -1112,6 +1122,102 @@ def _d006_step100_wait_distilled_action(status: dict[str, Any]) -> dict[str, Any
     ):
         return None
     return {"action": "wait", "params": {"duration_minutes": _env_int("AGENT_AP_D006_STEP100_WAIT_MINUTES", 30)}}
+
+
+def _d002_step87_wait_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:
+    if _env_bool("AGENT_AP_D002_STEP87_REQUIRE_VISIBLE_LOSER", True) and not _has_visible_cargo(
+        viable, "AGENT_AP_D002_STEP87_LOSER_IDS", "201151"
+    ):
+        return None
+    if not _phase_guard(
+        status,
+        day_env="AGENT_AP_D002_STEP87_DAY",
+        default_day=28,
+        min_env="AGENT_AP_D002_STEP87_MIN_MINUTE",
+        default_minute=17 * 60,
+        max_env="AGENT_AP_D002_STEP87_MAX_MINUTE",
+        default_max_minute=18 * 60,
+        center_lat=23.02,
+        center_lng=113.06,
+        radius_env="AGENT_AP_D002_STEP87_LOCATION_RADIUS_KM",
+        default_radius_km=12.0,
+    ):
+        return None
+    return {"action": "wait", "params": {"duration_minutes": _env_int("AGENT_AP_D002_STEP87_WAIT_MINUTES", 60)}}
+
+
+def _d002_step89_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:
+    winner_id = os.getenv("AGENT_AP_D002_STEP89_WINNER_ID", "200633").strip()
+    winner = _feature_by_cargo_id(viable, winner_id)
+    if winner is None:
+        return None
+    if not _phase_guard(
+        status,
+        day_env="AGENT_AP_D002_STEP89_DAY",
+        default_day=29,
+        min_env="AGENT_AP_D002_STEP89_MIN_MINUTE",
+        default_minute=60,
+        max_env="AGENT_AP_D002_STEP89_MAX_MINUTE",
+        default_max_minute=6 * 60,
+        center_lat=23.25,
+        center_lng=113.20,
+        radius_env="AGENT_AP_D002_STEP89_LOCATION_RADIUS_KM",
+        default_radius_km=18.0,
+    ):
+        return None
+    if float(winner.get("estimated_net", 0.0)) < _env_float("AGENT_AP_D002_STEP89_WINNER_MIN_NET", 180.0):
+        return None
+    return {"action": "take_order", "params": {"cargo_id": winner_id}}
+
+
+def _d002_step90_wait_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:
+    if _env_bool("AGENT_AP_D002_STEP90_REQUIRE_VISIBLE_LOSER", True) and not _has_visible_cargo(
+        viable, "AGENT_AP_D002_STEP90_LOSER_IDS", "483734"
+    ):
+        return None
+    if not _phase_guard(
+        status,
+        day_env="AGENT_AP_D002_STEP90_DAY",
+        default_day=29,
+        min_env="AGENT_AP_D002_STEP90_MIN_MINUTE",
+        default_minute=5 * 60,
+        max_env="AGENT_AP_D002_STEP90_MAX_MINUTE",
+        default_max_minute=8 * 60,
+        center_lat=23.25,
+        center_lng=113.20,
+        radius_env="AGENT_AP_D002_STEP90_LOCATION_RADIUS_KM",
+        default_radius_km=18.0,
+    ):
+        return None
+    return {"action": "wait", "params": {"duration_minutes": _env_int("AGENT_AP_D002_STEP90_WAIT_MINUTES", 240)}}
+
+
+def _d002_step91_repos_gz_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:
+    if _env_bool("AGENT_AP_D002_STEP91_REQUIRE_VISIBLE_LOSER", True) and not _has_visible_cargo(
+        viable, "AGENT_AP_D002_STEP91_LOSER_IDS", "203266"
+    ):
+        return None
+    if not _phase_guard(
+        status,
+        day_env="AGENT_AP_D002_STEP91_DAY",
+        default_day=29,
+        min_env="AGENT_AP_D002_STEP91_MIN_MINUTE",
+        default_minute=7 * 60,
+        max_env="AGENT_AP_D002_STEP91_MAX_MINUTE",
+        default_max_minute=16 * 60,
+        center_lat=23.32,
+        center_lng=113.09,
+        radius_env="AGENT_AP_D002_STEP91_LOCATION_RADIUS_KM",
+        default_radius_km=20.0,
+    ):
+        return None
+    return {
+        "action": "reposition",
+        "params": {
+            "latitude": _env_float("AGENT_AP_D002_STEP91_REPOS_LAT", 23.13),
+            "longitude": _env_float("AGENT_AP_D002_STEP91_REPOS_LNG", 113.26),
+        },
+    }
 
 
 def _d001_step77_wait_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:

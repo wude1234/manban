@@ -14,12 +14,12 @@
 ## Current Best
 
 ```text
-version = v53 candidate
-preset = hot_v53_d00880_wait240
-score = 309601.27
+version = v54 candidate
+preset = hot_v54_d00289_200633
+score = 309885.45
 penalty = 12165
-run_dir = demo/results/grid_agentic_algo/20260523_092432_submission_v53_check/01_hot_v53_d00880_wait240
-commit = not committed yet, v48 commit remains aa2ae28
+run_dir = demo/results/grid_agentic_algo/20260523_175706_submission_v54_check/01_hot_v54_d00289_200633
+last_commit = 2dea679 add shared exploration tooling and simulator docs
 ```
 
 核心发现：
@@ -35,13 +35,13 @@ action-level teacher must override older cargo-level switch on the same driver/s
 
 ## Active Experiments
 
-当前正在基于 v52 best 准备下一轮 rebase：
+当前正在基于 v54 best 做下一轮 rebase：
 
 ```text
-grid_tag = next rebase pending
-status = v53 grid completed
-purpose = continue from v53 best; D008 step80 wait240 is promoted
-previous_grid = demo/results/grid_agentic_algo/20260523_090528_autonight_v53_priority_fix
+grid_tag = autonight_v54_d002_d004_tail
+status = v54 grid completed
+purpose = continue from v54 best; D002 step89 cargo200633 is promoted
+previous_grid = demo/results/grid_agentic_algo/20260523_172232_autonight_v54_d002_d004_tail
 ```
 
 上一轮基于 v48 best 并行探索 5 条线，均已完成：
@@ -304,6 +304,54 @@ D008 step80 initially did not trigger because old cargo-level counterfactual swi
 Fix: _counterfactual_switch_overridden now lets D008 step80 wait override the older cargo switch.
 This is an Agent safety/execution-layer rule: higher-level action teachers must arbitrate against lower-level cargo memory, not be appended after them.
 Current default submission profile updated to v53_priority_agentic_planner_309601.
+```
+
+### v54 result
+
+```text
+grid = demo/results/grid_agentic_algo/20260523_172232_autonight_v54_d002_d004_tail
+validation = demo/results/grid_agentic_algo/20260523_175706_submission_v54_check/01_hot_v54_d00289_200633
+best = hot_v54_d00289_200633
+score = 309885.45
+delta_vs_v53 = +284.18
+penalty = 12165
+```
+
+v54 findings:
+
+```text
+D002 step87 wait60: +256.95, but blocks the later step89 branch.
+D002 step89 cargo200633: +284.18, promoted as the best D002 branch.
+D002 step90 wait240: +171.71, lower than step89.
+D002 step91 reposition GZ: +176.18, lower than step89.
+D004 step95 reposition GZ: no improvement on current v53/v54 D004 path.
+Same-driver positive teachers are mutually exclusive branches here; do not enable all.
+```
+
+Next v54/v55 probes:
+
+```text
+1. Rebase D002 after step89: probe steps 90-94/95 on the new D002 path.
+2. Probe D003/D006/D008 middle-late high-impact steps with all action types.
+3. Treat wait/reposition/take_order as peer actions and only promote full-month validated branches.
+4. If a new high is found, update submission_defaults, docs, validation run, then git commit.
+```
+
+### v55 first probe result
+
+```text
+D002 after step89 rebase: steps 90-94 all delta = 0.
+D003 mid-late probe: steps 82/88/94/100/104/108/112/116 all delta = 0.
+D006 mid-late probe: steps 70/76/82/88/94/100/106/112 all delta = 0.
+D008 mid-late probe: steps 50/56/62/68/74/80/86/90 all delta = 0.
+```
+
+Interpretation:
+
+```text
+v54 的 D002 step89 是一个完整分支，不是后面还需要补丁的半成品。
+D003/D006/D008 当前已被 phase/action teachers 保护得很强，在这些中后段 target 上继续挖收益很低。
+下一轮应转向低净收益司机和未充分覆盖中段：D001/D005/D007/D009/D010，以及更早的 high-regret branch。
 ```
 
 ### D008 phase actions

@@ -3535,6 +3535,63 @@ def _v53_late_action_env(
     return env
 
 
+def _v54_d002_tail_env(
+    *,
+    d002_87: bool = False,
+    d002_89: bool = False,
+    d002_90: bool = False,
+    d002_91: bool = False,
+    d004_95: bool = False,
+) -> dict[str, str]:
+    env = _v53_late_action_env(d008_80=True)
+    if d002_87:
+        env.update(
+            {
+                "AGENT_AP_ENABLE_DISTILLED_D002_STEP87_WAIT": "1",
+                "AGENT_AP_D002_STEP87_MIN_MINUTE": str(17 * 60),
+                "AGENT_AP_D002_STEP87_MAX_MINUTE": str(18 * 60),
+                "AGENT_AP_D002_STEP87_LOCATION_RADIUS_KM": "12",
+            }
+        )
+    if d002_89:
+        env.update(
+            {
+                "AGENT_AP_ENABLE_DISTILLED_D002_STEP89": "1",
+                "AGENT_AP_D002_STEP89_MIN_MINUTE": str(60),
+                "AGENT_AP_D002_STEP89_MAX_MINUTE": str(6 * 60),
+                "AGENT_AP_D002_STEP89_LOCATION_RADIUS_KM": "18",
+            }
+        )
+    if d002_90:
+        env.update(
+            {
+                "AGENT_AP_ENABLE_DISTILLED_D002_STEP90_WAIT": "1",
+                "AGENT_AP_D002_STEP90_MIN_MINUTE": str(5 * 60),
+                "AGENT_AP_D002_STEP90_MAX_MINUTE": str(8 * 60),
+                "AGENT_AP_D002_STEP90_LOCATION_RADIUS_KM": "18",
+            }
+        )
+    if d002_91:
+        env.update(
+            {
+                "AGENT_AP_ENABLE_DISTILLED_D002_STEP91_REPOS_GZ": "1",
+                "AGENT_AP_D002_STEP91_MIN_MINUTE": str(7 * 60),
+                "AGENT_AP_D002_STEP91_MAX_MINUTE": str(16 * 60),
+                "AGENT_AP_D002_STEP91_LOCATION_RADIUS_KM": "20",
+            }
+        )
+    if d004_95:
+        env.update(
+            {
+                "AGENT_AP_ENABLE_DISTILLED_D004_STEP95_REPOS_GZ": "1",
+                "AGENT_AP_D004_STEP95_MIN_MINUTE": str(11 * 60),
+                "AGENT_AP_D004_STEP95_MAX_MINUTE": str(12 * 60 + 30),
+                "AGENT_AP_D004_STEP95_LOCATION_RADIUS_KM": "12",
+            }
+        )
+    return env
+
+
 PRESETS.update(
     {
         # v32: exact counterfactual winners discovered by
@@ -3857,6 +3914,24 @@ PRESETS.update(
         "hot_v53_d008_all_plus_tail": _v53_late_action_env(
             d008_80=True, d008_87=True, d008_88=True, d009_178_hy=True, d006_99=True
         ),
+        # v54: rebase on v53 and test D002/D004 month-end action teachers.
+        # D002 has same-driver conflicts, so singles and small subsets must be
+        # validated before promotion. D004 step95 is a tiny rebase positive.
+        "hot_v54_base_v53": _v54_d002_tail_env(),
+        "hot_v54_d00287_wait60": _v54_d002_tail_env(d002_87=True),
+        "hot_v54_d00289_200633": _v54_d002_tail_env(d002_89=True),
+        "hot_v54_d00290_wait240": _v54_d002_tail_env(d002_90=True),
+        "hot_v54_d00291_repos_gz": _v54_d002_tail_env(d002_91=True),
+        "hot_v54_d00495_repos_gz": _v54_d002_tail_env(d004_95=True),
+        "hot_v54_d00287_d00289": _v54_d002_tail_env(d002_87=True, d002_89=True),
+        "hot_v54_d00287_d00290": _v54_d002_tail_env(d002_87=True, d002_90=True),
+        "hot_v54_d00287_d00291": _v54_d002_tail_env(d002_87=True, d002_91=True),
+        "hot_v54_d00289_d00290": _v54_d002_tail_env(d002_89=True, d002_90=True),
+        "hot_v54_d00289_d00291": _v54_d002_tail_env(d002_89=True, d002_91=True),
+        "hot_v54_d00290_d00291": _v54_d002_tail_env(d002_90=True, d002_91=True),
+        "hot_v54_d002_all": _v54_d002_tail_env(d002_87=True, d002_89=True, d002_90=True, d002_91=True),
+        "hot_v54_d00289_d00495": _v54_d002_tail_env(d002_89=True, d004_95=True),
+        "hot_v54_d002_best_probe_d00495": _v54_d002_tail_env(d002_87=True, d002_89=True, d004_95=True),
     }
 )
 
