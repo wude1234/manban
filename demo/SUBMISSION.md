@@ -2,22 +2,32 @@
 
 ## 当前提交版本
 
-提交 profile：`v71_d004_schedule_teacher_312613`
+提交 profile：`v72_route_plan_teacher_312986`
 
 本地 0509 数据当前最好复现结果：
 
 ```text
-score = 312613.15
-total_preference_penalty = 11865.0
+score = 312986.17
+total_preference_penalty = 13065.0
 failed_driver_count = 0
 ```
 
 对应实验：
 
 ```text
-demo/results/grid_agentic_algo/20260524_035222_autonight_v71_d004_step11_grid/01_hot_v71_d004_step11_235854
-preset = hot_v71_d004_step11_235854
+demo/results/grid_agentic_algo/20260524_050105_autonight_v72_windowfix_grid/07_hot_v72_all_candidate
+preset = hot_v72_all_candidate
 ```
+
+v72 相比 v71 的新增有效动作：
+
+```text
+D001 step48 wait30: 在 03-14 清晨不直接进入长休息，而是先短等 30 分钟，后续接入更优休息/订单链；D001 净收益 +54.55，罚分不变。
+D004 step49 cargo379155 + step56 cargo93338: 这是 two-step Route Plan，不是单步 rerank。先用 cargo379155 替换 cargo75036，重排 03-13 到 03-16 的中期路线，再在 rebased path 上用 cargo93338 替换局部首选；D004 净收益 +277.93，说明序列级 rebase 能突破单步 regret 平台。
+D010 step2 reposition GZ: 月初先主动空驶到广州附近，再接原高价值长单，D010 净收益 +40.54。该动作虽然偏好罚分增加，但完整月 gross 链条补偿后仍正收益。
+```
+
+D010 step23 `cargo330064` 在反事实回放中单司机 `+555.12`，但当前 online gate 未稳定触发，因此没有并入提交默认。它保留为下一轮探索目标。
 
 v71 相比 v70 的新增有效动作：
 

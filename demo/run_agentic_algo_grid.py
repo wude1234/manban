@@ -3728,6 +3728,10 @@ def _v60_d004_step7_env(
     d010_step123_484817: bool = False,
     d005_step49_wait120: bool = False,
     d004_step11_235854: bool = False,
+    d004_seq49_56: bool = False,
+    d010_step2_repos_gz: bool = False,
+    d010_step23_330064: bool = False,
+    d001_step48_wait30: bool = False,
 ) -> dict[str, str]:
     env = _v57_action_regret_env(d007_61=True, d010_121=True)
     env["AGENT_AP_ENABLE_DISTILLED_COUNTERFACTUAL_GATE"] = "1"
@@ -3798,6 +3802,47 @@ def _v60_d004_step7_env(
                 "AGENT_AP_D004_STEP11_MIN_MINUTE": str(6 * 60 + 10),
                 "AGENT_AP_D004_STEP11_MAX_MINUTE": str(6 * 60 + 55),
                 "AGENT_AP_D004_STEP11_LOCATION_RADIUS_KM": "10",
+            }
+        )
+    if d004_seq49_56:
+        env.update(
+            {
+                "AGENT_AP_ENABLE_DISTILLED_D004_STEP49_379155": "1",
+                "AGENT_AP_D004_STEP49_MIN_MINUTE": str(12 * 60),
+                "AGENT_AP_D004_STEP49_MAX_MINUTE": str(13 * 60 + 20),
+                "AGENT_AP_D004_STEP49_LOCATION_RADIUS_KM": "12",
+                "AGENT_AP_ENABLE_DISTILLED_D004_STEP56_93338": "1",
+                "AGENT_AP_D004_STEP56_MIN_MINUTE": "0",
+                "AGENT_AP_D004_STEP56_MAX_MINUTE": "40",
+                "AGENT_AP_D004_STEP56_LOCATION_RADIUS_KM": "12",
+            }
+        )
+    if d010_step2_repos_gz:
+        env.update(
+            {
+                "AGENT_AP_ENABLE_DISTILLED_D010_STEP2_REPOS_GZ": "1",
+                "AGENT_AP_D010_STEP2_MIN_MINUTE": str(3 * 60),
+                "AGENT_AP_D010_STEP2_MAX_MINUTE": str(3 * 60 + 30),
+                "AGENT_AP_D010_STEP2_LOCATION_RADIUS_KM": "10",
+            }
+        )
+    if d010_step23_330064:
+        env.update(
+            {
+                "AGENT_AP_ENABLE_DISTILLED_D010_STEP23_330064": "1",
+                "AGENT_AP_D010_STEP23_MIN_MINUTE": str(9 * 60 + 30),
+                "AGENT_AP_D010_STEP23_MAX_MINUTE": str(10 * 60 + 10),
+                "AGENT_AP_D010_STEP23_LOCATION_RADIUS_KM": "12",
+            }
+        )
+    if d001_step48_wait30:
+        env.update(
+            {
+                "AGENT_AP_ENABLE_DISTILLED_D001_STEP48_WAIT30": "1",
+                "AGENT_AP_D001_STEP48_MIN_MINUTE": str(4 * 60 + 30),
+                "AGENT_AP_D001_STEP48_MAX_MINUTE": str(5 * 60 + 20),
+                "AGENT_AP_D001_STEP48_LOCATION_RADIUS_KM": "10",
+                "AGENT_AP_D001_STEP48_WAIT_MINUTES": "30",
             }
         )
     return env
@@ -4247,6 +4292,125 @@ PRESETS.update(
             d010_step123_484817=True,
             d005_step49_wait120=True,
             d004_step11_235854=True,
+        ),
+        "hot_v72_d004_seq49_56": _v60_d004_step7_env(
+            dg=True,
+            step41_fs=True,
+            step93_297250=True,
+            d007_step114_475223=True,
+            d009_step180_181577=True,
+            d010_step123_484817=True,
+            d005_step49_wait120=True,
+            d004_step11_235854=True,
+            d004_seq49_56=True,
+        ),
+        "hot_v72_d010_step23_330064": _v60_d004_step7_env(
+            dg=True,
+            step41_fs=True,
+            step93_297250=True,
+            d007_step114_475223=True,
+            d009_step180_181577=True,
+            d010_step123_484817=True,
+            d005_step49_wait120=True,
+            d004_step11_235854=True,
+            d010_step23_330064=True,
+        ),
+        "hot_v72_d010_step2_repos_gz": _v60_d004_step7_env(
+            dg=True,
+            step41_fs=True,
+            step93_297250=True,
+            d007_step114_475223=True,
+            d009_step180_181577=True,
+            d010_step123_484817=True,
+            d005_step49_wait120=True,
+            d004_step11_235854=True,
+            d010_step2_repos_gz=True,
+        ),
+        "hot_v72_d001_step48_wait30": _v60_d004_step7_env(
+            dg=True,
+            step41_fs=True,
+            step93_297250=True,
+            d007_step114_475223=True,
+            d009_step180_181577=True,
+            d010_step123_484817=True,
+            d005_step49_wait120=True,
+            d004_step11_235854=True,
+            d001_step48_wait30=True,
+        ),
+        "hot_v72_d004seq_d010s23": _v60_d004_step7_env(
+            dg=True,
+            step41_fs=True,
+            step93_297250=True,
+            d007_step114_475223=True,
+            d009_step180_181577=True,
+            d010_step123_484817=True,
+            d005_step49_wait120=True,
+            d004_step11_235854=True,
+            d004_seq49_56=True,
+            d010_step23_330064=True,
+        ),
+        "hot_v72_d00148_d004seq": _v60_d004_step7_env(
+            dg=True,
+            step41_fs=True,
+            step93_297250=True,
+            d007_step114_475223=True,
+            d009_step180_181577=True,
+            d010_step123_484817=True,
+            d005_step49_wait120=True,
+            d004_step11_235854=True,
+            d001_step48_wait30=True,
+            d004_seq49_56=True,
+        ),
+        "hot_v72_d00148_d010s23": _v60_d004_step7_env(
+            dg=True,
+            step41_fs=True,
+            step93_297250=True,
+            d007_step114_475223=True,
+            d009_step180_181577=True,
+            d010_step123_484817=True,
+            d005_step49_wait120=True,
+            d004_step11_235854=True,
+            d001_step48_wait30=True,
+            d010_step23_330064=True,
+        ),
+        "hot_v72_d00148_d010s2": _v60_d004_step7_env(
+            dg=True,
+            step41_fs=True,
+            step93_297250=True,
+            d007_step114_475223=True,
+            d009_step180_181577=True,
+            d010_step123_484817=True,
+            d005_step49_wait120=True,
+            d004_step11_235854=True,
+            d001_step48_wait30=True,
+            d010_step2_repos_gz=True,
+        ),
+        "hot_v72_d00148_d004seq_d010s23": _v60_d004_step7_env(
+            dg=True,
+            step41_fs=True,
+            step93_297250=True,
+            d007_step114_475223=True,
+            d009_step180_181577=True,
+            d010_step123_484817=True,
+            d005_step49_wait120=True,
+            d004_step11_235854=True,
+            d001_step48_wait30=True,
+            d004_seq49_56=True,
+            d010_step23_330064=True,
+        ),
+        "hot_v72_all_candidate": _v60_d004_step7_env(
+            dg=True,
+            step41_fs=True,
+            step93_297250=True,
+            d007_step114_475223=True,
+            d009_step180_181577=True,
+            d010_step123_484817=True,
+            d005_step49_wait120=True,
+            d004_step11_235854=True,
+            d004_seq49_56=True,
+            d010_step23_330064=True,
+            d010_step2_repos_gz=True,
+            d001_step48_wait30=True,
         ),
     }
 )

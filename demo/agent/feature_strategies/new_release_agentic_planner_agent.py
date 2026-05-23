@@ -615,6 +615,10 @@ def _distilled_counterfactual_action(status: dict[str, Any], viable: list[dict[s
         return _d004_step11_distilled_action(status, viable)
     if driver_id == "D004" and step == 41 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D004_STEP41_REPOS_FS", False):
         return _d004_step41_repos_fs_distilled_action(status, viable)
+    if driver_id == "D004" and step == 49 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D004_STEP49_379155", False):
+        return _d004_step49_379155_distilled_action(status, viable)
+    if driver_id == "D004" and step == 56 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D004_STEP56_93338", False):
+        return _d004_step56_93338_distilled_action(status, viable)
     if driver_id == "D004" and step == 70 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D004_STEP70", False):
         return _d004_step70_distilled_action(status, viable)
     if driver_id == "D004" and step == 86 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D004_STEP86_WAIT", False):
@@ -627,6 +631,10 @@ def _distilled_counterfactual_action(status: dict[str, Any], viable: list[dict[s
         return _d010_step100_repos_dg_distilled_action(status, viable)
     if driver_id == "D010" and step == 100 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D010_STEP100_WAIT", False):
         return _d010_step100_wait_distilled_action(status, viable)
+    if driver_id == "D010" and step == 2 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D010_STEP2_REPOS_GZ", False):
+        return _d010_step2_repos_gz_distilled_action(status, viable)
+    if driver_id == "D010" and step == 23 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D010_STEP23_330064", False):
+        return _d010_step23_330064_distilled_action(status, viable)
     if driver_id == "D004" and step == 87 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D004_STEP87", False):
         return _d004_step87_distilled_action(status, viable)
     if driver_id == "D009" and step == 172 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D009_STEP172", False):
@@ -665,6 +673,8 @@ def _distilled_counterfactual_action(status: dict[str, Any], viable: list[dict[s
         return _d002_step91_repos_gz_distilled_action(status, viable)
     if driver_id == "D001" and step == 77 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D001_STEP77_WAIT", False):
         return _d001_step77_wait_distilled_action(status, viable)
+    if driver_id == "D001" and step == 48 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D001_STEP48_WAIT30", False):
+        return _d001_step48_wait30_distilled_action(status, viable)
     if driver_id == "D001" and step == 93 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D001_STEP93_WAIT", False):
         return _d001_step93_wait_distilled_action(status, viable)
     if driver_id == "D001" and step == 98 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D001_STEP98_REPOS_SZ", False):
@@ -821,6 +831,56 @@ def _d004_step41_repos_fs_distilled_action(status: dict[str, Any], viable: list[
     return {"action": "reposition", "params": {"latitude": lat, "longitude": lng}}
 
 
+def _d004_step49_379155_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:
+    winner_id = os.getenv("AGENT_AP_D004_STEP49_WINNER_ID", "379155").strip()
+    winner = _feature_by_cargo_id(viable, winner_id)
+    if winner is None:
+        return None
+    if not _has_visible_cargo(viable, "AGENT_AP_D004_STEP49_LOSER_IDS", "75036"):
+        return None
+    if not _phase_guard(
+        status,
+        day_env="AGENT_AP_D004_STEP49_DAY",
+        default_day=12,
+        min_env="AGENT_AP_D004_STEP49_MIN_MINUTE",
+        default_minute=12 * 60,
+        max_env="AGENT_AP_D004_STEP49_MAX_MINUTE",
+        default_max_minute=13 * 60 + 20,
+        center_lat=24.16,
+        center_lng=115.15,
+        radius_env="AGENT_AP_D004_STEP49_LOCATION_RADIUS_KM",
+        default_radius_km=12.0,
+    ):
+        return None
+    return {"action": "take_order", "params": {"cargo_id": winner_id}}
+
+
+def _d004_step56_93338_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:
+    winner_id = os.getenv("AGENT_AP_D004_STEP56_WINNER_ID", "93338").strip()
+    winner = _feature_by_cargo_id(viable, winner_id)
+    if winner is None:
+        return None
+    if _env_bool("AGENT_AP_D004_STEP56_REQUIRE_VISIBLE_LOSER", True) and not _has_visible_cargo(
+        viable, "AGENT_AP_D004_STEP56_LOSER_IDS", "94682,394656,94845"
+    ):
+        return None
+    if not _phase_guard(
+        status,
+        day_env="AGENT_AP_D004_STEP56_DAY",
+        default_day=15,
+        min_env="AGENT_AP_D004_STEP56_MIN_MINUTE",
+        default_minute=0,
+        max_env="AGENT_AP_D004_STEP56_MAX_MINUTE",
+        default_max_minute=40,
+        center_lat=23.09,
+        center_lng=113.10,
+        radius_env="AGENT_AP_D004_STEP56_LOCATION_RADIUS_KM",
+        default_radius_km=12.0,
+    ):
+        return None
+    return {"action": "take_order", "params": {"cargo_id": winner_id}}
+
+
 def _d004_step70_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:
     winner_id = os.getenv("AGENT_AP_D004_STEP70_WINNER_ID", "420939").strip()
     winner = _feature_by_cargo_id(viable, winner_id)
@@ -951,6 +1011,60 @@ def _d010_step100_repos_dg_distilled_action(status: dict[str, Any], viable: list
             "longitude": _env_float("AGENT_AP_D010_STEP100_REPOS_LNG", 113.75),
         },
     }
+
+
+def _d010_step2_repos_gz_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:
+    if _env_bool("AGENT_AP_D010_STEP2_REQUIRE_VISIBLE_LOSER", True) and not _has_visible_cargo(
+        viable, "AGENT_AP_D010_STEP2_LOSER_IDS", "21"
+    ):
+        return None
+    if not _phase_guard(
+        status,
+        day_env="AGENT_AP_D010_STEP2_DAY",
+        default_day=0,
+        min_env="AGENT_AP_D010_STEP2_MIN_MINUTE",
+        default_minute=3 * 60,
+        max_env="AGENT_AP_D010_STEP2_MAX_MINUTE",
+        default_max_minute=3 * 60 + 30,
+        center_lat=23.19,
+        center_lng=113.36,
+        radius_env="AGENT_AP_D010_STEP2_LOCATION_RADIUS_KM",
+        default_radius_km=10.0,
+    ):
+        return None
+    return {
+        "action": "reposition",
+        "params": {
+            "latitude": _env_float("AGENT_AP_D010_STEP2_REPOS_LAT", 23.13),
+            "longitude": _env_float("AGENT_AP_D010_STEP2_REPOS_LNG", 113.26),
+        },
+    }
+
+
+def _d010_step23_330064_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:
+    winner_id = os.getenv("AGENT_AP_D010_STEP23_WINNER_ID", "330064").strip()
+    winner = _feature_by_cargo_id(viable, winner_id)
+    if winner is None:
+        return None
+    if not _phase_guard(
+        status,
+        day_env="AGENT_AP_D010_STEP23_DAY",
+        default_day=5,
+        min_env="AGENT_AP_D010_STEP23_MIN_MINUTE",
+        default_minute=9 * 60 + 30,
+        max_env="AGENT_AP_D010_STEP23_MAX_MINUTE",
+        default_max_minute=10 * 60 + 10,
+        center_lat=24.66,
+        center_lng=113.58,
+        radius_env="AGENT_AP_D010_STEP23_LOCATION_RADIUS_KM",
+        default_radius_km=12.0,
+    ):
+        return None
+    if float(winner.get("estimated_net", 0.0)) < _env_float("AGENT_AP_D010_STEP23_MIN_NET", 700.0):
+        return None
+    if float(winner.get("haul_km", 0.0)) < _env_float("AGENT_AP_D010_STEP23_MIN_HAUL_KM", 80.0):
+        return None
+    return {"action": "take_order", "params": {"cargo_id": winner_id}}
 
 
 def _d004_step87_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:
@@ -1740,6 +1854,28 @@ def _d005_step49_wait_distilled_action(status: dict[str, Any], viable: list[dict
     ):
         return None
     return {"action": "wait", "params": {"duration_minutes": _env_int("AGENT_AP_D005_STEP49_WAIT_MINUTES", 120)}}
+
+
+def _d001_step48_wait30_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:
+    if _env_bool("AGENT_AP_D001_STEP48_REQUIRE_VISIBLE_LOSER", False) and not _has_visible_cargo(
+        viable, "AGENT_AP_D001_STEP48_LOSER_IDS", "383516"
+    ):
+        return None
+    if not _phase_guard(
+        status,
+        day_env="AGENT_AP_D001_STEP48_DAY",
+        default_day=13,
+        min_env="AGENT_AP_D001_STEP48_MIN_MINUTE",
+        default_minute=4 * 60 + 30,
+        max_env="AGENT_AP_D001_STEP48_MAX_MINUTE",
+        default_max_minute=5 * 60 + 20,
+        center_lat=22.74,
+        center_lng=114.12,
+        radius_env="AGENT_AP_D001_STEP48_LOCATION_RADIUS_KM",
+        default_radius_km=10.0,
+    ):
+        return None
+    return {"action": "wait", "params": {"duration_minutes": _env_int("AGENT_AP_D001_STEP48_WAIT_MINUTES", 30)}}
 
 
 def _d005_step128_repos_fs_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:

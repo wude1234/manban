@@ -5,10 +5,10 @@
 当前最好可复现分数：
 
 ```text
-score = 312613.15
-preset = hot_v71_d004_step11_235854
-penalty = 11865.0
-result_dir = results/grid_agentic_algo/20260524_035222_autonight_v71_d004_step11_grid/01_hot_v71_d004_step11_235854
+score = 312986.17
+preset = hot_v72_all_candidate
+penalty = 13065.0
+result_dir = results/grid_agentic_algo/20260524_050105_autonight_v72_windowfix_grid/07_hot_v72_all_candidate
 ```
 
 这套分数不是靠单点阈值堆出来的，核心是把司机拆成不同画像后做收益-扣分权衡，并在关键决策步使用反事实回放验证“换一个候选货源是否让整个月更优”：
@@ -93,6 +93,10 @@ v32-v57: 对关键步骤做 candidate/action-level counterfactual rollout，验�
 34. v70 证明 `wait` 也要进入 Route Plan，而不是只在无货时兜底。D005 step49 `wait120` 放弃 06:50 附近的 `cargo370991`，等待到后续货源释放后接入 `cargo371838 -> cargo66508` 短链，D005 净收益从 `28347.57` 提升到 `28505.81`，罚分仍为 `0`。这说明未来收益的关键不是简单强/弱区域，而是“当前动作是否锁死后续释放窗口”。Agent 层面要把等待、空驶、接单作为同级动作，用 exact-tail teacher 蒸馏状态规则。
 
 35. v71 证明 D004 的 schedule-aware value candidate 仍有空间。D004 step11 从 `cargo4008` 换到 `cargo235854` 后，gross 减少 `143.93` 且距离增加 `144.58km`，但偏好罚分减少 `400`，D004 净收益 `+39.20`，总分达到 `312613.15`。这类动作不是追当前最高收益，而是选择能改善后续首单、午餐和配额节奏的订单，说明偏好风险应该作为边际状态成本进入候选排序。
+
+36. v72 证明 two-step route rebase 是单步 regret 饱和后的主要增益方向。D004 step49 先从 `cargo75036` 改到 `cargo379155`，再在重排后的 step56 从局部首选 `cargo94682` 改到 `cargo93338`，D004 净收益 `+277.93`。单独开 step49 会严重掉分，必须把 step49->56 当作序列计划执行。D001 step48 `wait30` 额外 `+54.55` 且罚分不变；D010 step2 主动空驶广州 `+40.54`，虽然罚分上升但完整月 gross 链补回成本。组合后当前最好达到 `312986.17`。
+
+37. v72 同时暴露了 D010 step23 的在线触发问题。反事实回放显示 `cargo330064` 单司机 `+555.12`，但 preset gate 未复现，说明当前 action trace 的完成时间、query 后决策时间和候选可见性仍需更精确记录。未复现的 teacher label 不能进提交默认；下一轮要先让 harness 输出每个 target step 的 query-after decision timestamp 与候选特征，再蒸馏规则。
 
 ## 为什么不能继续一点点试阈值
 

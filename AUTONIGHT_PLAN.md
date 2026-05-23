@@ -14,13 +14,13 @@
 ## Current Best
 
 ```text
-version = v71 validated submission default candidate
-preset = hot_v71_d004_step11_235854
-score = 312613.15
-penalty = 11865
-run_dir = demo/results/grid_agentic_algo/20260524_035222_autonight_v71_d004_step11_grid/01_hot_v71_d004_step11_235854
-default_run = demo/results/actions_202603_*_20260524_035815.jsonl + demo/results/monthly_income_202603.json
-last_commit = pending v71 commit
+version = v72 validated submission default candidate
+preset = hot_v72_all_candidate
+score = 312986.17
+penalty = 13065
+run_dir = demo/results/grid_agentic_algo/20260524_050105_autonight_v72_windowfix_grid/07_hot_v72_all_candidate
+default_run = pending v72 main.py validation
+last_commit = pending v72 commit
 ```
 
 核心发现：
@@ -37,6 +37,24 @@ single-step regret mining saturated after v61; exact two-step sequence probing f
 value-candidate one-step exact-tail probing found two tiny but stackable non-top-k teacher labels on D009/D010
 D005 step49 shows wait can be a route-plan action: delaying 120 minutes avoids a low-chain early order and unlocks a better short-chain sequence without changing penalty
 D004 step11 shows schedule-aware order choice can beat gross-maximization: a lower-gross value candidate reduces downstream preference penalty enough to raise monthly net
+D004 step49->56 proves exact two-step route rebase is now the highest-value search mode after one-step regret saturation
+D001 step48 shows a short wait can improve the next rest/order chain without changing penalty
+D010 step2 shows active reposition can pay even with higher preference penalty, but it must be gated by full-month exact-tail validation
+D010 step23 remains a high-potential counterfactual label, but current online gate has not reproduced it and is not part of the submission default
+```
+
+### v72 result
+
+```text
+grid = results/grid_agentic_algo/20260524_050105_autonight_v72_windowfix_grid
+best = hot_v72_all_candidate
+score = 312986.17
+penalty = 13065
+promoted =
+  D001 step48 wait30
+  D004 step49 cargo379155 + step56 cargo93338
+  D010 step2 reposition GZ
+finding = sequence-level route-plan teachers can still add +373.02 over v71. The largest gain is D004's rebased middle-month route; D010 step23 stayed untriggered and must be reworked before promotion.
 ```
 
 ## Active Experiments

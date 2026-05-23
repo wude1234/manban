@@ -5,8 +5,8 @@
 0509 当前稳定最好：
 
 ```text
-score = 312613.15
-penalty = 11865.0
+score = 312986.17
+penalty = 13065.0
 failed_driver_count = 0
 ```
 
@@ -14,12 +14,12 @@ failed_driver_count = 0
 
 ```text
 AGENT_STRATEGY = new_release_agentic_planner_agent
-profile = hot_v71_d004_step11_235854
+profile = hot_v72_all_candidate
 base = v30 driver-specific planner
-upgrade = v32-v71 counterfactual memory + phase action gates + low-efficiency route repair + exact sequence probing + wait-as-route-plan teacher + schedule-aware value teacher
+upgrade = v32-v72 counterfactual memory + phase action gates + low-efficiency route repair + exact sequence probing + wait-as-route-plan teacher + schedule-aware value teacher + two-step route rebase
 ```
 
-这个结果的意义不是最高分本身，而是说明：0508 上有效的司机独立规则迁移到 0509 后仍成立，且“轨迹记录 + 反事实回放 + 规则蒸馏”的 agentic harness 能继续从固定底座中挖出真实长期收益。v56/v57 的新增收益没有降低总罚分，而是在同罚分下修复 D003/D006/D007/D002/D010 的后继路线状态；v61/v65 进一步证明主动迁移和双步序列 rebase 可以在单步 regret 饱和后继续找到小的路线修复；v70 证明等待也可以是主动 Route Plan 动作，而不是无货兜底；v71 证明偏好风险可以通过早期订单选择自然修复，而不是硬控。
+这个结果的意义不是最高分本身，而是说明：0508 上有效的司机独立规则迁移到 0509 后仍成立，且“轨迹记录 + 反事实回放 + 规则蒸馏”的 agentic harness 能继续从固定底座中挖出真实长期收益。v56/v57 的新增收益没有降低总罚分，而是在同罚分下修复 D003/D006/D007/D002/D010 的后继路线状态；v61/v65 进一步证明主动迁移和双步序列 rebase 可以在单步 regret 饱和后继续找到小的路线修复；v70 证明等待也可以是主动 Route Plan 动作，而不是无货兜底；v71 证明偏好风险可以通过早期订单选择自然修复，而不是硬控；v72 证明双步 route rebase 可以产生比单点 rerank 更大的中期链路收益。
 
 ## 2. 核心发现
 
@@ -48,6 +48,7 @@ upgrade = v32-v71 counterfactual memory + phase action gates + low-efficiency ro
 - v68/v69 证明 destination/opportunity value 适合作为候选生成器，而不是直接打分器。大多数 value 分支为负，但 exact-tail validation 找到 D009 step180 `cargo181577` 和 D010 step123 `cargo484817` 两个非 top-k 小正收益，组合后达到 `312415.71`。
 - v70 证明短等待本身也需要进入动作级规划。D005 step49 `wait120` 放弃一个早期低链路订单，等待后进入更高价值短链，罚分不变且 D005 净收益 `+158.24`。这说明“未来收益”不能只由目的地区域强弱解释，还要看货源释放窗口和接单后完成时间是否压住后继链。
 - v71 证明偏好罚分需要作为边际状态成本参与候选选择。D004 step11 选择 `cargo235854` 后 gross 下降、距离上升，但后续日程罚分下降 `400`，最终净收益 `+39.20`。这类样本说明 Agent 需要比较“当前收益 + 后继路线 + 偏好风险变化”，而不是只追当前 NPH。
+- v72 证明序列级 route rebase 是下一阶段主线。D004 step49 `cargo379155` 单独会把后续路线带偏，必须和 rebased path 上的 step56 `cargo93338` 组合执行，完整月 D004 净收益 `+277.93`。D001 step48 `wait30` 与 D010 step2 主动空驶可以跨司机叠加，最终达到 `312986.17`。D010 step23 `cargo330064` 虽在 counterfactual 中单司机 `+555.12`，但 online gate 未稳定复现，说明未复现的 teacher label 只能保留为下一轮探索，不进入默认提交。
 
 ### 2.2 明确负方向
 
