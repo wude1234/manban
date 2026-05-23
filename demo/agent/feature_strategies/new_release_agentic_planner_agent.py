@@ -695,6 +695,8 @@ def _distilled_counterfactual_action(status: dict[str, Any], viable: list[dict[s
         return _d007_step122_wait_distilled_action(status, viable)
     if driver_id == "D005" and step == 123 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D005_STEP123", False):
         return _d005_step123_distilled_action(status, viable)
+    if driver_id == "D005" and step == 49 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D005_STEP49_WAIT", False):
+        return _d005_step49_wait_distilled_action(status, viable)
     if driver_id == "D005" and step == 128 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D005_STEP128_REPOS_FS", False):
         return _d005_step128_repos_fs_distilled_action(status, viable)
     if driver_id == "D008" and step == 80 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D008_STEP80_WAIT", False):
@@ -1690,6 +1692,28 @@ def _d005_step123_distilled_action(status: dict[str, Any], viable: list[dict[str
     ):
         return None
     return {"action": "take_order", "params": {"cargo_id": winner_id}}
+
+
+def _d005_step49_wait_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:
+    if _env_bool("AGENT_AP_D005_STEP49_REQUIRE_VISIBLE_LOSER", True) and not _has_visible_cargo(
+        viable, "AGENT_AP_D005_STEP49_LOSER_IDS", "370991"
+    ):
+        return None
+    if not _phase_guard(
+        status,
+        day_env="AGENT_AP_D005_STEP49_DAY",
+        default_day=11,
+        min_env="AGENT_AP_D005_STEP49_MIN_MINUTE",
+        default_minute=6 * 60 + 30,
+        max_env="AGENT_AP_D005_STEP49_MAX_MINUTE",
+        default_max_minute=7 * 60 + 15,
+        center_lat=22.69,
+        center_lng=114.15,
+        radius_env="AGENT_AP_D005_STEP49_LOCATION_RADIUS_KM",
+        default_radius_km=12.0,
+    ):
+        return None
+    return {"action": "wait", "params": {"duration_minutes": _env_int("AGENT_AP_D005_STEP49_WAIT_MINUTES", 120)}}
 
 
 def _d005_step128_repos_fs_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:

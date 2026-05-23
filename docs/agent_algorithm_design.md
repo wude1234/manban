@@ -5,7 +5,7 @@
 0509 当前稳定最好：
 
 ```text
-score = 312415.71
+score = 312573.95
 penalty = 12265.0
 failed_driver_count = 0
 ```
@@ -14,12 +14,12 @@ failed_driver_count = 0
 
 ```text
 AGENT_STRATEGY = new_release_agentic_planner_agent
-profile = hot_v68_d009180_d010123
+profile = hot_v70_d005_step49_wait120
 base = v30 driver-specific planner
-upgrade = v32-v65 counterfactual memory + phase action gates + low-efficiency route repair + exact sequence probing
+upgrade = v32-v70 counterfactual memory + phase action gates + low-efficiency route repair + exact sequence probing + wait-as-route-plan teacher
 ```
 
-这个结果的意义不是最高分本身，而是说明：0508 上有效的司机独立规则迁移到 0509 后仍成立，且“轨迹记录 + 反事实回放 + 规则蒸馏”的 agentic harness 能继续从固定底座中挖出真实长期收益。v56/v57 的新增收益没有降低总罚分，而是在同罚分下修复 D003/D006/D007/D002/D010 的后继路线状态；v61/v65 进一步证明主动迁移和双步序列 rebase 可以在单步 regret 饱和后继续找到小的路线修复。
+这个结果的意义不是最高分本身，而是说明：0508 上有效的司机独立规则迁移到 0509 后仍成立，且“轨迹记录 + 反事实回放 + 规则蒸馏”的 agentic harness 能继续从固定底座中挖出真实长期收益。v56/v57 的新增收益没有降低总罚分，而是在同罚分下修复 D003/D006/D007/D002/D010 的后继路线状态；v61/v65 进一步证明主动迁移和双步序列 rebase 可以在单步 regret 饱和后继续找到小的路线修复；v70 则证明等待也可以是主动 Route Plan 动作，而不是无货兜底。
 
 ## 2. 核心发现
 
@@ -46,6 +46,7 @@ upgrade = v32-v65 counterfactual memory + phase action gates + low-efficiency ro
 - v61 证明 D004 早中期主动迁移是高收益路线修复。D004 step7 DG、step41 FS 和 step93 cargo297250 组合后达到 `312350.16`，收益来自后续 gross 增长与小距离成本之间的长期权衡。
 - v65 证明单步 regret 饱和后仍可用精确双步序列搜索找到细小收益。D007 step114 改接 `cargo475223` 后 gross 下降但距离成本下降更多，完整月度提升到 `312357.36`。这类信号很小，但它说明 sequence-level route planner 比单步 reranker 更接近本题长期决策本质。
 - v68/v69 证明 destination/opportunity value 适合作为候选生成器，而不是直接打分器。大多数 value 分支为负，但 exact-tail validation 找到 D009 step180 `cargo181577` 和 D010 step123 `cargo484817` 两个非 top-k 小正收益，组合后达到 `312415.71`。
+- v70 证明短等待本身也需要进入动作级规划。D005 step49 `wait120` 放弃一个早期低链路订单，等待后进入更高价值短链，罚分不变且 D005 净收益 `+158.24`。这说明“未来收益”不能只由目的地区域强弱解释，还要看货源释放窗口和接单后完成时间是否压住后继链。
 
 ### 2.2 明确负方向
 

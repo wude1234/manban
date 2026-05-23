@@ -2,12 +2,12 @@
 
 ## 当前提交版本
 
-提交 profile：`v69_value_candidate_teacher_312415`
+提交 profile：`v70_d005_wait_teacher_312573`
 
 本地 0509 数据当前最好复现结果：
 
 ```text
-score = 312415.71
+score = 312573.95
 total_preference_penalty = 12265.0
 failed_driver_count = 0
 ```
@@ -15,8 +15,14 @@ failed_driver_count = 0
 对应实验：
 
 ```text
-demo/results/grid_agentic_algo/20260524_023030_autonight_v68_positive_grid/03_hot_v68_d009180_d010123
-preset = hot_v68_d009180_d010123
+demo/results/grid_agentic_algo/20260524_031203_autonight_v70_d005_step49_grid_fix/01_hot_v70_d005_step49_wait120
+preset = hot_v70_d005_step49_wait120
+```
+
+v70 相比 v69 的新增有效动作：
+
+```text
+D005 step49 wait120: 放弃 06:50 附近立即接 cargo370991，短等 120 分钟进入 cargo371838 -> cargo66508 的更高价值短链；罚分不变，D005 净收益 +158.24。启发是低价早接单可能锁死后续货源释放窗口，wait 不是被动兜底，而是受控 Route Plan 动作。
 ```
 
 v68/v69 相比 v65 的新增有效动作：
