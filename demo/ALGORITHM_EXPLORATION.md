@@ -5,10 +5,10 @@
 当前最好可复现分数：
 
 ```text
-score = 314347.46
-preset = hot_v74_d010_step82_repos_dg
+score = 314512.68
+preset = hot_v75_d010_step103_200361
 penalty = 12465.0
-result_dir = results/grid_agentic_algo/20260524_061501_autonight_v74_d010_candidates_grid/01_hot_v74_d010_step82_repos_dg
+result_dir = results/grid_agentic_algo/20260524_064600_autonight_v75_d010_step103_grid/02_hot_v75_d010_step103_200361
 ```
 
 这套分数不是靠单点阈值堆出来的，核心是把司机拆成不同画像后做收益-扣分权衡，并在关键决策步使用反事实回放验证“换一个候选货源是否让整个月更优”：
@@ -77,6 +77,8 @@ v32-v57: 对关键步骤做 candidate/action-level counterfactual rollout，验�
 26. v57 证明自动选点 + action regret 仍能继续涨分，但“高空驶/长等待”只是筛选信号，不是直接决策规则。`select_probe_steps.py` 从 v56 轨迹中选出 D003/D005/D007/D008/D010 的可疑步，再对 top-k 接单、等待、热点迁移做 full-tail 回放。结果 D003/D005/D008 大多保持原动作最优，D007 step61 改 `cargo93774` 单点 +279.72，D010 step121 改 `cargo200361` 单点 +165.22，跨司机组合达到 `311679.70`。D010 step118 单点 +87.48，但与 step121 同司机冲突，all3 回落到 `311601.96`，不推广。
 
 27. v61 证明 D004 的主动迁移仍是高收益路线修复主线。D004 step7 DG、step41 FS、step93 cargo297250 组合后达到 `312350.16`，罚分 `12265`。其中 step41 FS 的收益来自多走一点距离换后续 gross 增长，罚分不变。
+
+28. v74-v75 证明 D010 月末仍是高价值的 Route Plan 搜索区。v74 的 step82 主动空驶到 DG 通过路线重排把 D010 休息罚分降低 `600`，总分到 `314347.46`。v75 在 v74 rebased tail 上继续做二步序列回放，发现 step103 改接 `cargo200361` 比原 `cargo196038` 更好：总罚分不变，但卸货位置从粤东侧 `(23.49,116.56)` 改回珠三角侧 `(22.90,113.76)`，后续能接 `203410 -> 490251`，总分到 `314512.68`。这说明“区域强弱”不是核心判断，核心是当前动作把司机送入哪条可执行后继链。
 
 28. v62/v63 证明 v61 后单步 regret mining 已经饱和。对 D001/D002/D004/D005/D006/D007/D008/D009 共 75 个关键 step 做 take/wait/reposition full-tail 单步替换，没有正收益动作。结论是：高空驶、高等待、高罚分只是探测信号，不是策略规则；下一步必须做序列级 rebase 或状态价值学习。
 

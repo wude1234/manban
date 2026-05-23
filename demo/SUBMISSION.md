@@ -2,21 +2,30 @@
 
 ## 当前提交版本
 
-提交 profile：`v74_d010_step82_route_teacher_314347`
+提交 profile：`v75_d010_step103_route_teacher_314512`
 
 本地 0509 数据当前最好复现结果：
 
 ```text
-score = 314347.46
+score = 314512.68
 total_preference_penalty = 12465.0
 failed_driver_count = 0
+tokens = 0
 ```
 
 对应实验：
 
 ```text
-demo/results/grid_agentic_algo/20260524_061501_autonight_v74_d010_candidates_grid/01_hot_v74_d010_step82_repos_dg
-preset = hot_v74_d010_step82_repos_dg
+demo/results/grid_agentic_algo/20260524_064600_autonight_v75_d010_step103_grid/02_hot_v75_d010_step103_200361
+preset = hot_v75_d010_step103_200361
+default step files = demo/results/actions_202603_D001-D010_20260524_065514.jsonl
+summary = demo/results/monthly_income_202603.json
+```
+
+v75 相比 v74 的新增有效动作：
+
+```text
+D010 step103 cargo200361: 在 03-29 15:43 后，原规则从 (24.02,115.54) 接 cargo196038 并卸到 (23.49,116.56)。二步序列回放发现改接 cargo200361 后卸到 (22.90,113.76)，总罚分不变，后续接入 cargo203410 -> cargo490251，D010 净收益 +165.22。这个点说明月末决策要看 destination/opportunity value，不能只看当前单 NPH。
 ```
 
 v74 相比 v73 的新增有效动作：

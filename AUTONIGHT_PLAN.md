@@ -14,13 +14,13 @@
 ## Current Best
 
 ```text
-version = v74 validated submission default candidate
-preset = hot_v74_d010_step82_repos_dg
-score = 314347.46
+version = v75 validated submission default candidate
+preset = hot_v75_d010_step103_200361
+score = 314512.68
 penalty = 12465
-run_dir = demo/results/grid_agentic_algo/20260524_061501_autonight_v74_d010_candidates_grid/01_hot_v74_d010_step82_repos_dg
-default_run = demo/results/actions_202603_D001-D010_20260524_062627.jsonl + demo/results/monthly_income_202603.json
-last_commit = pending v74 commit
+run_dir = demo/results/grid_agentic_algo/20260524_064600_autonight_v75_d010_step103_grid/02_hot_v75_d010_step103_200361
+default_run = demo/results/actions_202603_D001-D010_20260524_065514.jsonl + demo/results/monthly_income_202603.json
+last_commit = pending v75 commit
 ```
 
 核心发现：
@@ -43,6 +43,21 @@ D010 step2 shows active reposition can pay, but it is dominated by the cleaner D
 D010 step23 cargo330064 is a stronger early route repair than step2 reposition; it requires disabling the conflicting step2 path
 v73 main.py default path has been validated: D010 step2 takes cargo21, D010 step23 takes cargo330064, total score reproduces 313500.75
 v74 shows D010 step82 active reposition DG is the next high-value route repair: it lowers D010 rest penalty by 600 while preserving/rebuilding the monthly cargo chain
+v75 shows D010 step103 cargo200361 is a clean month-end destination-value repair: penalty unchanged, but the unload region supports cargo203410 -> cargo490251 instead of the weaker 116.56 tail
+```
+
+### v75 result
+
+```text
+grid = results/grid_agentic_algo/20260524_064600_autonight_v75_d010_step103_grid
+best = hot_v75_d010_step103_200361
+score = 314512.68
+penalty = 12465
+promoted =
+  v74 full stack
+  D010 step103 cargo200361 over cargo196038
+finding = after D010 step100 cargo191232 and step102 cargo193800, the rule branch takes cargo196038 and unloads near (23.49,116.56). Exact two-step sequence replay shows cargo200361 unloads near (22.90,113.76), preserving penalty while unlocking cargo203410 -> cargo490251. This is destination/opportunity value, not immediate NPH maximization.
+default_validation = results/actions_202603_D*_20260524_065514.jsonl, score 314512.68, penalty 12465, failed_driver_count 0
 ```
 
 ### v74 result
@@ -161,6 +176,14 @@ active_probe_dirs =
   results/autonight_v74_D010_one_step
 active_grid =
   results/grid_agentic_algo/*_autonight_v74_d010_candidates_grid
+next_v75 =
+  selection = demo/results/autonight_v75_v74_probe_steps.md
+  purpose = continue from v74 rebased default, especially D010 new tail and two-step sequence repairs on D004/D005/D008
+  current_baselines =
+    D004 39325.91
+    D005 28505.81
+    D008 35929.67
+    D010 33318.15
 ```
 
 ### v58 result

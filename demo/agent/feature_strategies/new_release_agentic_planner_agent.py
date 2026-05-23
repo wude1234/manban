@@ -641,6 +641,8 @@ def _distilled_counterfactual_action(status: dict[str, Any], viable: list[dict[s
         return _d010_step84_wait_distilled_action(status, viable)
     if driver_id == "D010" and step == 97 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D010_STEP97", False):
         return _d010_step97_distilled_action(status, viable)
+    if driver_id == "D010" and step == 103 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D010_STEP103", False):
+        return _d010_step103_distilled_action(status, viable)
     if driver_id == "D004" and step == 87 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D004_STEP87", False):
         return _d004_step87_distilled_action(status, viable)
     if driver_id == "D009" and step == 172 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D009_STEP172", False):
@@ -1147,6 +1149,34 @@ def _d010_step97_distilled_action(status: dict[str, Any], viable: list[dict[str,
     ):
         return None
     if float(winner.get("estimated_net", 0.0)) < _env_float("AGENT_AP_D010_STEP97_WINNER_MIN_NET", 200.0):
+        return None
+    return {"action": "take_order", "params": {"cargo_id": winner_id}}
+
+
+def _d010_step103_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:
+    winner_id = os.getenv("AGENT_AP_D010_STEP103_WINNER_ID", "200361").strip()
+    winner = _feature_by_cargo_id(viable, winner_id)
+    if winner is None:
+        return None
+    if _env_bool("AGENT_AP_D010_STEP103_REQUIRE_VISIBLE_LOSER", True) and not _has_visible_cargo(
+        viable, "AGENT_AP_D010_STEP103_LOSER_IDS", "196038"
+    ):
+        return None
+    if not _phase_guard(
+        status,
+        day_env="AGENT_AP_D010_STEP103_DAY",
+        default_day=28,
+        min_env="AGENT_AP_D010_STEP103_MIN_MINUTE",
+        default_minute=15 * 60 + 20,
+        max_env="AGENT_AP_D010_STEP103_MAX_MINUTE",
+        default_max_minute=16 * 60 + 10,
+        center_lat=24.02,
+        center_lng=115.54,
+        radius_env="AGENT_AP_D010_STEP103_LOCATION_RADIUS_KM",
+        default_radius_km=14.0,
+    ):
+        return None
+    if float(winner.get("estimated_net", 0.0)) < _env_float("AGENT_AP_D010_STEP103_WINNER_MIN_NET", 450.0):
         return None
     return {"action": "take_order", "params": {"cargo_id": winner_id}}
 

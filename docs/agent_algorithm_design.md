@@ -5,7 +5,7 @@
 0509 当前稳定最好：
 
 ```text
-score = 314347.46
+score = 314512.68
 penalty = 12465.0
 failed_driver_count = 0
 ```
@@ -14,9 +14,9 @@ failed_driver_count = 0
 
 ```text
 AGENT_STRATEGY = new_release_agentic_planner_agent
-profile = hot_v74_d010_step82_repos_dg
+profile = hot_v75_d010_step103_200361
 base = v30 driver-specific planner
-upgrade = v32-v74 counterfactual memory + phase action gates + low-efficiency route repair + exact sequence probing + wait-as-route-plan teacher + schedule-aware value teacher + two-step route rebase + clean harness ablation + v74 D010 active reposition route repair
+upgrade = v32-v75 counterfactual memory + phase action gates + low-efficiency route repair + exact sequence probing + wait-as-route-plan teacher + schedule-aware value teacher + two-step route rebase + clean harness ablation + D010 active reposition and month-end destination-value repair
 ```
 
 这个结果的意义不是最高分本身，而是说明：0508 上有效的司机独立规则迁移到 0509 后仍成立，且“轨迹记录 + 反事实回放 + 规则蒸馏”的 agentic harness 能继续从固定底座中挖出真实长期收益。v56/v57 的新增收益没有降低总罚分，而是在同罚分下修复 D003/D006/D007/D002/D010 的后继路线状态；v61/v65 进一步证明主动迁移和双步序列 rebase 可以在单步 regret 饱和后继续找到小的路线修复；v70 证明等待也可以是主动 Route Plan 动作，而不是无货兜底；v71 证明偏好风险可以通过早期订单选择自然修复，而不是硬控；v72/v73 证明双步 route rebase 和干净 ablation 能继续把互斥 teacher 选对；v74 证明高可疑动作必须经过 exact-tail 验证，真正的新增来自 D010 月末主动空驶重排路线。
@@ -50,6 +50,7 @@ upgrade = v32-v74 counterfactual memory + phase action gates + low-efficiency ro
 - v71 证明偏好罚分需要作为边际状态成本参与候选选择。D004 step11 选择 `cargo235854` 后 gross 下降、距离上升，但后续日程罚分下降 `400`，最终净收益 `+39.20`。这类样本说明 Agent 需要比较“当前收益 + 后继路线 + 偏好风险变化”，而不是只追当前 NPH。
 - v72/v73 证明序列级 route rebase 是下一阶段主线。D004 step49 `cargo379155` 单独会把后续路线带偏，必须和 rebased path 上的 step56 `cargo93338` 组合执行，完整月 D004 净收益 `+277.93`。D001 step48 `wait30` 额外 `+54.55`。D010 step2 主动空驶虽然为正，但被 D010 step23 `cargo330064` 支配；清理 grid harness 的 submission-default 污染后，step23 可与 D001/D004 跨司机叠加，达到 `313500.75`。
 - v74 证明全司机并行探测后仍能找到新的高收益 action-level teacher。80 个高可疑 step 中只有 D010 step82 为强正收益，说明“高空驶/长等待/高 scan”只能作为候选选择器，不能直接变成策略规则。step82 选择主动空驶到 DG 后重排后续链，并把 D010 连续休息罚分降低 `600`，总分提升到 `314347.46`。
+- v75 证明二步序列回放能在 v74 路径上继续找到同罚分收益。D010 step103 改接 `cargo200361` 后，卸货位置从 `(23.49,116.56)` 变为 `(22.90,113.76)`，保留 1265 罚分并打开 `cargo203410 -> cargo490251` 的月末尾链，总分提升到 `314512.68`。这个样本把“未来收益”具体化为 `当前净收益 + 完单后位置价值 + 后继可接链 - 偏好风险`，比静态强/弱区域判断更可靠。
 
 ### 2.2 明确负方向
 
