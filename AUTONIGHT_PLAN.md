@@ -14,13 +14,13 @@
 ## Current Best
 
 ```text
-version = v70 validated submission default candidate
-preset = hot_v70_d005_step49_wait120
-score = 312573.95
-penalty = 12265
-run_dir = demo/results/grid_agentic_algo/20260524_031203_autonight_v70_d005_step49_grid_fix/01_hot_v70_d005_step49_wait120
-default_run = demo/results/actions_202603_*_20260524_032234.jsonl + demo/results/monthly_income_202603.json
-last_commit = pending v70 commit
+version = v71 validated submission default candidate
+preset = hot_v71_d004_step11_235854
+score = 312613.15
+penalty = 11865
+run_dir = demo/results/grid_agentic_algo/20260524_035222_autonight_v71_d004_step11_grid/01_hot_v71_d004_step11_235854
+default_run = demo/results/actions_202603_*_20260524_035815.jsonl + demo/results/monthly_income_202603.json
+last_commit = pending v71 commit
 ```
 
 核心发现：
@@ -36,6 +36,7 @@ auto-selected suspicious steps must still be judged by full-tail rollout; high p
 single-step regret mining saturated after v61; exact two-step sequence probing found a tiny D007 distance-saving route repair
 value-candidate one-step exact-tail probing found two tiny but stackable non-top-k teacher labels on D009/D010
 D005 step49 shows wait can be a route-plan action: delaying 120 minutes avoids a low-chain early order and unlocks a better short-chain sequence without changing penalty
+D004 step11 shows schedule-aware order choice can beat gross-maximization: a lower-gross value candidate reduces downstream preference penalty enough to raise monthly net
 ```
 
 ## Active Experiments

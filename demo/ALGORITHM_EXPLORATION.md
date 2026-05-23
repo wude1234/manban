@@ -5,10 +5,10 @@
 当前最好可复现分数：
 
 ```text
-score = 312573.95
-preset = hot_v70_d005_step49_wait120
-penalty = 12265.0
-result_dir = results/grid_agentic_algo/20260524_031203_autonight_v70_d005_step49_grid_fix/01_hot_v70_d005_step49_wait120
+score = 312613.15
+preset = hot_v71_d004_step11_235854
+penalty = 11865.0
+result_dir = results/grid_agentic_algo/20260524_035222_autonight_v71_d004_step11_grid/01_hot_v71_d004_step11_235854
 ```
 
 这套分数不是靠单点阈值堆出来的，核心是把司机拆成不同画像后做收益-扣分权衡，并在关键决策步使用反事实回放验证“换一个候选货源是否让整个月更优”：
@@ -91,6 +91,8 @@ v32-v57: 对关键步骤做 candidate/action-level counterfactual rollout，验�
 33. v68 将 `counterfactual_rollout_probe.py` 升级为 value-candidate one-step probe。目的不是让静态区域价值直接进入 agent，而是先用便宜的一步完整尾部回放挖出非 top-k 的候选 label；只有 exact driver net 正收益的候选才进入两步 rebase 和 full-grid 验证。本轮 D001/D006/D008 主体仍为负，但 D009 step180 `cargo181577` 单点 `+22.94`，D010 step123 `cargo484817` 单点 `+35.41`，完整 grid 组合后达到 `312415.71`，罚分保持 `12265`。
 
 34. v70 证明 `wait` 也要进入 Route Plan，而不是只在无货时兜底。D005 step49 `wait120` 放弃 06:50 附近的 `cargo370991`，等待到后续货源释放后接入 `cargo371838 -> cargo66508` 短链，D005 净收益从 `28347.57` 提升到 `28505.81`，罚分仍为 `0`。这说明未来收益的关键不是简单强/弱区域，而是“当前动作是否锁死后续释放窗口”。Agent 层面要把等待、空驶、接单作为同级动作，用 exact-tail teacher 蒸馏状态规则。
+
+35. v71 证明 D004 的 schedule-aware value candidate 仍有空间。D004 step11 从 `cargo4008` 换到 `cargo235854` 后，gross 减少 `143.93` 且距离增加 `144.58km`，但偏好罚分减少 `400`，D004 净收益 `+39.20`，总分达到 `312613.15`。这类动作不是追当前最高收益，而是选择能改善后续首单、午餐和配额节奏的订单，说明偏好风险应该作为边际状态成本进入候选排序。
 
 ## 为什么不能继续一点点试阈值
 

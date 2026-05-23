@@ -2,21 +2,27 @@
 
 ## 当前提交版本
 
-提交 profile：`v70_d005_wait_teacher_312573`
+提交 profile：`v71_d004_schedule_teacher_312613`
 
 本地 0509 数据当前最好复现结果：
 
 ```text
-score = 312573.95
-total_preference_penalty = 12265.0
+score = 312613.15
+total_preference_penalty = 11865.0
 failed_driver_count = 0
 ```
 
 对应实验：
 
 ```text
-demo/results/grid_agentic_algo/20260524_031203_autonight_v70_d005_step49_grid_fix/01_hot_v70_d005_step49_wait120
-preset = hot_v70_d005_step49_wait120
+demo/results/grid_agentic_algo/20260524_035222_autonight_v71_d004_step11_grid/01_hot_v71_d004_step11_235854
+preset = hot_v71_d004_step11_235854
+```
+
+v71 相比 v70 的新增有效动作：
+
+```text
+D004 step11 cargo235854: 用 value 候选替换原 cargo4008，gross 少 143.93、距离多 144.58km，但 D004 偏好罚分从 1500 降到 1100，最终 D004 净收益 +39.20。启发是 D004 的正确控罚不是硬等或少接，而是在早期路线中选择能自然改善首单/午餐/配额节奏的订单。
 ```
 
 v70 相比 v69 的新增有效动作：

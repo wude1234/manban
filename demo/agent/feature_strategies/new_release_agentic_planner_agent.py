@@ -611,6 +611,8 @@ def _distilled_counterfactual_action(status: dict[str, Any], viable: list[dict[s
         return _d004_step7_repos_distilled_action(status, viable, label="DG")
     if driver_id == "D004" and step == 7 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D004_STEP7_REPOS_FS", False):
         return _d004_step7_repos_distilled_action(status, viable, label="FS")
+    if driver_id == "D004" and step == 11 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D004_STEP11", False):
+        return _d004_step11_distilled_action(status, viable)
     if driver_id == "D004" and step == 41 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D004_STEP41_REPOS_FS", False):
         return _d004_step41_repos_fs_distilled_action(status, viable)
     if driver_id == "D004" and step == 70 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D004_STEP70", False):
@@ -771,6 +773,30 @@ def _d004_step7_repos_distilled_action(
         lat = _env_float("AGENT_AP_D004_STEP7_FS_REPOS_LAT", 23.02)
         lng = _env_float("AGENT_AP_D004_STEP7_FS_REPOS_LNG", 113.12)
     return {"action": "reposition", "params": {"latitude": lat, "longitude": lng}}
+
+
+def _d004_step11_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:
+    winner_id = os.getenv("AGENT_AP_D004_STEP11_WINNER_ID", "235854").strip()
+    winner = _feature_by_cargo_id(viable, winner_id)
+    if winner is None:
+        return None
+    if not _has_visible_cargo(viable, "AGENT_AP_D004_STEP11_LOSER_IDS", "4008"):
+        return None
+    if not _phase_guard(
+        status,
+        day_env="AGENT_AP_D004_STEP11_DAY",
+        default_day=2,
+        min_env="AGENT_AP_D004_STEP11_MIN_MINUTE",
+        default_minute=6 * 60 + 10,
+        max_env="AGENT_AP_D004_STEP11_MAX_MINUTE",
+        default_max_minute=6 * 60 + 55,
+        center_lat=22.52,
+        center_lng=113.89,
+        radius_env="AGENT_AP_D004_STEP11_LOCATION_RADIUS_KM",
+        default_radius_km=10.0,
+    ):
+        return None
+    return {"action": "take_order", "params": {"cargo_id": winner_id}}
 
 
 def _d004_step41_repos_fs_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:

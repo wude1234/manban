@@ -3727,6 +3727,7 @@ def _v60_d004_step7_env(
     d009_step180_181577: bool = False,
     d010_step123_484817: bool = False,
     d005_step49_wait120: bool = False,
+    d004_step11_235854: bool = False,
 ) -> dict[str, str]:
     env = _v57_action_regret_env(d007_61=True, d010_121=True)
     env["AGENT_AP_ENABLE_DISTILLED_COUNTERFACTUAL_GATE"] = "1"
@@ -3788,6 +3789,15 @@ def _v60_d004_step7_env(
                 "AGENT_AP_D005_STEP49_MAX_MINUTE": str(7 * 60 + 15),
                 "AGENT_AP_D005_STEP49_LOCATION_RADIUS_KM": "12",
                 "AGENT_AP_D005_STEP49_WAIT_MINUTES": "120",
+            }
+        )
+    if d004_step11_235854:
+        env.update(
+            {
+                "AGENT_AP_ENABLE_DISTILLED_D004_STEP11": "1",
+                "AGENT_AP_D004_STEP11_MIN_MINUTE": str(6 * 60 + 10),
+                "AGENT_AP_D004_STEP11_MAX_MINUTE": str(6 * 60 + 55),
+                "AGENT_AP_D004_STEP11_LOCATION_RADIUS_KM": "10",
             }
         )
     return env
@@ -4227,6 +4237,16 @@ PRESETS.update(
             d009_step180_181577=True,
             d010_step123_484817=True,
             d005_step49_wait120=True,
+        ),
+        "hot_v71_d004_step11_235854": _v60_d004_step7_env(
+            dg=True,
+            step41_fs=True,
+            step93_297250=True,
+            d007_step114_475223=True,
+            d009_step180_181577=True,
+            d010_step123_484817=True,
+            d005_step49_wait120=True,
+            d004_step11_235854=True,
         ),
     }
 )
