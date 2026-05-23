@@ -2,12 +2,12 @@
 
 ## 当前提交版本
 
-提交 profile：`v75_d010_step103_route_teacher_314512`
+提交 profile：`v76_d010_micro_tail_route_teacher_314529`
 
 本地 0509 数据当前最好复现结果：
 
 ```text
-score = 314512.68
+score = 314529.94
 total_preference_penalty = 12465.0
 failed_driver_count = 0
 tokens = 0
@@ -16,11 +16,19 @@ tokens = 0
 对应实验：
 
 ```text
-demo/results/grid_agentic_algo/20260524_064600_autonight_v75_d010_step103_grid/02_hot_v75_d010_step103_200361
-preset = hot_v75_d010_step103_200361
-default step files = demo/results/actions_202603_D001-D010_20260524_065514.jsonl
+demo/results/grid_agentic_algo/20260524_071648_autonight_v76_micro_grid/02_hot_v76_d010_196038_106205150
+preset = hot_v76_d010_196038_106205150
+default step files = demo/results/actions_202603_D001-D010_20260524_072754.jsonl
 summary = demo/results/monthly_income_202603.json
 ```
+
+v76 相比 v75 的新增有效动作：
+
+```text
+D010 step103 + step106 互斥尾链重排：v75 单看 step103 时 cargo200361 最优；v76 在 rebased path 上继续二步回放，发现改回 cargo196038 后，再于 step106 接 cargo205150，整条尾链略胜，D010 净收益 +17.26，罚分不变。这说明同司机正样本不是永久标签，后续 teacher 加入后必须重新组合验证。
+```
+
+本轮同时验证了 D004 step93 cargo469204 + step94 cargo183976：局部单司机 +12.82，但 full-grid 只有 `314504.55`，低于 v75，因此不进入默认。
 
 v75 相比 v74 的新增有效动作：
 

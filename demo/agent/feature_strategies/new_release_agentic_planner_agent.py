@@ -643,6 +643,8 @@ def _distilled_counterfactual_action(status: dict[str, Any], viable: list[dict[s
         return _d010_step97_distilled_action(status, viable)
     if driver_id == "D010" and step == 103 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D010_STEP103", False):
         return _d010_step103_distilled_action(status, viable)
+    if driver_id == "D010" and step == 106 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D010_STEP106_205150", False):
+        return _d010_step106_205150_distilled_action(status, viable)
     if driver_id == "D004" and step == 87 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D004_STEP87", False):
         return _d004_step87_distilled_action(status, viable)
     if driver_id == "D009" and step == 172 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D009_STEP172", False):
@@ -655,6 +657,8 @@ def _distilled_counterfactual_action(status: dict[str, Any], viable: list[dict[s
         return _d010_step101_distilled_action(status, viable)
     if driver_id == "D004" and step == 93 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D004_STEP93", False):
         return _d004_step93_distilled_action(status, viable)
+    if driver_id == "D004" and step == 94 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D004_STEP94_183976", False):
+        return _d004_step94_183976_distilled_action(status, viable)
     if driver_id == "D004" and step == 95 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D004_STEP95_REPOS_GZ", False):
         return _d004_step95_repos_gz_distilled_action(status, viable)
     if driver_id == "D004" and step == 96 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D004_STEP96_REPOS_FS", False):
@@ -1181,6 +1185,34 @@ def _d010_step103_distilled_action(status: dict[str, Any], viable: list[dict[str
     return {"action": "take_order", "params": {"cargo_id": winner_id}}
 
 
+def _d010_step106_205150_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:
+    winner_id = os.getenv("AGENT_AP_D010_STEP106_WINNER_ID", "205150").strip()
+    winner = _feature_by_cargo_id(viable, winner_id)
+    if winner is None:
+        return None
+    if _env_bool("AGENT_AP_D010_STEP106_REQUIRE_VISIBLE_LOSER", True) and not _has_visible_cargo(
+        viable, "AGENT_AP_D010_STEP106_LOSER_IDS", "484468"
+    ):
+        return None
+    if not _phase_guard(
+        status,
+        day_env="AGENT_AP_D010_STEP106_DAY",
+        default_day=29,
+        min_env="AGENT_AP_D010_STEP106_MIN_MINUTE",
+        default_minute=10 * 60,
+        max_env="AGENT_AP_D010_STEP106_MAX_MINUTE",
+        default_max_minute=11 * 60,
+        center_lat=24.11,
+        center_lng=115.77,
+        radius_env="AGENT_AP_D010_STEP106_LOCATION_RADIUS_KM",
+        default_radius_km=12.0,
+    ):
+        return None
+    if float(winner.get("estimated_net", 0.0)) < _env_float("AGENT_AP_D010_STEP106_WINNER_MIN_NET", 400.0):
+        return None
+    return {"action": "take_order", "params": {"cargo_id": winner_id}}
+
+
 def _d004_step87_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:
     winner_id = os.getenv("AGENT_AP_D004_STEP87_WINNER_ID", "164073").strip()
     winner = _feature_by_cargo_id(viable, winner_id)
@@ -1288,6 +1320,32 @@ def _d004_step93_distilled_action(status: dict[str, Any], viable: list[dict[str,
         radius_env="AGENT_AP_D004_STEP93_LOCATION_RADIUS_KM",
         default_radius_km=10.0,
     ):
+        return None
+    return {"action": "take_order", "params": {"cargo_id": winner_id}}
+
+
+def _d004_step94_183976_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:
+    winner_id = os.getenv("AGENT_AP_D004_STEP94_WINNER_ID", "183976").strip()
+    winner = _feature_by_cargo_id(viable, winner_id)
+    if winner is None:
+        return None
+    if not _has_visible_cargo(viable, "AGENT_AP_D004_STEP94_LOSER_IDS", "470607,472941"):
+        return None
+    if not _phase_guard(
+        status,
+        day_env="AGENT_AP_D004_STEP94_DAY",
+        default_day=27,
+        min_env="AGENT_AP_D004_STEP94_MIN_MINUTE",
+        default_minute=4 * 60 + 45,
+        max_env="AGENT_AP_D004_STEP94_MAX_MINUTE",
+        default_max_minute=5 * 60 + 30,
+        center_lat=22.97,
+        center_lng=113.16,
+        radius_env="AGENT_AP_D004_STEP94_LOCATION_RADIUS_KM",
+        default_radius_km=12.0,
+    ):
+        return None
+    if float(winner.get("estimated_net", 0.0)) < _env_float("AGENT_AP_D004_STEP94_WINNER_MIN_NET", 250.0):
         return None
     return {"action": "take_order", "params": {"cargo_id": winner_id}}
 

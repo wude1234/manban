@@ -5,10 +5,10 @@
 当前最好可复现分数：
 
 ```text
-score = 314512.68
-preset = hot_v75_d010_step103_200361
+score = 314529.94
+preset = hot_v76_d010_196038_106205150
 penalty = 12465.0
-result_dir = results/grid_agentic_algo/20260524_064600_autonight_v75_d010_step103_grid/02_hot_v75_d010_step103_200361
+result_dir = results/grid_agentic_algo/20260524_071648_autonight_v76_micro_grid/02_hot_v76_d010_196038_106205150
 ```
 
 这套分数不是靠单点阈值堆出来的，核心是把司机拆成不同画像后做收益-扣分权衡，并在关键决策步使用反事实回放验证“换一个候选货源是否让整个月更优”：
@@ -79,6 +79,8 @@ v32-v57: 对关键步骤做 candidate/action-level counterfactual rollout，验�
 27. v61 证明 D004 的主动迁移仍是高收益路线修复主线。D004 step7 DG、step41 FS、step93 cargo297250 组合后达到 `312350.16`，罚分 `12265`。其中 step41 FS 的收益来自多走一点距离换后续 gross 增长，罚分不变。
 
 28. v74-v75 证明 D010 月末仍是高价值的 Route Plan 搜索区。v74 的 step82 主动空驶到 DG 通过路线重排把 D010 休息罚分降低 `600`，总分到 `314347.46`。v75 在 v74 rebased tail 上继续做二步序列回放，发现 step103 改接 `cargo200361` 比原 `cargo196038` 更好：总罚分不变，但卸货位置从粤东侧 `(23.49,116.56)` 改回珠三角侧 `(22.90,113.76)`，后续能接 `203410 -> 490251`，总分到 `314512.68`。这说明“区域强弱”不是核心判断，核心是当前动作把司机送入哪条可执行后继链。
+
+29. v76 证明同司机 teacher 必须可撤销、可重组。继续在 v75 尾链上做二步 sequence replay 后，`cargo196038 -> wait180 -> cargo484175 -> cargo205150` 反而比 v75 的 `cargo200361 -> wait180 -> cargo203410 -> cargo490251` 高 `+17.26`，总分到 `314529.94`，罚分不变。D004 的 step93/94 局部微正没有通过 full-grid 验证，说明小正样本尤其要防止 harness/路径冲突。
 
 28. v62/v63 证明 v61 后单步 regret mining 已经饱和。对 D001/D002/D004/D005/D006/D007/D008/D009 共 75 个关键 step 做 take/wait/reposition full-tail 单步替换，没有正收益动作。结论是：高空驶、高等待、高罚分只是探测信号，不是策略规则；下一步必须做序列级 rebase 或状态价值学习。
 

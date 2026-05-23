@@ -14,13 +14,13 @@
 ## Current Best
 
 ```text
-version = v75 validated submission default candidate
-preset = hot_v75_d010_step103_200361
-score = 314512.68
+version = v76 validated submission default candidate
+preset = hot_v76_d010_196038_106205150
+score = 314529.94
 penalty = 12465
-run_dir = demo/results/grid_agentic_algo/20260524_064600_autonight_v75_d010_step103_grid/02_hot_v75_d010_step103_200361
-default_run = demo/results/actions_202603_D001-D010_20260524_065514.jsonl + demo/results/monthly_income_202603.json
-last_commit = pending v75 commit
+run_dir = demo/results/grid_agentic_algo/20260524_071648_autonight_v76_micro_grid/02_hot_v76_d010_196038_106205150
+default_run = demo/results/actions_202603_D001-D010_20260524_072754.jsonl + demo/results/monthly_income_202603.json
+last_commit = pending v76 commit
 ```
 
 核心发现：
@@ -44,6 +44,24 @@ D010 step23 cargo330064 is a stronger early route repair than step2 reposition; 
 v73 main.py default path has been validated: D010 step2 takes cargo21, D010 step23 takes cargo330064, total score reproduces 313500.75
 v74 shows D010 step82 active reposition DG is the next high-value route repair: it lowers D010 rest penalty by 600 while preserving/rebuilding the monthly cargo chain
 v75 shows D010 step103 cargo200361 is a clean month-end destination-value repair: penalty unchanged, but the unload region supports cargo203410 -> cargo490251 instead of the weaker 116.56 tail
+v76 shows same-driver positive teachers must stay mutable: after adding a step106 teacher, the older D010 step103=196038 branch beats the v75 200361 branch by 17.26
+```
+
+### v76 result
+
+```text
+grid = results/grid_agentic_algo/20260524_071648_autonight_v76_micro_grid
+best = hot_v76_d010_196038_106205150
+score = 314529.94
+penalty = 12465
+promoted =
+  v74 full stack
+  D010 step103 cargo196038
+  D010 step106 cargo205150
+rejected =
+  D004 step93 cargo469204 + step94 cargo183976, local +12.82 but full grid 314504.55 because it conflicts with the existing D004 path
+finding = v76 is a tiny but instructive two-step tail rebase. v75 step103 cargo200361 is better alone, but when step106 cargo205150 is available, the sequence cargo196038 -> wait180 -> cargo484175 -> cargo205150 is slightly stronger. This confirms same-driver positive labels are not permanent; they must be re-optimized after adding later route teachers.
+default_validation = results/actions_202603_D*_20260524_072754.jsonl, score 314529.94, penalty 12465, failed_driver_count 0
 ```
 
 ### v75 result

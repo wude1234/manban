@@ -3735,6 +3735,10 @@ def _v60_d004_step7_env(
     d010_step84_wait180: bool = False,
     d010_step97_186578: bool = False,
     d010_step103_200361: bool = False,
+    d010_step103_196038: bool = False,
+    d010_step106_205150: bool = False,
+    d004_step93_469204: bool = False,
+    d004_step94_183976: bool = False,
     d001_step48_wait30: bool = False,
 ) -> dict[str, str]:
     env = _v57_action_regret_env(d007_61=True, d010_121=True)
@@ -3873,10 +3877,55 @@ def _v60_d004_step7_env(
         env.update(
             {
                 "AGENT_AP_ENABLE_DISTILLED_D010_STEP103": "1",
+                "AGENT_AP_D010_STEP103_WINNER_ID": "200361",
+                "AGENT_AP_D010_STEP103_LOSER_IDS": "196038",
                 "AGENT_AP_D010_STEP103_MIN_MINUTE": str(15 * 60 + 20),
                 "AGENT_AP_D010_STEP103_MAX_MINUTE": str(16 * 60 + 10),
                 "AGENT_AP_D010_STEP103_LOCATION_RADIUS_KM": "14",
                 "AGENT_AP_D010_STEP103_WINNER_MIN_NET": "450",
+            }
+        )
+    if d010_step103_196038:
+        env.update(
+            {
+                "AGENT_AP_ENABLE_DISTILLED_D010_STEP103": "1",
+                "AGENT_AP_D010_STEP103_WINNER_ID": "196038",
+                "AGENT_AP_D010_STEP103_LOSER_IDS": "200361",
+                "AGENT_AP_D010_STEP103_MIN_MINUTE": str(15 * 60 + 20),
+                "AGENT_AP_D010_STEP103_MAX_MINUTE": str(16 * 60 + 10),
+                "AGENT_AP_D010_STEP103_LOCATION_RADIUS_KM": "14",
+                "AGENT_AP_D010_STEP103_WINNER_MIN_NET": "450",
+            }
+        )
+    if d010_step106_205150:
+        env.update(
+            {
+                "AGENT_AP_ENABLE_DISTILLED_D010_STEP106_205150": "1",
+                "AGENT_AP_D010_STEP106_MIN_MINUTE": str(10 * 60),
+                "AGENT_AP_D010_STEP106_MAX_MINUTE": str(11 * 60),
+                "AGENT_AP_D010_STEP106_LOCATION_RADIUS_KM": "12",
+                "AGENT_AP_D010_STEP106_WINNER_MIN_NET": "400",
+            }
+        )
+    if d004_step93_469204:
+        env.update(
+            {
+                "AGENT_AP_ENABLE_DISTILLED_D004_STEP93": "1",
+                "AGENT_AP_D004_STEP93_WINNER_ID": "469204",
+                "AGENT_AP_D004_STEP93_LOSER_IDS": "297250,468269",
+                "AGENT_AP_D004_STEP93_MIN_MINUTE": str(12 * 60),
+                "AGENT_AP_D004_STEP93_MAX_MINUTE": str(13 * 60),
+                "AGENT_AP_D004_STEP93_LOCATION_RADIUS_KM": "12",
+            }
+        )
+    if d004_step94_183976:
+        env.update(
+            {
+                "AGENT_AP_ENABLE_DISTILLED_D004_STEP94_183976": "1",
+                "AGENT_AP_D004_STEP94_MIN_MINUTE": str(4 * 60 + 45),
+                "AGENT_AP_D004_STEP94_MAX_MINUTE": str(5 * 60 + 30),
+                "AGENT_AP_D004_STEP94_LOCATION_RADIUS_KM": "12",
+                "AGENT_AP_D004_STEP94_WINNER_MIN_NET": "250",
             }
         )
     if d001_step48_wait30:
@@ -4545,6 +4594,55 @@ PRESETS.update(
             d010_step82_repos_dg=True,
             d010_step97_186578=True,
             d010_step103_200361=True,
+        ),
+        "hot_v76_d010_196038_106205150": _v60_d004_step7_env(
+            dg=True,
+            step41_fs=True,
+            step93_297250=True,
+            d007_step114_475223=True,
+            d009_step180_181577=True,
+            d010_step123_484817=True,
+            d005_step49_wait120=True,
+            d004_step11_235854=True,
+            d001_step48_wait30=True,
+            d004_seq49_56=True,
+            d010_step23_330064=True,
+            d010_step82_repos_dg=True,
+            d010_step103_196038=True,
+            d010_step106_205150=True,
+        ),
+        "hot_v76_d004_469204_183976": _v60_d004_step7_env(
+            dg=True,
+            step41_fs=True,
+            d007_step114_475223=True,
+            d009_step180_181577=True,
+            d010_step123_484817=True,
+            d005_step49_wait120=True,
+            d004_step11_235854=True,
+            d001_step48_wait30=True,
+            d004_seq49_56=True,
+            d010_step23_330064=True,
+            d010_step82_repos_dg=True,
+            d010_step103_200361=True,
+            d004_step93_469204=True,
+            d004_step94_183976=True,
+        ),
+        "hot_v76_d010_d004_micro": _v60_d004_step7_env(
+            dg=True,
+            step41_fs=True,
+            d007_step114_475223=True,
+            d009_step180_181577=True,
+            d010_step123_484817=True,
+            d005_step49_wait120=True,
+            d004_step11_235854=True,
+            d001_step48_wait30=True,
+            d004_seq49_56=True,
+            d010_step23_330064=True,
+            d010_step82_repos_dg=True,
+            d010_step103_196038=True,
+            d010_step106_205150=True,
+            d004_step93_469204=True,
+            d004_step94_183976=True,
         ),
         "hot_v72_d00148_d010s2": _v60_d004_step7_env(
             dg=True,
