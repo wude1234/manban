@@ -2,21 +2,28 @@
 
 ## 当前提交版本
 
-提交 profile：`v57_counterfactual_route_planner_311679`
+提交 profile：`v60_route_repair_planner_312269`
 
 本地 0509 数据当前最好复现结果：
 
 ```text
-score = 311679.70
-total_preference_penalty = 11865.0
+score = 312269.66
+total_preference_penalty = 12265.0
 failed_driver_count = 0
 ```
 
 对应实验：
 
 ```text
-demo/results/grid_agentic_algo/20260523_213118_autonight_v57_combo_grid/07_hot_v57_d00761_d010121
-preset = hot_v57_d00761_d010121
+demo/results/grid_agentic_algo/20260523_230611_autonight_v60_d004_step7_grid/04_hot_v60_d004_step7_dg_plus_step93
+preset = hot_v60_d004_step7_dg_plus_step93
+```
+
+v60 相比 v57 的新增有效动作：
+
+```text
+D004 step7 reposition DG: 放弃短距离低链路货 1677，主动空驶到东莞附近重排早期货源链，净收益 +581.84；虽然偏好罚分 +400，但总收益仍显著提高。
+D004 step93 cargo297250: 在 v60 路径上替换原 cargo468269，净收益 +8.12，罚分不变。
 ```
 
 v49 相比 v48 的新增有效动作：
@@ -54,6 +61,8 @@ v55 证明主动空驶可以作为受控 Agent 的核心动作，而不是只做
 v56 在 v55 轨迹上增加低效率关键步挖掘，不再盲扫阈值。新的 `summarize_counterfactual_probes.py` 汇总工具把每个反事实 probe 转成 rule/best/delta 表，筛出 D003、D006、D007、D002 的正收益动作。最终 `hot_v56_core_new_all6` 独立复现 `311234.76`。总罚分保持 `11865`，说明本轮收益不是靠硬降罚，而是同罚分下的路径链修复。
 
 v57 用 `select_probe_steps.py` 从 v56 默认轨迹中自动挑选高耗时、高空驶、长等待、月末尾部等可疑 step，再对 D003/D005/D007/D008/D010 同时比较 take/wait/reposition 分支。D003、D005、D008 的热点迁移和等待大多为负，说明高空驶不等于错误；真正新增来自 D007 step61 `cargo93774` 和 D010 step121 `cargo200361`，二者跨司机可叠加，达到 `311679.70`。D010 step118 虽单点为正，但和 step121 冲突，不推广。
+
+v59/v60 继续从 v57 轨迹扩展到 D003/D004/D005/D008/D009。D003、D005、D008、D009 的主流分叉均为负，说明这些司机的等待/偏好边界已基本收敛；D004 step7 出现新的主动空驶正样本。完整月度验证后，`D004 step7 reposition DG` 与 `D004 step93 cargo297250` 可叠加，把提交候选提升到 `312269.66`。
 
 ## Agent 结构
 

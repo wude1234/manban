@@ -1201,3 +1201,48 @@ penalty = 12165
 failed_driver_count = 0
 tokens = 0
 ```
+
+## v59-v60: D004 Early Route Repair
+
+### Confirmed Scores
+
+| preset | score | penalty | delta vs v57 | finding |
+| --- | ---: | ---: | ---: | --- |
+| `hot_v60_base_v57` | 311679.70 | 11865 | - | v57 baseline reproduced |
+| `hot_v60_d004_step7_repos_dg` | 312261.54 | 12265 | +581.84 | new main gain |
+| `hot_v60_d004_step7_repos_fs` | 312076.74 | 11865 | +397.04 | lower-penalty alternative, but worse total |
+| `hot_v60_d004_step7_dg_plus_step93` | 312269.66 | 12265 | +589.96 | current best |
+| `hot_v60_d004_step7_fs_plus_step93` | 312084.86 | 11865 | +405.16 | stable but not best |
+
+### Discovery
+
+v59 broadened full-tail probes to D003/D004/D005/D008/D009. D003, D005, D008, and D009 were flat or negative, which means their v57 path is already locally stable under top-k cargo, wait, and coarse reposition alternatives.
+
+D004 is different: step7 originally takes short local cargo `1677`. Replacing that with an active reposition to Dongguan changes the early route chain enough to raise full-month net by `+581.84`, even though preference penalty increases by `+400`. This is a high-level Agent action arbitration win:
+
+```text
+短单当前看起来安全
+-> 但会把 D004 留在较弱后继链
+-> 主动空驶牺牲短期收益和部分罚分
+-> 后续货源链 gross 增长更多
+-> 月度净收益最大化
+```
+
+The promoted v60 actions are:
+
+```text
+D004 step7 reposition DG instead of taking cargo1677
+D004 step93 cargo297250 instead of cargo468269
+```
+
+Current submit candidate:
+
+```text
+profile = v60_route_repair_planner_312269
+preset = hot_v60_d004_step7_dg_plus_step93
+result_dir = results/grid_agentic_algo/20260523_230611_autonight_v60_d004_step7_grid/04_hot_v60_d004_step7_dg_plus_step93
+score = 312269.66
+penalty = 12265
+failed_driver_count = 0
+tokens = 0
+```

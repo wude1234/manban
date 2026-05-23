@@ -14,13 +14,13 @@
 ## Current Best
 
 ```text
-version = v57 validated submission default
-preset = hot_v57_d00761_d010121
-score = 311679.70
-penalty = 11865
-run_dir = demo/results/grid_agentic_algo/20260523_213118_autonight_v57_combo_grid/07_hot_v57_d00761_d010121
-default_run = demo/results/actions_202603_*_20260523_220313.jsonl + demo/results/monthly_income_202603.json
-last_commit = 23ab35e v56 counterfactual route planner score 311234
+version = v60 validated submission default
+preset = hot_v60_d004_step7_dg_plus_step93
+score = 312269.66
+penalty = 12265
+run_dir = demo/results/grid_agentic_algo/20260523_230611_autonight_v60_d004_step7_grid/04_hot_v60_d004_step7_dg_plus_step93
+default_run = demo/results/actions_202603_*_20260523_233754.jsonl + demo/results/monthly_income_202603.json
+last_commit = v60 D004 route repair planner score 312269
 ```
 
 核心发现：
@@ -40,9 +40,9 @@ auto-selected suspicious steps must still be judged by full-tail rollout; high p
 当前正在基于 v57 validated best 做下一轮自动探索：
 
 ```text
-status = v57 promoted, grid-confirmed, default submission path validated
-purpose = commit v57, then continue mining from v57 trajectory
-current_best_grid = demo/results/grid_agentic_algo/20260523_213118_autonight_v57_combo_grid/07_hot_v57_d00761_d010121
+status = v60 promoted, grid-confirmed, default submission path validated
+purpose = commit v60, then mine remaining high-leverage route branches from the v60 trajectory
+current_best_grid = demo/results/grid_agentic_algo/20260523_230611_autonight_v60_d004_step7_grid/04_hot_v60_d004_step7_dg_plus_step93
 completed_probe_dirs =
   results/autonight_v56_d002_inefficiency_probe
   results/autonight_v56_d003_inefficiency_probe
@@ -54,6 +54,52 @@ completed_probe_dirs =
   results/autonight_v57_d007_mid_action_regret
   results/autonight_v57_d008_action_regret
   results/autonight_v57_d010_mid_action_regret
+  results/autonight_v58_d001_rest_short_regret
+  results/autonight_v58_d002_tail_regret
+  results/autonight_v58_d006_midlate_regret
+  results/autonight_v58_d007_after61_rebase
+  results/autonight_v58_d010_after121_rebase
+  results/autonight_v58_regret_summary.md
+
+active_probe_dirs =
+  results/autonight_v59_d003_broad_route_regret
+  results/autonight_v59_d004_slot_route_regret
+  results/autonight_v59_d005_tail_route_regret
+  results/autonight_v59_d008_midlate_route_regret
+  results/autonight_v59_d009_home_route_regret
+  results/autonight_v59_regret_summary.md
+  results/grid_agentic_algo/20260523_230611_autonight_v60_d004_step7_grid
+```
+
+### v58 result
+
+```text
+summary = results/autonight_v58_regret_summary.md
+positive_candidates = none
+steps_tested = 26
+drivers = D001,D002,D006,D007,D010
+finding = v57 late-tail wait/reposition/cargo alternatives are flat_or_negative; avoid spending more budget on the same local perturbation.
+```
+
+### v59 active direction
+
+```text
+purpose = broaden teacher-label mining to drivers not covered by v58 and include take/wait/reposition as peer actions.
+drivers = D003,D004,D005,D008,D009
+decision_rule = only promote a branch after full-tail probe positive + full monthly grid combination beats 311679.70.
+```
+
+### v59/v60 result
+
+```text
+summary = results/autonight_v59_regret_summary.md
+positive_candidates =
+  D004 step7 reposition DG: +581.84, penalty +400
+  D004 step41 reposition FS: +80.50, penalty unchanged
+  D004 step93 cargo297250: +8.12, penalty unchanged
+promoted = D004 step7 reposition DG + D004 step93 cargo297250
+score = 312269.66
+finding = D004 early route should sometimes reject a short local order and actively reposition to a stronger downstream region; this is a high-level action arbitration win, not a cargo-only rerank.
 ```
 
 上一轮基于 v48 best 并行探索 5 条线，均已完成：

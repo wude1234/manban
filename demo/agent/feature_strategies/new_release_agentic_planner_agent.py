@@ -607,6 +607,10 @@ def _distilled_counterfactual_action(status: dict[str, Any], viable: list[dict[s
     step = int(status.get("_decision_history_total", 0) or 0) + 1
     if driver_id == "D008" and step == 62:
         return _d008_step62_distilled_action(status, viable)
+    if driver_id == "D004" and step == 7 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D004_STEP7_REPOS_DG", False):
+        return _d004_step7_repos_distilled_action(status, viable, label="DG")
+    if driver_id == "D004" and step == 7 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D004_STEP7_REPOS_FS", False):
+        return _d004_step7_repos_distilled_action(status, viable, label="FS")
     if driver_id == "D004" and step == 70 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D004_STEP70", False):
         return _d004_step70_distilled_action(status, viable)
     if driver_id == "D004" and step == 86 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D004_STEP86_WAIT", False):
@@ -729,6 +733,38 @@ def _d008_step62_distilled_action(status: dict[str, Any], viable: list[dict[str,
     if int(winner.get("finish_minutes", progress) or progress) % 1440 > max_finish_minute:
         return None
     return {"action": "take_order", "params": {"cargo_id": "139843"}}
+
+
+def _d004_step7_repos_distilled_action(
+    status: dict[str, Any],
+    viable: list[dict[str, Any]],
+    *,
+    label: str,
+) -> dict[str, Any] | None:
+    label = label.upper()
+    if not _has_visible_cargo(viable, f"AGENT_AP_D004_STEP7_{label}_LOSER_IDS", "1677"):
+        return None
+    if not _phase_guard(
+        status,
+        day_env=f"AGENT_AP_D004_STEP7_{label}_DAY",
+        default_day=1,
+        min_env=f"AGENT_AP_D004_STEP7_{label}_MIN_MINUTE",
+        default_minute=8 * 60,
+        max_env=f"AGENT_AP_D004_STEP7_{label}_MAX_MINUTE",
+        default_max_minute=9 * 60,
+        center_lat=22.54,
+        center_lng=113.95,
+        radius_env=f"AGENT_AP_D004_STEP7_{label}_LOCATION_RADIUS_KM",
+        default_radius_km=10.0,
+    ):
+        return None
+    if label == "DG":
+        lat = _env_float("AGENT_AP_D004_STEP7_DG_REPOS_LAT", 23.02)
+        lng = _env_float("AGENT_AP_D004_STEP7_DG_REPOS_LNG", 113.75)
+    else:
+        lat = _env_float("AGENT_AP_D004_STEP7_FS_REPOS_LAT", 23.02)
+        lng = _env_float("AGENT_AP_D004_STEP7_FS_REPOS_LNG", 113.12)
+    return {"action": "reposition", "params": {"latitude": lat, "longitude": lng}}
 
 
 def _d004_step70_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:

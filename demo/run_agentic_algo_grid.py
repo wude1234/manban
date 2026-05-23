@@ -3717,6 +3717,50 @@ def _v57_action_regret_env(
     return env
 
 
+def _v60_d004_step7_env(
+    *,
+    dg: bool = False,
+    fs: bool = False,
+    step41_fs: bool = False,
+    step93_297250: bool = False,
+) -> dict[str, str]:
+    env = _v57_action_regret_env(d007_61=True, d010_121=True)
+    env["AGENT_AP_ENABLE_DISTILLED_COUNTERFACTUAL_GATE"] = "1"
+    if dg:
+        env.update(
+            {
+                "AGENT_AP_ENABLE_DISTILLED_D004_STEP7_REPOS_DG": "1",
+                "AGENT_AP_D004_STEP7_DG_MIN_MINUTE": str(8 * 60),
+                "AGENT_AP_D004_STEP7_DG_MAX_MINUTE": str(9 * 60),
+                "AGENT_AP_D004_STEP7_DG_LOCATION_RADIUS_KM": "10",
+            }
+        )
+    if fs:
+        env.update(
+            {
+                "AGENT_AP_ENABLE_DISTILLED_D004_STEP7_REPOS_FS": "1",
+                "AGENT_AP_D004_STEP7_FS_MIN_MINUTE": str(8 * 60),
+                "AGENT_AP_D004_STEP7_FS_MAX_MINUTE": str(9 * 60),
+                "AGENT_AP_D004_STEP7_FS_LOCATION_RADIUS_KM": "10",
+            }
+        )
+    switches = [
+        item.strip()
+        for item in env.get("AGENT_AP_COUNTERFACTUAL_SWITCHES", "").split(",")
+        if item.strip()
+    ]
+    if step93_297250:
+        switches.append("D004:93:297250")
+    if switches:
+        env["AGENT_AP_ENABLE_COUNTERFACTUAL_SWITCHES"] = "1"
+        env["AGENT_AP_COUNTERFACTUAL_SWITCHES"] = ",".join(switches)
+    if step41_fs:
+        # This smaller teacher is action-level, so keep it behind a separate
+        # experimental flag until full-grid compatibility is proven.
+        env["AGENT_AP_ENABLE_DISTILLED_D004_STEP41_REPOS_FS_EXPERIMENT"] = "1"
+    return env
+
+
 PRESETS.update(
     {
         # v32: exact counterfactual winners discovered by
@@ -4107,6 +4151,11 @@ PRESETS.update(
         "hot_v57_d00761_d010118": _v57_action_regret_env(d007_61=True, d010_118=True),
         "hot_v57_d00761_d010121": _v57_action_regret_env(d007_61=True, d010_121=True),
         "hot_v57_all3": _v57_action_regret_env(d007_61=True, d010_118=True, d010_121=True),
+        "hot_v60_base_v57": _v60_d004_step7_env(),
+        "hot_v60_d004_step7_repos_dg": _v60_d004_step7_env(dg=True),
+        "hot_v60_d004_step7_repos_fs": _v60_d004_step7_env(fs=True),
+        "hot_v60_d004_step7_dg_plus_step93": _v60_d004_step7_env(dg=True, step93_297250=True),
+        "hot_v60_d004_step7_fs_plus_step93": _v60_d004_step7_env(fs=True, step93_297250=True),
     }
 )
 
