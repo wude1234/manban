@@ -14,13 +14,13 @@
 ## Current Best
 
 ```text
-version = v60 validated submission default
-preset = hot_v60_d004_step7_dg_plus_step93
-score = 312269.66
+version = v61 validated submission default
+preset = hot_v61_d004_step7dg_step41fs_step93
+score = 312350.16
 penalty = 12265
-run_dir = demo/results/grid_agentic_algo/20260523_230611_autonight_v60_d004_step7_grid/04_hot_v60_d004_step7_dg_plus_step93
-default_run = demo/results/actions_202603_*_20260523_233754.jsonl + demo/results/monthly_income_202603.json
-last_commit = v60 D004 route repair planner score 312269
+run_dir = demo/results/grid_agentic_algo/20260523_235608_autonight_v61_d004_step41_grid/04_hot_v61_d004_step7dg_step41fs_step93
+default_run = demo/results/actions_202603_*_20260524_001343.jsonl + demo/results/monthly_income_202603.json
+last_commit = pending v61 commit
 ```
 
 核心发现：
@@ -40,9 +40,9 @@ auto-selected suspicious steps must still be judged by full-tail rollout; high p
 当前正在基于 v57 validated best 做下一轮自动探索：
 
 ```text
-status = v60 promoted, grid-confirmed, default submission path validated
-purpose = commit v60, then mine remaining high-leverage route branches from the v60 trajectory
-current_best_grid = demo/results/grid_agentic_algo/20260523_230611_autonight_v60_d004_step7_grid/04_hot_v60_d004_step7_dg_plus_step93
+status = v61 promoted, grid-confirmed, default submission path validated
+purpose = commit v61, then mine remaining high-leverage route branches from the v61 trajectory
+current_best_grid = demo/results/grid_agentic_algo/20260523_235608_autonight_v61_d004_step41_grid/04_hot_v61_d004_step7dg_step41fs_step93
 completed_probe_dirs =
   results/autonight_v56_d002_inefficiency_probe
   results/autonight_v56_d003_inefficiency_probe
@@ -69,6 +69,7 @@ active_probe_dirs =
   results/autonight_v59_d009_home_route_regret
   results/autonight_v59_regret_summary.md
   results/grid_agentic_algo/20260523_230611_autonight_v60_d004_step7_grid
+  results/grid_agentic_algo/20260523_235608_autonight_v61_d004_step41_grid
 ```
 
 ### v58 result
@@ -100,6 +101,18 @@ positive_candidates =
 promoted = D004 step7 reposition DG + D004 step93 cargo297250
 score = 312269.66
 finding = D004 early route should sometimes reject a short local order and actively reposition to a stronger downstream region; this is a high-level action arbitration win, not a cargo-only rerank.
+```
+
+### v61 result
+
+```text
+grid = results/grid_agentic_algo/20260523_235608_autonight_v61_d004_step41_grid
+best = hot_v61_d004_step7dg_step41fs_step93
+score = 312350.16
+penalty = 12265
+new_gain = +80.50 over v60
+promoted = D004 step41 reposition FS
+finding = D004 step41 FS is not just an old-path artifact; it stacks with step7 DG and step93. The route spends extra distance but earns higher downstream gross with unchanged penalty.
 ```
 
 上一轮基于 v48 best 并行探索 5 条线，均已完成：

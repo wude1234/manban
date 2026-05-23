@@ -611,6 +611,8 @@ def _distilled_counterfactual_action(status: dict[str, Any], viable: list[dict[s
         return _d004_step7_repos_distilled_action(status, viable, label="DG")
     if driver_id == "D004" and step == 7 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D004_STEP7_REPOS_FS", False):
         return _d004_step7_repos_distilled_action(status, viable, label="FS")
+    if driver_id == "D004" and step == 41 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D004_STEP41_REPOS_FS", False):
+        return _d004_step41_repos_fs_distilled_action(status, viable)
     if driver_id == "D004" and step == 70 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D004_STEP70", False):
         return _d004_step70_distilled_action(status, viable)
     if driver_id == "D004" and step == 86 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D004_STEP86_WAIT", False):
@@ -764,6 +766,28 @@ def _d004_step7_repos_distilled_action(
     else:
         lat = _env_float("AGENT_AP_D004_STEP7_FS_REPOS_LAT", 23.02)
         lng = _env_float("AGENT_AP_D004_STEP7_FS_REPOS_LNG", 113.12)
+    return {"action": "reposition", "params": {"latitude": lat, "longitude": lng}}
+
+
+def _d004_step41_repos_fs_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:
+    if not _has_visible_cargo(viable, "AGENT_AP_D004_STEP41_FS_LOSER_IDS", "363694"):
+        return None
+    if not _phase_guard(
+        status,
+        day_env="AGENT_AP_D004_STEP41_FS_DAY",
+        default_day=10,
+        min_env="AGENT_AP_D004_STEP41_FS_MIN_MINUTE",
+        default_minute=12 * 60,
+        max_env="AGENT_AP_D004_STEP41_FS_MAX_MINUTE",
+        default_max_minute=13 * 60 + 30,
+        center_lat=23.47,
+        center_lng=114.43,
+        radius_env="AGENT_AP_D004_STEP41_FS_LOCATION_RADIUS_KM",
+        default_radius_km=12.0,
+    ):
+        return None
+    lat = _env_float("AGENT_AP_D004_STEP41_FS_REPOS_LAT", 23.02)
+    lng = _env_float("AGENT_AP_D004_STEP41_FS_REPOS_LNG", 113.12)
     return {"action": "reposition", "params": {"latitude": lat, "longitude": lng}}
 
 

@@ -1246,3 +1246,28 @@ penalty = 12265
 failed_driver_count = 0
 tokens = 0
 ```
+
+## v61: D004 Mid-Route FS Repair
+
+### Confirmed Scores
+
+| preset | score | penalty | finding |
+| --- | ---: | ---: | --- |
+| `hot_v60_d004_step7_dg_plus_step93` | 312269.66 | 12265 | v60 reproduced |
+| `hot_v61_d004_step41_fs_only` | 312342.04 | 12265 | step41 FS alone is positive |
+| `hot_v61_d004_step7dg_step41fs` | 312342.04 | 12265 | step41 stacks with step7 DG |
+| `hot_v61_d004_step7dg_step41fs_step93` | 312350.16 | 12265 | current best |
+
+### Discovery
+
+D004 step41 originally takes cargo `363694` from around `(23.47,114.43)` after the noon guard. The full-tail probe showed that active reposition to `(23.02,113.12)` is better even though it adds distance. Grid validation confirms the signal survives on top of the v60 route:
+
+```text
+D004 gross: 57425.67 -> 57922.45
+D004 distance: 11331.59 -> 11609.11
+D004 penalty: unchanged 1500
+D004 net: 38928.28 -> 39008.78
+total score: 312269.66 -> 312350.16
+```
+
+This reinforces the Agentic pattern: key decisions must compare action branches, not only cargo rankings. A lower immediate-looking action can win if it moves the driver into a better downstream route chain.

@@ -3755,9 +3755,14 @@ def _v60_d004_step7_env(
         env["AGENT_AP_ENABLE_COUNTERFACTUAL_SWITCHES"] = "1"
         env["AGENT_AP_COUNTERFACTUAL_SWITCHES"] = ",".join(switches)
     if step41_fs:
-        # This smaller teacher is action-level, so keep it behind a separate
-        # experimental flag until full-grid compatibility is proven.
-        env["AGENT_AP_ENABLE_DISTILLED_D004_STEP41_REPOS_FS_EXPERIMENT"] = "1"
+        env.update(
+            {
+                "AGENT_AP_ENABLE_DISTILLED_D004_STEP41_REPOS_FS": "1",
+                "AGENT_AP_D004_STEP41_FS_MIN_MINUTE": str(12 * 60),
+                "AGENT_AP_D004_STEP41_FS_MAX_MINUTE": str(13 * 60 + 30),
+                "AGENT_AP_D004_STEP41_FS_LOCATION_RADIUS_KM": "12",
+            }
+        )
     return env
 
 
@@ -4156,6 +4161,9 @@ PRESETS.update(
         "hot_v60_d004_step7_repos_fs": _v60_d004_step7_env(fs=True),
         "hot_v60_d004_step7_dg_plus_step93": _v60_d004_step7_env(dg=True, step93_297250=True),
         "hot_v60_d004_step7_fs_plus_step93": _v60_d004_step7_env(fs=True, step93_297250=True),
+        "hot_v61_d004_step41_fs_only": _v60_d004_step7_env(step41_fs=True),
+        "hot_v61_d004_step7dg_step41fs": _v60_d004_step7_env(dg=True, step41_fs=True),
+        "hot_v61_d004_step7dg_step41fs_step93": _v60_d004_step7_env(dg=True, step41_fs=True, step93_297250=True),
     }
 )
 
