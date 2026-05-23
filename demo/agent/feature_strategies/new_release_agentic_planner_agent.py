@@ -687,6 +687,8 @@ def _distilled_counterfactual_action(status: dict[str, Any], viable: list[dict[s
         return _d007_step121_repos_fs_distilled_action(status, viable)
     if driver_id == "D007" and step == 80 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D007_STEP80_REPOS_GZ", False):
         return _d007_step80_repos_gz_distilled_action(status, viable)
+    if driver_id == "D007" and step == 114 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D007_STEP114_475223", False):
+        return _d007_step114_475223_distilled_action(status, viable)
     if driver_id == "D007" and step == 114 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D007_STEP114_REPOS_SW", False):
         return _d007_step114_repos_sw_distilled_action(status, viable)
     if driver_id == "D007" and step == 122 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D007_STEP122_WAIT", False):
@@ -1620,6 +1622,28 @@ def _d007_step114_repos_sw_distilled_action(status: dict[str, Any], viable: list
             "longitude": _env_float("AGENT_AP_D007_STEP114_REPOS_LNG", 112.90),
         },
     }
+
+
+def _d007_step114_475223_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:
+    winner_id = os.getenv("AGENT_AP_D007_STEP114_475223_WINNER_ID", "475223").strip()
+    winner = _feature_by_cargo_id(viable, winner_id)
+    if winner is None:
+        return None
+    if not _phase_guard(
+        status,
+        day_env="AGENT_AP_D007_STEP114_475223_DAY",
+        default_day=29,
+        min_env="AGENT_AP_D007_STEP114_475223_MIN_MINUTE",
+        default_minute=4 * 60,
+        max_env="AGENT_AP_D007_STEP114_475223_MAX_MINUTE",
+        default_max_minute=6 * 60 + 30,
+        center_lat=22.21,
+        center_lng=113.40,
+        radius_env="AGENT_AP_D007_STEP114_475223_LOCATION_RADIUS_KM",
+        default_radius_km=20.0,
+    ):
+        return None
+    return {"action": "take_order", "params": {"cargo_id": winner_id}}
 
 
 def _d007_step122_wait_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:

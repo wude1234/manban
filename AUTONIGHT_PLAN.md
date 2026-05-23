@@ -14,13 +14,13 @@
 ## Current Best
 
 ```text
-version = v61 validated submission default
-preset = hot_v61_d004_step7dg_step41fs_step93
-score = 312350.16
+version = v65 validated submission default
+preset = hot_v65_d007_step114_475223
+score = 312357.36
 penalty = 12265
-run_dir = demo/results/grid_agentic_algo/20260523_235608_autonight_v61_d004_step41_grid/04_hot_v61_d004_step7dg_step41fs_step93
-default_run = demo/results/actions_202603_*_20260524_001343.jsonl + demo/results/monthly_income_202603.json
-last_commit = pending v61 commit
+run_dir = demo/results/grid_agentic_algo/20260524_012025_autonight_v65_d007_step114_grid/02_hot_v65_d007_step114_475223
+default_run = demo/results/actions_202603_*_20260524_013159.jsonl + demo/results/monthly_income_202603.json
+last_commit = pending v65 commit
 ```
 
 核心发现：
@@ -33,16 +33,17 @@ wait / take_order / reposition 必须作为同级动作做 full-tail rollout
 query 后状态会造成 trace step time 与 agent decision time 错位，phase guard 需要足够宽但仍由候选货源/位置约束兜底
 action-level teacher must override older cargo-level switch on the same driver/step
 auto-selected suspicious steps must still be judged by full-tail rollout; high pickup/wait/reposition signals are filters, not policy rules
+single-step regret mining saturated after v61; exact two-step sequence probing found a tiny D007 distance-saving route repair
 ```
 
 ## Active Experiments
 
-当前正在基于 v57 validated best 做下一轮自动探索：
+当前正在基于 v65 validated best 做下一轮自动探索：
 
 ```text
-status = v61 promoted, grid-confirmed, default submission path validated
-purpose = commit v61, then mine remaining high-leverage route branches from the v61 trajectory
-current_best_grid = demo/results/grid_agentic_algo/20260523_235608_autonight_v61_d004_step41_grid/04_hot_v61_d004_step7dg_step41fs_step93
+status = v65 promoted, grid-confirmed, default submission path validated
+purpose = commit v65, then continue exact sequence probes from earlier route phases
+current_best_grid = demo/results/grid_agentic_algo/20260524_012025_autonight_v65_d007_step114_grid/02_hot_v65_d007_step114_475223
 completed_probe_dirs =
   results/autonight_v56_d002_inefficiency_probe
   results/autonight_v56_d003_inefficiency_probe
@@ -80,6 +81,17 @@ active_probe_dirs =
   results/autonight_v63_d007_v61_remaining_regret
   results/autonight_v63_d008_v61_remaining_regret
   results/autonight_v63_regret_summary.md
+  results/beam_planner/autonight_v64_beam_D001_v61
+  results/beam_planner/autonight_v64_beam_D005_v61
+  results/beam_planner/autonight_v64_beam_D007_v61
+  results/beam_planner/autonight_v64_beam_D008_v61
+  results/sequence_counterfactual/autonight_v65_D001_rest_pairs
+  results/sequence_counterfactual/autonight_v65_D002_deadhead_pairs
+  results/sequence_counterfactual/autonight_v65_D005_tail_pairs
+  results/sequence_counterfactual/autonight_v65_D006_rest_pairs
+  results/sequence_counterfactual/autonight_v65_D007_route_pairs
+  results/sequence_counterfactual/autonight_v65_D008_preference_pairs
+  results/grid_agentic_algo/20260524_012025_autonight_v65_d007_step114_grid
 ```
 
 ### v58 result
@@ -145,6 +157,30 @@ steps_tested = 40
 drivers = D001,D005,D007,D008
 finding = remaining v61 single-step action-level probes are also flat_or_negative. Combined with v62, 75 post-v61 target steps across D001,D002,D004,D005,D006,D007,D008,D009 show no positive one-step replacement.
 next = single-step regret mining is now saturated; use paired/sequence rollout or learned state-value features instead of continuing local sweeps.
+```
+
+### v64 result
+
+```text
+tool = demo/offline_beam_planner.py
+drivers = D001,D005,D007,D008
+positive_candidates = none
+finding = proxy beam search is misaligned with official monthly score. D008 looked promising under proxy but exact score collapsed from preference penalty; D001/D005/D007 also underperformed v61. Beam can suggest route patterns, but it should not promote actions without exact tail scoring.
+```
+
+### v65 result
+
+```text
+tool = demo/sequence_counterfactual_probe.py
+grid = results/grid_agentic_algo/20260524_012025_autonight_v65_d007_step114_grid
+best = hot_v65_d007_step114_475223
+score = 312357.36
+penalty = 12265
+new_gain = +7.20 over v61
+promoted = D007 step114 cargo475223 over previous SW reposition gate
+finding = exact two-step sequence probing found a tiny cost-saving route repair: cargo475223 loses 113.16 gross versus the SW-reposition tail, but saves 80.24 km, so D007 net improves by 7.20 with unchanged penalty.
+negative = D001,D002,D005,D006,D008 tested paired windows kept rule/rule as best; v61/v65 are locally tight in those tails.
+next = search earlier paired windows and/or learned state-value features. Do not spend more time on late D001/D002/D005/D006/D008 pairs from this batch.
 ```
 
 上一轮基于 v48 best 并行探索 5 条线，均已完成：

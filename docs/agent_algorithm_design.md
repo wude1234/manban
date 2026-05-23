@@ -5,8 +5,8 @@
 0509 当前稳定最好：
 
 ```text
-score = 311679.70
-penalty = 11865.0
+score = 312357.36
+penalty = 12265.0
 failed_driver_count = 0
 ```
 
@@ -14,12 +14,12 @@ failed_driver_count = 0
 
 ```text
 AGENT_STRATEGY = new_release_agentic_planner_agent
-profile = hot_v57_d00761_d010121
+profile = hot_v65_d007_step114_475223
 base = v30 driver-specific planner
-upgrade = v32-v57 counterfactual memory + phase action gates + low-efficiency route repair
+upgrade = v32-v65 counterfactual memory + phase action gates + low-efficiency route repair + exact sequence probing
 ```
 
-这个结果的意义不是最高分本身，而是说明：0508 上有效的司机独立规则迁移到 0509 后仍成立，且“轨迹记录 + 反事实回放 + 规则蒸馏”的 agentic harness 能继续从固定底座中挖出真实长期收益。v56/v57 的新增收益没有降低总罚分，而是在同罚分下修复 D003/D006/D007/D002/D010 的后继路线状态。
+这个结果的意义不是最高分本身，而是说明：0508 上有效的司机独立规则迁移到 0509 后仍成立，且“轨迹记录 + 反事实回放 + 规则蒸馏”的 agentic harness 能继续从固定底座中挖出真实长期收益。v56/v57 的新增收益没有降低总罚分，而是在同罚分下修复 D003/D006/D007/D002/D010 的后继路线状态；v61/v65 进一步证明主动迁移和双步序列 rebase 可以在单步 regret 饱和后继续找到小的路线修复。
 
 ## 2. 核心发现
 
@@ -43,6 +43,8 @@ upgrade = v32-v57 counterfactual memory + phase action gates + low-efficiency ro
 - v56 的核心增益不是降罚，而是 route repair：D003 step80、D006 step17、D007 step114、D002 step78、D003 step10 均在偏好罚分不变时提升整月净收益。
 - v57 证明自动选点可以继续找到同罚分收益。D007 step61 `cargo93774` 与 D010 step121 `cargo200361` 可跨司机叠加，把分数推到 `311679.70`；D010 step118 虽单点为正，但与 step121 冲突。
 - D004 的 v56 负结果说明“修罚分”不是万能方向。对高空驶/日程问题强行等或空驶会损失更多 gross，后续 D004 应转向更早的日内槽位规划。
+- v61 证明 D004 早中期主动迁移是高收益路线修复。D004 step7 DG、step41 FS 和 step93 cargo297250 组合后达到 `312350.16`，收益来自后续 gross 增长与小距离成本之间的长期权衡。
+- v65 证明单步 regret 饱和后仍可用精确双步序列搜索找到细小收益。D007 step114 改接 `cargo475223` 后 gross 下降但距离成本下降更多，完整月度提升到 `312357.36`。这类信号很小，但它说明 sequence-level route planner 比单步 reranker 更接近本题长期决策本质。
 
 ### 2.2 明确负方向
 
@@ -51,6 +53,7 @@ upgrade = v32-v57 counterfactual memory + phase action gates + low-efficiency ro
 - D004 lunch 阈值不是新增收益点，很多实验只是没有改变实际动作。
 - D001/D010 扩大查询视野会退化，说明远端候选噪声大于链路收益。
 - 固定参数微调已进入平台期，继续扫 `410/415/420` 这类边界不会带来接近 34w 的突破。
+- 普通 beam proxy 不能直接替代官方评分。v64 中 D008 的 proxy 候选被偏好罚分击穿，说明搜索必须回到 exact-tail scoring 或学习一个显式包含偏好风险的状态价值函数。
 
 ## 3. 司机画像与对应策略
 

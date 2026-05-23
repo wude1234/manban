@@ -5,10 +5,10 @@
 当前最好可复现分数：
 
 ```text
-score = 311679.70
-preset = hot_v57_d00761_d010121
-penalty = 11865.0
-result_dir = results/grid_agentic_algo/20260523_213118_autonight_v57_combo_grid/07_hot_v57_d00761_d010121
+score = 312357.36
+preset = hot_v65_d007_step114_475223
+penalty = 12265.0
+result_dir = results/grid_agentic_algo/20260524_012025_autonight_v65_d007_step114_grid/02_hot_v65_d007_step114_475223
 ```
 
 这套分数不是靠单点阈值堆出来的，核心是把司机拆成不同画像后做收益-扣分权衡，并在关键决策步使用反事实回放验证“换一个候选货源是否让整个月更优”：
@@ -75,6 +75,14 @@ v32-v57: 对关键步骤做 candidate/action-level counterfactual rollout，验�
 25. v56 的 D004 负结果同样重要。针对 D004 高空驶、午间、晚首单等 15 个关键 step 做 take/wait/reposition 反事实，没有一个正收益动作。说明 D004 当前的日程罚分不是可轻易修的漏洞，强行等/空驶常用几百罚分换掉上千 gross；下一步 D004 要做更早的槽位规划，而不是高空驶 step 替换。
 
 26. v57 证明自动选点 + action regret 仍能继续涨分，但“高空驶/长等待”只是筛选信号，不是直接决策规则。`select_probe_steps.py` 从 v56 轨迹中选出 D003/D005/D007/D008/D010 的可疑步，再对 top-k 接单、等待、热点迁移做 full-tail 回放。结果 D003/D005/D008 大多保持原动作最优，D007 step61 改 `cargo93774` 单点 +279.72，D010 step121 改 `cargo200361` 单点 +165.22，跨司机组合达到 `311679.70`。D010 step118 单点 +87.48，但与 step121 同司机冲突，all3 回落到 `311601.96`，不推广。
+
+27. v61 证明 D004 的主动迁移仍是高收益路线修复主线。D004 step7 DG、step41 FS、step93 cargo297250 组合后达到 `312350.16`，罚分 `12265`。其中 step41 FS 的收益来自多走一点距离换后续 gross 增长，罚分不变。
+
+28. v62/v63 证明 v61 后单步 regret mining 已经饱和。对 D001/D002/D004/D005/D006/D007/D008/D009 共 75 个关键 step 做 take/wait/reposition full-tail 单步替换，没有正收益动作。结论是：高空驶、高等待、高罚分只是探测信号，不是策略规则；下一步必须做序列级 rebase 或状态价值学习。
+
+29. v64 证明普通 beam proxy 不可靠。`offline_beam_planner.py` 在 D001/D005/D007/D008 上的候选经官方精确评分均低于 v61，D008 尤其被偏好罚分击穿。这说明不能用简化 proxy 直接判断路线优劣，必须用官方 exact-tail scoring 做小规模序列搜索。
+
+30. v65 新增 `sequence_counterfactual_probe.py`，把搜索升级为“第一步分叉 -> rebase 轨迹 -> 第二步分叉 -> 交回原 agent 完成整月 -> 官方精确评分”。第一批 D001/D002/D005/D006/D008 的最佳仍是 rule/rule；D007 step114 发现 `cargo475223` 比旧 SW reposition tail 多 `+7.20`。原因不是更高 gross，而是 gross 少 113.16 同时距离少 80.24km，净收益略优且罚分不变。完整 grid 验证后当前最好为 `312357.36`。
 
 ## 为什么不能继续一点点试阈值
 
