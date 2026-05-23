@@ -1271,3 +1271,72 @@ total score: 312269.66 -> 312350.16
 ```
 
 This reinforces the Agentic pattern: key decisions must compare action branches, not only cargo rankings. A lower immediate-looking action can win if it moves the driver into a better downstream route chain.
+
+## v62: Saturation Probe After v61
+
+### Result
+
+```text
+summary = results/autonight_v62_regret_summary.md
+positive_candidates = none
+drivers = D002,D004,D006,D009
+steps_tested = 35
+```
+
+v62 used v61 as the base policy and reran full-tail action-level probes:
+
+```text
+D004: route-repair tail after step41, including high-deadhead steps 43/49/62/65/67/74/84/87/94/102
+D006: high-penalty rest/value steps 17/23/58/78/79/82/86/89
+D009: home-loop waits and late-month low-profit decisions 153/164/169/177/187/189/192/199/204
+D002: long-deadhead/high-elapsed anchors 13/23/48/64/68/74/77/83
+```
+
+No candidate beat the current rule action on full-month net income. The main lesson is negative but important:
+
+```text
+high pickup distance != bad decision
+high preference penalty != automatically worth fixing
+long wait != wasted time by itself
+```
+
+D006 is the clearest example. A 480-minute rest branch can reduce penalty by `200`, but it gives up much more downstream gross, so monthly net drops sharply. D002 shows a similar pattern: several long-deadhead orders look inefficient locally, but they anchor a higher-value monthly chain. After v61, further gains likely require either untouched driver windows or paired/sequence probes, not more single-step perturbations around these saturated nodes.
+
+## v63: Remaining Driver Single-Step Saturation
+
+### Result
+
+```text
+summary = results/autonight_v63_regret_summary.md
+positive_candidates = none
+drivers = D001,D005,D007,D008
+steps_tested = 40
+```
+
+v63 scanned the remaining high-suspicion windows on v61:
+
+```text
+D001: late rest and low-haul steps 51/81/87/88/92/93/94/95/99/103
+D005: tail cargo/wait chain 58/92/100/107/108/117/118/120/122/126/127/131
+D007: previous positive zone and late tail 50/57/60/61/90/98/109/115/119/121
+D008: long-haul tail and waits 42/50/61/71/76/81/82/83/86/90
+```
+
+No one-step action replacement improved full-month net. Combined with v62, this gives a strong saturation signal:
+
+```text
+75 post-v61 target steps tested
+drivers covered = D001,D002,D004,D005,D006,D007,D008,D009
+positive one-step replacements = 0
+```
+
+The next search should move to paired or sequence-level planning:
+
+```text
+change early route branch
+-> rebase trajectory
+-> select new suspicious steps on that new trajectory
+-> test a second change on the rebased path
+```
+
+This is closer to the official Agent framing: route plan/value comparison over a short sequence, not isolated cargo reranking.

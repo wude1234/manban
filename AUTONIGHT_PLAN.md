@@ -70,6 +70,16 @@ active_probe_dirs =
   results/autonight_v59_regret_summary.md
   results/grid_agentic_algo/20260523_230611_autonight_v60_d004_step7_grid
   results/grid_agentic_algo/20260523_235608_autonight_v61_d004_step41_grid
+  results/autonight_v62_d004_v61_route_regret
+  results/autonight_v62_d006_rest_value_regret
+  results/autonight_v62_d009_home_value_regret
+  results/autonight_v62_d002_long_deadhead_regret
+  results/autonight_v62_regret_summary.md
+  results/autonight_v63_d001_v61_remaining_regret
+  results/autonight_v63_d005_v61_remaining_regret
+  results/autonight_v63_d007_v61_remaining_regret
+  results/autonight_v63_d008_v61_remaining_regret
+  results/autonight_v63_regret_summary.md
 ```
 
 ### v58 result
@@ -113,6 +123,28 @@ penalty = 12265
 new_gain = +80.50 over v60
 promoted = D004 step41 reposition FS
 finding = D004 step41 FS is not just an old-path artifact; it stacks with step7 DG and step93. The route spends extra distance but earns higher downstream gross with unchanged penalty.
+```
+
+### v62 result
+
+```text
+summary = results/autonight_v62_regret_summary.md
+positive_candidates = none
+steps_tested = 35
+drivers = D002,D004,D006,D009
+finding = after v61, broad action-level full-tail probes around D004 route repair tail, D006 rest-risk, D009 home waits, and D002 long-deadhead orders are flat_or_negative. Many suspicious high-deadhead/high-wait steps are actually profitable route-chain anchors.
+next = move to remaining drivers on v61 and then paired/sequence probes, not more local perturbation around these saturated steps.
+```
+
+### v63 result
+
+```text
+summary = results/autonight_v63_regret_summary.md
+positive_candidates = none
+steps_tested = 40
+drivers = D001,D005,D007,D008
+finding = remaining v61 single-step action-level probes are also flat_or_negative. Combined with v62, 75 post-v61 target steps across D001,D002,D004,D005,D006,D007,D008,D009 show no positive one-step replacement.
+next = single-step regret mining is now saturated; use paired/sequence rollout or learned state-value features instead of continuing local sweeps.
 ```
 
 上一轮基于 v48 best 并行探索 5 条线，均已完成：
