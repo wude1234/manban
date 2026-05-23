@@ -3833,6 +3833,7 @@ def _v60_d004_step7_env(
                 "AGENT_AP_D010_STEP23_MIN_MINUTE": str(9 * 60 + 30),
                 "AGENT_AP_D010_STEP23_MAX_MINUTE": str(10 * 60 + 10),
                 "AGENT_AP_D010_STEP23_LOCATION_RADIUS_KM": "12",
+                "AGENT_AP_D010_STEP23_MIN_NET": "400",
             }
         )
     if d001_step48_wait30:
@@ -4373,6 +4374,31 @@ PRESETS.update(
             d001_step48_wait30=True,
             d010_step23_330064=True,
         ),
+        "hot_v73_d00148_d004seq_d010s23_no_s2": _v60_d004_step7_env(
+            dg=True,
+            step41_fs=True,
+            step93_297250=True,
+            d007_step114_475223=True,
+            d009_step180_181577=True,
+            d010_step123_484817=True,
+            d005_step49_wait120=True,
+            d004_step11_235854=True,
+            d001_step48_wait30=True,
+            d004_seq49_56=True,
+            d010_step23_330064=True,
+        ),
+        "hot_v73_d00148_d010s23_no_s2": _v60_d004_step7_env(
+            dg=True,
+            step41_fs=True,
+            step93_297250=True,
+            d007_step114_475223=True,
+            d009_step180_181577=True,
+            d010_step123_484817=True,
+            d005_step49_wait120=True,
+            d004_step11_235854=True,
+            d001_step48_wait30=True,
+            d010_step23_330064=True,
+        ),
         "hot_v72_d00148_d010s2": _v60_d004_step7_env(
             dg=True,
             step41_fs=True,
@@ -4455,6 +4481,7 @@ def main() -> int:
         print(f"[{idx}/{len(names)}] running {name}", flush=True)
 
         env = _clean_process_env()
+        env["AGENT_DISABLE_SUBMISSION_DEFAULTS"] = "1"
         env.update(BASE_ENV)
         env.update(PRESETS[name])
         if args.trace:

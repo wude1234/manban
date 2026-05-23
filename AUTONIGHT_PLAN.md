@@ -14,13 +14,13 @@
 ## Current Best
 
 ```text
-version = v72 validated submission default candidate
-preset = hot_v72_all_candidate
-score = 312986.17
+version = v73 validated submission default candidate
+preset = hot_v73_d00148_d004seq_d010s23_no_s2
+score = 313500.75
 penalty = 13065
-run_dir = demo/results/grid_agentic_algo/20260524_050105_autonight_v72_windowfix_grid/07_hot_v72_all_candidate
-default_run = pending v72 main.py validation
-last_commit = pending v72 commit
+run_dir = demo/results/grid_agentic_algo/20260524_054125_autonight_v73_clean_disable_defaults/04_hot_v73_d00148_d004seq_d010s23_no_s2
+default_run = demo/results/actions_202603_D001-D010_20260524_055358.jsonl + demo/results/monthly_income_202603.json
+last_commit = pending v73 commit
 ```
 
 核心发现：
@@ -39,22 +39,24 @@ D005 step49 shows wait can be a route-plan action: delaying 120 minutes avoids a
 D004 step11 shows schedule-aware order choice can beat gross-maximization: a lower-gross value candidate reduces downstream preference penalty enough to raise monthly net
 D004 step49->56 proves exact two-step route rebase is now the highest-value search mode after one-step regret saturation
 D001 step48 shows a short wait can improve the next rest/order chain without changing penalty
-D010 step2 shows active reposition can pay even with higher preference penalty, but it must be gated by full-month exact-tail validation
-D010 step23 remains a high-potential counterfactual label, but current online gate has not reproduced it and is not part of the submission default
+D010 step2 shows active reposition can pay, but it is dominated by the cleaner D010 step23 route teacher
+D010 step23 cargo330064 is a stronger early route repair than step2 reposition; it requires disabling the conflicting step2 path
+v73 main.py default path has been validated: D010 step2 takes cargo21, D010 step23 takes cargo330064, total score reproduces 313500.75
 ```
 
-### v72 result
+### v73 result
 
 ```text
-grid = results/grid_agentic_algo/20260524_050105_autonight_v72_windowfix_grid
-best = hot_v72_all_candidate
-score = 312986.17
+grid = results/grid_agentic_algo/20260524_054125_autonight_v73_clean_disable_defaults
+best = hot_v73_d00148_d004seq_d010s23_no_s2
+score = 313500.75
 penalty = 13065
 promoted =
   D001 step48 wait30
   D004 step49 cargo379155 + step56 cargo93338
-  D010 step2 reposition GZ
-finding = sequence-level route-plan teachers can still add +373.02 over v71. The largest gain is D004's rebased middle-month route; D010 step23 stayed untriggered and must be reworked before promotion.
+  D010 step23 cargo330064
+finding = after disabling submission-default pollution in the grid harness, D010 step23 cleanly reproduces and dominates D010 step2. The reliable next default is D001+D004 sequence+D010 step23, not all v72 candidates.
+default_validation = results/actions_202603_D*_20260524_055358.jsonl, score 313500.75, penalty 13065, failed_driver_count 0
 ```
 
 ## Active Experiments

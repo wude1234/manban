@@ -1060,7 +1060,7 @@ def _d010_step23_330064_distilled_action(status: dict[str, Any], viable: list[di
         default_radius_km=12.0,
     ):
         return None
-    if float(winner.get("estimated_net", 0.0)) < _env_float("AGENT_AP_D010_STEP23_MIN_NET", 700.0):
+    if float(winner.get("estimated_net", 0.0)) < _env_float("AGENT_AP_D010_STEP23_MIN_NET", 400.0):
         return None
     if float(winner.get("haul_km", 0.0)) < _env_float("AGENT_AP_D010_STEP23_MIN_HAUL_KM", 80.0):
         return None

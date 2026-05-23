@@ -5,10 +5,10 @@
 当前最好可复现分数：
 
 ```text
-score = 312986.17
-preset = hot_v72_all_candidate
+score = 313500.75
+preset = hot_v73_d00148_d004seq_d010s23_no_s2
 penalty = 13065.0
-result_dir = results/grid_agentic_algo/20260524_050105_autonight_v72_windowfix_grid/07_hot_v72_all_candidate
+result_dir = results/grid_agentic_algo/20260524_054125_autonight_v73_clean_disable_defaults/04_hot_v73_d00148_d004seq_d010s23_no_s2
 ```
 
 这套分数不是靠单点阈值堆出来的，核心是把司机拆成不同画像后做收益-扣分权衡，并在关键决策步使用反事实回放验证“换一个候选货源是否让整个月更优”：
@@ -94,9 +94,11 @@ v32-v57: 对关键步骤做 candidate/action-level counterfactual rollout，验�
 
 35. v71 证明 D004 的 schedule-aware value candidate 仍有空间。D004 step11 从 `cargo4008` 换到 `cargo235854` 后，gross 减少 `143.93` 且距离增加 `144.58km`，但偏好罚分减少 `400`，D004 净收益 `+39.20`，总分达到 `312613.15`。这类动作不是追当前最高收益，而是选择能改善后续首单、午餐和配额节奏的订单，说明偏好风险应该作为边际状态成本进入候选排序。
 
-36. v72 证明 two-step route rebase 是单步 regret 饱和后的主要增益方向。D004 step49 先从 `cargo75036` 改到 `cargo379155`，再在重排后的 step56 从局部首选 `cargo94682` 改到 `cargo93338`，D004 净收益 `+277.93`。单独开 step49 会严重掉分，必须把 step49->56 当作序列计划执行。D001 step48 `wait30` 额外 `+54.55` 且罚分不变；D010 step2 主动空驶广州 `+40.54`，虽然罚分上升但完整月 gross 链补回成本。组合后当前最好达到 `312986.17`。
+36. v72 证明 two-step route rebase 是单步 regret 饱和后的主要增益方向。D004 step49 先从 `cargo75036` 改到 `cargo379155`，再在重排后的 step56 从局部首选 `cargo94682` 改到 `cargo93338`，D004 净收益 `+277.93`。单独开 step49 会严重掉分，必须把 step49->56 当作序列计划执行。D001 step48 `wait30` 额外 `+54.55` 且罚分不变；D010 step2 主动空驶广州 `+40.54`，虽然罚分上升但完整月 gross 链补回成本。组合后达到 `312986.17`。
 
-37. v72 同时暴露了 D010 step23 的在线触发问题。反事实回放显示 `cargo330064` 单司机 `+555.12`，但 preset gate 未复现，说明当前 action trace 的完成时间、query 后决策时间和候选可见性仍需更精确记录。未复现的 teacher label 不能进提交默认；下一轮要先让 harness 输出每个 target step 的 query-after decision timestamp 与候选特征，再蒸馏规则。
+37. v73 先修复 grid harness 污染：提交默认会在子进程 import 时 `setdefault` 注入当前最好 teacher，导致“关闭某个动作”的对照不干净。新增 `AGENT_DISABLE_SUBMISSION_DEFAULTS=1` 后，grid 只使用 preset env，v71/v72 都能干净复现。
+
+38. v73 证明 D010 step23 `cargo330064` 是更优的互斥路线修复。反事实中它单司机 `+555.12`；清理 harness 后，在不启用 D010 step2 的路径上可复现，并能与 D001 wait30、D004 step49->56 跨司机叠加，当前最好达到 `313500.75`。结论是：D010 step2 是小修，step23 是大修，二者不能贪心全开。
 
 ## 为什么不能继续一点点试阈值
 

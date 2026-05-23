@@ -12,7 +12,7 @@ from __future__ import annotations
 import os
 
 
-SUBMISSION_PROFILE = "v72_route_plan_teacher_312986"
+SUBMISSION_PROFILE = "v73_d010_step23_route_teacher_313500"
 
 
 _DEFAULTS: dict[str, str] = {
@@ -151,10 +151,11 @@ _DEFAULTS: dict[str, str] = {
     "AGENT_AP_D010_STEP100_REPOS_MIN_MINUTE": "960",
     "AGENT_AP_D010_STEP100_REPOS_MAX_MINUTE": "1080",
     "AGENT_AP_D010_STEP100_REPOS_LOCATION_RADIUS_KM": "18",
-    "AGENT_AP_ENABLE_DISTILLED_D010_STEP2_REPOS_GZ": "1",
-    "AGENT_AP_D010_STEP2_MIN_MINUTE": "180",
-    "AGENT_AP_D010_STEP2_MAX_MINUTE": "210",
-    "AGENT_AP_D010_STEP2_LOCATION_RADIUS_KM": "10",
+    "AGENT_AP_ENABLE_DISTILLED_D010_STEP23_330064": "1",
+    "AGENT_AP_D010_STEP23_MIN_MINUTE": str(9 * 60 + 30),
+    "AGENT_AP_D010_STEP23_MAX_MINUTE": str(10 * 60 + 10),
+    "AGENT_AP_D010_STEP23_LOCATION_RADIUS_KM": "12",
+    "AGENT_AP_D010_STEP23_MIN_NET": "400",
     "AGENT_AP_ENABLE_DISTILLED_D007_STEP80_REPOS_GZ": "1",
     "AGENT_AP_D007_STEP80_MIN_MINUTE": "240",
     "AGENT_AP_D007_STEP80_MAX_MINUTE": "780",
@@ -184,6 +185,8 @@ _DEFAULTS: dict[str, str] = {
 
 
 def apply_submission_defaults() -> None:
+    if os.getenv("AGENT_DISABLE_SUBMISSION_DEFAULTS", "").strip().lower() in {"1", "true", "yes", "on"}:
+        return
     for name, value in _DEFAULTS.items():
         os.environ.setdefault(name, value)
 
