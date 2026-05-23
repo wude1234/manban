@@ -3724,6 +3724,8 @@ def _v60_d004_step7_env(
     step41_fs: bool = False,
     step93_297250: bool = False,
     d007_step114_475223: bool = False,
+    d009_step180_181577: bool = False,
+    d010_step123_484817: bool = False,
 ) -> dict[str, str]:
     env = _v57_action_regret_env(d007_61=True, d010_121=True)
     env["AGENT_AP_ENABLE_DISTILLED_COUNTERFACTUAL_GATE"] = "1"
@@ -3752,6 +3754,10 @@ def _v60_d004_step7_env(
     ]
     if step93_297250:
         switches.append("D004:93:297250")
+    if d009_step180_181577:
+        switches.append("D009:180:181577")
+    if d010_step123_484817:
+        switches.append("D010:123:484817")
     if switches:
         env["AGENT_AP_ENABLE_COUNTERFACTUAL_SWITCHES"] = "1"
         env["AGENT_AP_COUNTERFACTUAL_SWITCHES"] = ",".join(switches)
@@ -4179,6 +4185,28 @@ PRESETS.update(
             step41_fs=True,
             step93_297250=True,
             d007_step114_475223=True,
+        ),
+        "hot_v68_d009_step180_181577": _v60_d004_step7_env(
+            dg=True,
+            step41_fs=True,
+            step93_297250=True,
+            d007_step114_475223=True,
+            d009_step180_181577=True,
+        ),
+        "hot_v68_d010_step123_484817": _v60_d004_step7_env(
+            dg=True,
+            step41_fs=True,
+            step93_297250=True,
+            d007_step114_475223=True,
+            d010_step123_484817=True,
+        ),
+        "hot_v68_d009180_d010123": _v60_d004_step7_env(
+            dg=True,
+            step41_fs=True,
+            step93_297250=True,
+            d007_step114_475223=True,
+            d009_step180_181577=True,
+            d010_step123_484817=True,
         ),
     }
 )

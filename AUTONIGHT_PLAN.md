@@ -14,13 +14,13 @@
 ## Current Best
 
 ```text
-version = v65 validated submission default
-preset = hot_v65_d007_step114_475223
-score = 312357.36
+version = v69 validated submission default candidate
+preset = hot_v68_d009180_d010123
+score = 312415.71
 penalty = 12265
-run_dir = demo/results/grid_agentic_algo/20260524_012025_autonight_v65_d007_step114_grid/02_hot_v65_d007_step114_475223
-default_run = demo/results/actions_202603_*_20260524_013159.jsonl + demo/results/monthly_income_202603.json
-last_commit = pending v65 commit
+run_dir = demo/results/grid_agentic_algo/20260524_023030_autonight_v68_positive_grid/03_hot_v68_d009180_d010123
+default_run = demo/results/actions_202603_*_20260524_024258.jsonl + demo/results/monthly_income_202603.json
+last_commit = pending v69 commit
 ```
 
 核心发现：
@@ -34,6 +34,7 @@ query 后状态会造成 trace step time 与 agent decision time 错位，phase 
 action-level teacher must override older cargo-level switch on the same driver/step
 auto-selected suspicious steps must still be judged by full-tail rollout; high pickup/wait/reposition signals are filters, not policy rules
 single-step regret mining saturated after v61; exact two-step sequence probing found a tiny D007 distance-saving route repair
+value-candidate one-step exact-tail probing found two tiny but stackable non-top-k teacher labels on D009/D010
 ```
 
 ## Active Experiments
@@ -92,6 +93,11 @@ active_probe_dirs =
   results/sequence_counterfactual/autonight_v65_D007_route_pairs
   results/sequence_counterfactual/autonight_v65_D008_preference_pairs
   results/grid_agentic_algo/20260524_012025_autonight_v65_d007_step114_grid
+  results/sequence_counterfactual/autonight_v66_mid_probe_steps.md
+  results/sequence_counterfactual/autonight_v66_D003_mid_pairs
+  results/sequence_counterfactual/autonight_v66_D004_mid_pairs
+  results/sequence_counterfactual/autonight_v66_D007_mid_pairs
+  results/sequence_counterfactual/autonight_v66_D008_mid_pairs
 ```
 
 ### v58 result
@@ -181,6 +187,63 @@ promoted = D007 step114 cargo475223 over previous SW reposition gate
 finding = exact two-step sequence probing found a tiny cost-saving route repair: cargo475223 loses 113.16 gross versus the SW-reposition tail, but saves 80.24 km, so D007 net improves by 7.20 with unchanged penalty.
 negative = D001,D002,D005,D006,D008 tested paired windows kept rule/rule as best; v61/v65 are locally tight in those tails.
 next = search earlier paired windows and/or learned state-value features. Do not spend more time on late D001/D002/D005/D006/D008 pairs from this batch.
+```
+
+### v66 result
+
+```text
+tool = demo/sequence_counterfactual_probe.py
+drivers = D003,D004,D007,D008
+positive_candidates = none
+steps_tested =
+  D003: 10:30,40:57,57:72,72:80
+  D004: 11:43,43:56,56:67,67:74
+  D007: 14:33,50:61,57:68,61:71
+  D008: 21:29,42:50,50:61,61:76
+finding = mid-month exact two-step top-k/wait/hotspot perturbations all kept rule/rule as best. Alternatives either lose too much gross, add preference penalty, or save distance without enough revenue preservation.
+next = stop repeating top-k local sequence probes. Expand candidate generation toward destination-value sampling: include lower-rank cargos whose destination enters high-value future regions, or build an offline state-value table V(day,time,region,driver_state) and use it to pick non-top-k branches for exact-tail validation.
+```
+
+### v67 result
+
+```text
+tool = demo/sequence_counterfactual_probe.py with value candidates
+drivers = D003,D004,D007,D008
+positive_candidates = none
+near_miss =
+  D008 step61 cargo431645: -8.42, penalty 800 -> 600, but gross -186.76 and distance +14.44
+finding = static destination/opportunity value is only a weak feature. It can identify lower-penalty or lower-distance alternatives, but if the branch loses too much gross the real tail cannot recover it. Strong/weak region should remain an input feature, not the core decision rule.
+next = use exact full-tail scoring as the teacher. First run cheaper one-step value-candidate scans to discover non-top-k candidate labels, then only run paired sequence probes around any positive/near-positive labels.
+```
+
+### v68 active direction
+
+```text
+tool = demo/counterfactual_rollout_probe.py now supports value-candidate branches
+drivers = D001,D006,D008,D009,D010
+purpose = search lower-rank but high-future-value cargos with exact month-end scoring.
+running_dirs =
+  results/autonight_v68_D001_value_onestep
+  results/autonight_v68_D006_value_onestep
+  results/autonight_v68_D008_value_onestep
+  results/autonight_v68_D009_value_onestep
+  results/autonight_v68_D010_value_onestep
+promotion_rule = only promote if exact driver net is positive versus v65 baseline, then validate through full grid before changing submission defaults.
+```
+
+### v68/v69 result
+
+```text
+grid = results/grid_agentic_algo/20260524_023030_autonight_v68_positive_grid
+best = hot_v68_d009180_d010123
+score = 312415.71
+penalty = 12265
+new_gain = +58.35 over v65
+promoted =
+  D009 step180 cargo181577: +22.94, gross +17.29, distance -3.76, penalty unchanged
+  D010 step123 cargo484817: +35.41, gross -146.75, distance -121.44, penalty unchanged
+finding = value-candidate generation is useful as a candidate miner, not as a direct scorer. Most value branches were negative, but exact-tail validation found two small non-top-k repairs that linearly stack across drivers.
+next = validate default main.py path, commit v69, then continue with targeted value-candidate scans on earlier untouched windows and exact sequence probes around any positive one-step labels.
 ```
 
 上一轮基于 v48 best 并行探索 5 条线，均已完成：

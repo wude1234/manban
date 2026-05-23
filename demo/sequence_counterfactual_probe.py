@@ -32,7 +32,6 @@ from counterfactual_rollout_probe import (
     _apply_action,
     _apply_preset_env,
     _apply_recorded_action,
-    _branch_candidates,
     _clean_action,
     _clone_state,
     _decide,
@@ -64,6 +63,23 @@ def main() -> int:
     )
     parser.add_argument("--top-k-first", type=int, default=3)
     parser.add_argument("--top-k-second", type=int, default=3)
+    parser.add_argument(
+        "--value-k-first",
+        type=int,
+        default=0,
+        help="Add first-step cargo branches with high destination/future value even if they are not top score.",
+    )
+    parser.add_argument(
+        "--value-k-second",
+        type=int,
+        default=0,
+        help="Add second-step cargo branches with high destination/future value even if they are not top score.",
+    )
+    parser.add_argument("--value-max-score-drop", type=float, default=250.0)
+    parser.add_argument("--value-destination-weight", type=float, default=120.0)
+    parser.add_argument("--value-opportunity-weight", type=float, default=0.35)
+    parser.add_argument("--value-net-weight", type=float, default=0.04)
+    parser.add_argument("--value-nph-weight", type=float, default=0.25)
     parser.add_argument("--max-first-branches", type=int, default=4)
     parser.add_argument("--max-second-branches", type=int, default=5)
     parser.add_argument("--tail-max-steps", type=int, default=500)
@@ -125,10 +141,16 @@ def main() -> int:
 
         first_step_start = prefix.progress()
         first_rule, first_diag = _decide(prefix, driver_id, settings, feature_settings)
-        first_candidates = _branch_candidates(
+        first_candidates = _sequence_branch_candidates(
             first_rule,
             first_diag,
             top_k=max(1, args.top_k_first),
+            value_k=max(0, args.value_k_first),
+            value_max_score_drop=float(args.value_max_score_drop),
+            value_destination_weight=float(args.value_destination_weight),
+            value_opportunity_weight=float(args.value_opportunity_weight),
+            value_net_weight=float(args.value_net_weight),
+            value_nph_weight=float(args.value_nph_weight),
             extra_waits=first_waits,
             reposition_points=first_repos,
         )[: max(1, args.max_first_branches)]
@@ -181,10 +203,16 @@ def main() -> int:
 
             second_step_start = rebased.progress()
             second_rule, second_diag = _decide(rebased, driver_id, settings, feature_settings)
-            second_candidates = _branch_candidates(
+            second_candidates = _sequence_branch_candidates(
                 second_rule,
                 second_diag,
                 top_k=max(1, args.top_k_second),
+                value_k=max(0, args.value_k_second),
+                value_max_score_drop=float(args.value_max_score_drop),
+                value_destination_weight=float(args.value_destination_weight),
+                value_opportunity_weight=float(args.value_opportunity_weight),
+                value_net_weight=float(args.value_net_weight),
+                value_nph_weight=float(args.value_nph_weight),
                 extra_waits=second_waits,
                 reposition_points=second_repos,
             )[: max(1, args.max_second_branches)]
@@ -365,6 +393,112 @@ def _apply_branch_action(
         result=result,
     )
     state.history.append(record)
+
+
+def _sequence_branch_candidates(
+    rule_action: dict[str, Any],
+    diagnostics: dict[str, Any],
+    *,
+    top_k: int,
+    value_k: int,
+    value_max_score_drop: float,
+    value_destination_weight: float,
+    value_opportunity_weight: float,
+    value_net_weight: float,
+    value_nph_weight: float,
+    extra_waits: list[int],
+    reposition_points: list[tuple[str, float, float]],
+) -> list[dict[str, Any]]:
+    rows = diagnostics.get("selectable_features")
+    candidates: list[dict[str, Any]] = []
+    if isinstance(rows, list):
+        valid = [item for item in rows if isinstance(item, dict)]
+        valid.sort(key=lambda item: float(item.get("score", 0.0) or 0.0), reverse=True)
+        for item in valid[:top_k]:
+            cargo_id = str(item.get("cargo_id", "")).strip()
+            if cargo_id:
+                candidates.append({"action": "take_order", "params": {"cargo_id": cargo_id}})
+        if value_k > 0 and valid:
+            best_score = float(valid[0].get("score", 0.0) or 0.0)
+            value_rows = [
+                item
+                for item in valid
+                if best_score - float(item.get("score", 0.0) or 0.0) <= value_max_score_drop
+            ]
+            value_rows.sort(
+                key=lambda item: _candidate_future_value(
+                    item,
+                    destination_weight=value_destination_weight,
+                    opportunity_weight=value_opportunity_weight,
+                    net_weight=value_net_weight,
+                    nph_weight=value_nph_weight,
+                ),
+                reverse=True,
+            )
+            for item in value_rows[:value_k]:
+                cargo_id = str(item.get("cargo_id", "")).strip()
+                if cargo_id:
+                    candidates.append(
+                        {
+                            "action": "take_order",
+                            "params": {"cargo_id": cargo_id},
+                            "_probe_label": f"value_{cargo_id}",
+                        }
+                    )
+    if rule_action:
+        candidates.insert(0, _clean_action(rule_action))
+    for minutes in extra_waits:
+        candidates.append(
+            {
+                "action": "wait",
+                "params": {"duration_minutes": minutes},
+                "_probe_label": f"wait_{minutes}",
+            }
+        )
+    for label, lat, lng in reposition_points:
+        candidates.append(
+            {
+                "action": "reposition",
+                "params": {"latitude": lat, "longitude": lng},
+                "_probe_label": f"repos_{label}",
+            }
+        )
+    return _dedupe_actions(candidates)
+
+
+def _candidate_future_value(
+    item: dict[str, Any],
+    *,
+    destination_weight: float,
+    opportunity_weight: float,
+    net_weight: float,
+    nph_weight: float,
+) -> float:
+    return (
+        destination_weight * _as_float(item.get("destination_hotspot_score"))
+        + opportunity_weight * _as_float(item.get("destination_opportunity_value"))
+        + net_weight * _as_float(item.get("estimated_net"))
+        + nph_weight * _as_float(item.get("net_per_hour"))
+    )
+
+
+def _dedupe_actions(actions: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    seen: set[tuple[Any, ...]] = set()
+    out: list[dict[str, Any]] = []
+    for action in actions:
+        key = _action_key(action)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(action)
+    return out
+
+
+def _as_float(value: Any) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return 0.0
 
 
 def _parse_pairs(raw: str) -> list[tuple[int, int]]:

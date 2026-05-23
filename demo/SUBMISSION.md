@@ -2,12 +2,12 @@
 
 ## 当前提交版本
 
-提交 profile：`v65_sequence_route_repair_planner_312357`
+提交 profile：`v69_value_candidate_teacher_312415`
 
 本地 0509 数据当前最好复现结果：
 
 ```text
-score = 312357.36
+score = 312415.71
 total_preference_penalty = 12265.0
 failed_driver_count = 0
 ```
@@ -15,8 +15,15 @@ failed_driver_count = 0
 对应实验：
 
 ```text
-demo/results/grid_agentic_algo/20260524_012025_autonight_v65_d007_step114_grid/02_hot_v65_d007_step114_475223
-preset = hot_v65_d007_step114_475223
+demo/results/grid_agentic_algo/20260524_023030_autonight_v68_positive_grid/03_hot_v68_d009180_d010123
+preset = hot_v68_d009180_d010123
+```
+
+v68/v69 相比 v65 的新增有效动作：
+
+```text
+D009 step180 cargo181577: 在月末回家罚分不变的情况下，用更高 gross 且略短距离的订单替换 cargo181875，净收益 +22.94。
+D010 step123 cargo484817: 月末尾部牺牲 146.75 gross，但减少 121.44km 距离，罚分不变，净收益 +35.41。
 ```
 
 v60/v61/v65 相比 v57 的新增有效动作：
@@ -66,7 +73,7 @@ v57 用 `select_probe_steps.py` 从 v56 默认轨迹中自动挑选高耗时、�
 
 v59/v60 继续从 v57 轨迹扩展到 D003/D004/D005/D008/D009。D003、D005、D008、D009 的主流分叉均为负，说明这些司机的等待/偏好边界已基本收敛；D004 step7 出现新的主动空驶正样本。v61 进一步把 D004 step41 FS 主动迁移并入同一条路线修复链，完整月度验证后提升到 `312350.16`。
 
-v62/v63 在 v61 后对 75 个关键 step 做单步 full-tail regret，没有发现正收益，说明局部单步替换已饱和。v64 的 beam planner 暴露出 proxy 目标和官方精确评分不一致，尤其会低估偏好罚分。v65 因此新增 `sequence_counterfactual_probe.py`，改用“第一步分叉 -> 路径 rebase -> 第二步分叉 -> 官方精确尾部评分”的双步序列搜索。第一批 D001/D002/D005/D006/D008 均保持 rule/rule 最优；D007 step114 发现一个小的成本节省分支，完整月度验证后当前最好提升到 `312357.36`。
+v62/v63 在 v61 后对 75 个关键 step 做单步 full-tail regret，没有发现正收益，说明局部单步替换已饱和。v64 的 beam planner 暴露出 proxy 目标和官方精确评分不一致，尤其会低估偏好罚分。v65 因此新增 `sequence_counterfactual_probe.py`，改用“第一步分叉 -> 路径 rebase -> 第二步分叉 -> 官方精确尾部评分”的双步序列搜索。第一批 D001/D002/D005/D006/D008 均保持 rule/rule 最优；D007 step114 发现一个小的成本节省分支，完整月度验证后提升到 `312357.36`。v68 进一步给 one-step exact-tail probe 增加 value-candidate 候选生成，从非 top-k 候选中挖出 D009 step180 与 D010 step123 两个小正收益 teacher，组合后达到 `312415.71`。
 
 ## Agent 结构
 

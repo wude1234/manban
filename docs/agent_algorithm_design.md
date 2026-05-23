@@ -5,7 +5,7 @@
 0509 当前稳定最好：
 
 ```text
-score = 312357.36
+score = 312415.71
 penalty = 12265.0
 failed_driver_count = 0
 ```
@@ -14,7 +14,7 @@ failed_driver_count = 0
 
 ```text
 AGENT_STRATEGY = new_release_agentic_planner_agent
-profile = hot_v65_d007_step114_475223
+profile = hot_v68_d009180_d010123
 base = v30 driver-specific planner
 upgrade = v32-v65 counterfactual memory + phase action gates + low-efficiency route repair + exact sequence probing
 ```
@@ -45,6 +45,7 @@ upgrade = v32-v65 counterfactual memory + phase action gates + low-efficiency ro
 - D004 的 v56 负结果说明“修罚分”不是万能方向。对高空驶/日程问题强行等或空驶会损失更多 gross，后续 D004 应转向更早的日内槽位规划。
 - v61 证明 D004 早中期主动迁移是高收益路线修复。D004 step7 DG、step41 FS 和 step93 cargo297250 组合后达到 `312350.16`，收益来自后续 gross 增长与小距离成本之间的长期权衡。
 - v65 证明单步 regret 饱和后仍可用精确双步序列搜索找到细小收益。D007 step114 改接 `cargo475223` 后 gross 下降但距离成本下降更多，完整月度提升到 `312357.36`。这类信号很小，但它说明 sequence-level route planner 比单步 reranker 更接近本题长期决策本质。
+- v68/v69 证明 destination/opportunity value 适合作为候选生成器，而不是直接打分器。大多数 value 分支为负，但 exact-tail validation 找到 D009 step180 `cargo181577` 和 D010 step123 `cargo484817` 两个非 top-k 小正收益，组合后达到 `312415.71`。
 
 ### 2.2 明确负方向
 

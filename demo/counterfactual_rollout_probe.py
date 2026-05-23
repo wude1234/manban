@@ -62,6 +62,17 @@ def main() -> int:
     parser.add_argument("--preset", default="hot_v30_d006_days_tail_nph60")
     parser.add_argument("--target-steps", required=True, help="Comma-separated 1-based target steps.")
     parser.add_argument("--top-k", type=int, default=4)
+    parser.add_argument(
+        "--value-k",
+        type=int,
+        default=0,
+        help="Add cargo branches with high destination/future value even if they are not top score.",
+    )
+    parser.add_argument("--value-max-score-drop", type=float, default=250.0)
+    parser.add_argument("--value-destination-weight", type=float, default=120.0)
+    parser.add_argument("--value-opportunity-weight", type=float, default=0.35)
+    parser.add_argument("--value-net-weight", type=float, default=0.04)
+    parser.add_argument("--value-nph-weight", type=float, default=0.25)
     parser.add_argument("--tail-max-steps", type=int, default=500)
     parser.add_argument("--horizon-minutes", type=int, default=30 * 1440)
     parser.add_argument("--extra-waits", default="", help="Optional comma-separated wait branches in minutes.")
@@ -70,6 +81,7 @@ def main() -> int:
         default="",
         help="Optional reposition branches as label:lat:lng entries separated by comma or semicolon.",
     )
+    parser.add_argument("--baseline-score", type=float, default=None)
     parser.add_argument("--out-dir", default="")
     args = parser.parse_args()
 
@@ -105,6 +117,12 @@ def main() -> int:
             rule_action,
             diagnostics,
             top_k=max(1, args.top_k),
+            value_k=max(0, args.value_k),
+            value_max_score_drop=float(args.value_max_score_drop),
+            value_destination_weight=float(args.value_destination_weight),
+            value_opportunity_weight=float(args.value_opportunity_weight),
+            value_net_weight=float(args.value_net_weight),
+            value_nph_weight=float(args.value_nph_weight),
             extra_waits=_parse_int_list(args.extra_waits),
             reposition_points=_parse_reposition_points(args.reposition_points),
         )
@@ -168,13 +186,15 @@ def main() -> int:
             _write_run(cand_dir, driver_id, branch, settings, simulate_time_seconds=round(time.perf_counter() - started, 2))
             score_payload = _score_run(cand_dir)
             income = _driver_income(score_payload, driver_id) if score_payload else {}
+            score = _float_or_none(income.get("net_income"))
             rows.append(
                 {
                     "target_step": target_step,
                     "candidate_rank": rank,
                     "candidate_action": _clean_action(candidate),
                     "is_rule_action": _action_key(candidate) == _action_key(rule_action),
-                    "score": _float_or_none(income.get("net_income")),
+                    "score": score,
+                    "delta_vs_baseline": None if score is None or args.baseline_score is None else round(score - args.baseline_score, 2),
                     "gross": _float_or_none(income.get("gross_income")),
                     "distance": _float_or_none(income.get("distance_km")),
                     "penalty": _float_or_none(income.get("preference_penalty")),
@@ -292,6 +312,12 @@ def _branch_candidates(
     diagnostics: dict[str, Any],
     *,
     top_k: int,
+    value_k: int,
+    value_max_score_drop: float,
+    value_destination_weight: float,
+    value_opportunity_weight: float,
+    value_net_weight: float,
+    value_nph_weight: float,
     extra_waits: list[int],
     reposition_points: list[tuple[str, float, float]],
 ) -> list[dict[str, Any]]:
@@ -304,6 +330,33 @@ def _branch_candidates(
             cargo_id = str(item.get("cargo_id", "")).strip()
             if cargo_id:
                 candidates.append({"action": "take_order", "params": {"cargo_id": cargo_id}})
+        if value_k > 0 and valid:
+            best_score = float(valid[0].get("score", 0.0) or 0.0)
+            value_rows = [
+                item
+                for item in valid
+                if best_score - float(item.get("score", 0.0) or 0.0) <= value_max_score_drop
+            ]
+            value_rows.sort(
+                key=lambda item: _candidate_future_value(
+                    item,
+                    destination_weight=value_destination_weight,
+                    opportunity_weight=value_opportunity_weight,
+                    net_weight=value_net_weight,
+                    nph_weight=value_nph_weight,
+                ),
+                reverse=True,
+            )
+            for item in value_rows[:value_k]:
+                cargo_id = str(item.get("cargo_id", "")).strip()
+                if cargo_id:
+                    candidates.append(
+                        {
+                            "action": "take_order",
+                            "params": {"cargo_id": cargo_id},
+                            "_probe_label": f"value_{cargo_id}",
+                        }
+                    )
     if rule_action:
         candidates.insert(0, _clean_action(rule_action))
     for minutes in extra_waits:
@@ -323,6 +376,22 @@ def _branch_candidates(
             }
         )
     return _dedupe_actions(candidates)
+
+
+def _candidate_future_value(
+    item: dict[str, Any],
+    *,
+    destination_weight: float,
+    opportunity_weight: float,
+    net_weight: float,
+    nph_weight: float,
+) -> float:
+    return (
+        destination_weight * _as_float(item.get("destination_hotspot_score"))
+        + opportunity_weight * _as_float(item.get("destination_opportunity_value"))
+        + net_weight * _as_float(item.get("estimated_net"))
+        + nph_weight * _as_float(item.get("net_per_hour"))
+    )
 
 
 def _make_root_state(settings: Any, driver_id: str) -> SimState:
@@ -554,6 +623,13 @@ def _float_or_none(value: Any) -> float | None:
         return float(value)
     except (TypeError, ValueError):
         return None
+
+
+def _as_float(value: Any) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return 0.0
 
 
 def _fmt(value: Any) -> str:

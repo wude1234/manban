@@ -5,10 +5,10 @@
 当前最好可复现分数：
 
 ```text
-score = 312357.36
-preset = hot_v65_d007_step114_475223
+score = 312415.71
+preset = hot_v68_d009180_d010123
 penalty = 12265.0
-result_dir = results/grid_agentic_algo/20260524_012025_autonight_v65_d007_step114_grid/02_hot_v65_d007_step114_475223
+result_dir = results/grid_agentic_algo/20260524_023030_autonight_v68_positive_grid/03_hot_v68_d009180_d010123
 ```
 
 这套分数不是靠单点阈值堆出来的，核心是把司机拆成不同画像后做收益-扣分权衡，并在关键决策步使用反事实回放验证“换一个候选货源是否让整个月更优”：
@@ -83,6 +83,12 @@ v32-v57: 对关键步骤做 candidate/action-level counterfactual rollout，验�
 29. v64 证明普通 beam proxy 不可靠。`offline_beam_planner.py` 在 D001/D005/D007/D008 上的候选经官方精确评分均低于 v61，D008 尤其被偏好罚分击穿。这说明不能用简化 proxy 直接判断路线优劣，必须用官方 exact-tail scoring 做小规模序列搜索。
 
 30. v65 新增 `sequence_counterfactual_probe.py`，把搜索升级为“第一步分叉 -> rebase 轨迹 -> 第二步分叉 -> 交回原 agent 完成整月 -> 官方精确评分”。第一批 D001/D002/D005/D006/D008 的最佳仍是 rule/rule；D007 step114 发现 `cargo475223` 比旧 SW reposition tail 多 `+7.20`。原因不是更高 gross，而是 gross 少 113.16 同时距离少 80.24km，净收益略优且罚分不变。完整 grid 验证后当前最好为 `312357.36`。
+
+31. v66 对 D003/D004/D007/D008 的中期高疑似窗口做 exact two-step sequence probing，仍没有新正收益。D003/D008 的替代分支常能减少距离或偏好风险，但 gross 损失更大；D004 有些分支 gross 更高，但距离与罚分同时上涨；D007 中期分支大多是少距离换掉太多收入。结论：`top-k cargo + wait + 固定 hotspot` 的局部候选空间已经基本饱和，下一步要扩展候选生成方式，而不是继续同类 pair。
+
+32. v67 把 sequence probe 的候选扩展为 destination/opportunity value，但 D003/D004/D007/D008 仍没有新高。最接近的是 D008 step61 `cargo431645`：罚分从 `800` 降到 `600`，但 gross 下降 `186.76` 且距离略增，最终仍比 v65 低 `8.42`。启发是：强区域/弱区域不是核心决策，只能作为未来价值弱特征；真正可靠的 teacher 仍然必须来自 official exact-tail scoring。
+
+33. v68 将 `counterfactual_rollout_probe.py` 升级为 value-candidate one-step probe。目的不是让静态区域价值直接进入 agent，而是先用便宜的一步完整尾部回放挖出非 top-k 的候选 label；只有 exact driver net 正收益的候选才进入两步 rebase 和 full-grid 验证。本轮 D001/D006/D008 主体仍为负，但 D009 step180 `cargo181577` 单点 `+22.94`，D010 step123 `cargo484817` 单点 `+35.41`，完整 grid 组合后达到 `312415.71`，罚分保持 `12265`。
 
 ## 为什么不能继续一点点试阈值
 
