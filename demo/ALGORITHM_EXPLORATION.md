@@ -5,10 +5,10 @@
 当前最好可复现分数：
 
 ```text
-score = 310370.12
-preset = hot_v55_d010100_d00780_d009200
+score = 311234.76
+preset = hot_v56_core_new_all6
 penalty = 11865.0
-result_dir = results/grid_agentic_algo/20260523_190658_submission_v55_check/01_hot_v55_d010100_d00780_d009200
+result_dir = results/grid_agentic_algo/20260523_203303_submission_v56_check/01_hot_v56_core_new_all6
 ```
 
 这套分数不是靠单点阈值堆出来的，核心是把司机拆成不同画像后做收益-扣分权衡，并在关键决策步使用反事实回放验证“换一个候选货源是否让整个月更优”：
@@ -19,7 +19,7 @@ D004: 每日订单配额，超过 3 单后只接高净收益高 NPH 单
 D006: 月末低机会窗口补休，不全月强制休息
 D009: 回家罚分在当前数据上多数时候值得支付
 D010: 家事事件 pre-query，避免 query scan 推进时间造成固定罚分
-v32-v48: 对关键步骤做 candidate/action-level counterfactual rollout，验证后写回窄触发记忆、状态蒸馏门和 phase-level action gate
+v32-v56: 对关键步骤做 candidate/action-level counterfactual rollout，验证后写回窄触发记忆、状态蒸馏门和 phase-level action gate
 ```
 
 ## 已发现的关键规律
@@ -67,6 +67,12 @@ v32-v48: 对关键步骤做 candidate/action-level counterfactual rollout，验�
 21. v54 证明同一司机月末动作需要做“分支选择”而不是“正样本叠加”。在 v53 路径上，D002 step87 wait60、step89 cargo200633、step90 wait240、step91 reposition GZ 单点均为正收益，其中 step89 最高，完整月达到 `309885.45`。但 step87+step89、step89+step90、step89+step91 均不超过 step89 单点，说明更早动作会改变后续状态，导致晚一点的 teacher 不再适用。最终推广 D002 step89 cargo200633。
 
 22. v55 证明主动空驶是高收益 Agent 动作。D010 step100 从 wait60 改为 reposition DG 后，完整月从 `309885.45` 到 `310249.39`，同时罚分 `12165 -> 11865`；D007 step80 reposition GZ 单点 +67.48；D009 step200 wait60 单点 +53.25。三者跨司机叠加后达到 `310370.12`。这说明“区域价值”不是全局常量，而是司机/日期/位置/偏好状态共同决定的 phase action。
+
+23. v56 证明低效率关键步挖掘仍未收敛，而且收益不一定来自降罚。基于 v55 真实轨迹，从高空驶、高耗时、长等待和高罚分司机中自动选 step 做 full-tail 反事实，发现 D003 step80、D006 step17、D007 step114、D002 step78、D003 step10 可稳定组合。最终 `hot_v56_core_new_all6` 达到 `311234.76`，总罚分仍为 `11865`，说明本轮增益来自同罚分下的路线链修复。
+
+24. v56 的 D007 是典型同司机路径冲突案例。step114 主动空驶 SW 单点 +201.22，step122 wait30 单点 +208.42，但二者组合不能叠加；在 all6 组合中最终由 step114 分支主导。结论仍是：同司机正样本必须做 subset/rebase，不能贪心全开。
+
+25. v56 的 D004 负结果同样重要。针对 D004 高空驶、午间、晚首单等 15 个关键 step 做 take/wait/reposition 反事实，没有一个正收益动作。说明 D004 当前的日程罚分不是可轻易修的漏洞，强行等/空驶常用几百罚分换掉上千 gross；下一步 D004 要做更早的槽位规划，而不是高空驶 step 替换。
 
 ## 为什么不能继续一点点试阈值
 

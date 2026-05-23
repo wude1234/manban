@@ -2,12 +2,12 @@
 
 ## 当前提交版本
 
-提交 profile：`v55_reposition_branch_agentic_planner_310370`
+提交 profile：`v56_counterfactual_route_planner_311234`
 
 本地 0509 数据当前最好复现结果：
 
 ```text
-score = 310370.12
+score = 311234.76
 total_preference_penalty = 11865.0
 failed_driver_count = 0
 ```
@@ -15,8 +15,8 @@ failed_driver_count = 0
 对应实验：
 
 ```text
-demo/results/grid_agentic_algo/20260523_190658_submission_v55_check/01_hot_v55_d010100_d00780_d009200
-preset = hot_v55_d010100_d00780_d009200
+demo/results/grid_agentic_algo/20260523_203303_submission_v56_check/01_hot_v56_core_new_all6
+preset = hot_v56_core_new_all6
 ```
 
 v49 相比 v48 的新增有效动作：
@@ -36,6 +36,11 @@ D002 step89 cargo200633: 月末凌晨不继续等 240 分钟，直接接入更�
 D010 step100 reposition DG: 由等待改为空驶到东莞，重排家事/休息边界前后的路线，净收益 +363.94 且罚分 -300
 D007 step80 reposition GZ: 不接长线货，主动回广州附近重排后续货源链，净收益 +67.48
 D009 step200 wait60: 月末最后一天午后短等，避免低效短单，净收益 +53.25
+D003 step80 cargo435788: 在死空驶罚分已封顶的状态下，选择更优后继区域链，净收益 +304.60
+D006 step17 cargo335523: 不尝试硬降休息罚分，而是在同罚分下修复早期路线状态，净收益 +219.65
+D007 step114 reposition SW: 放弃长提货单，主动空驶到西南区域重排尾部货源链，净收益 +201.22
+D002 step78 cargo177381: 用更短提货和更早完成时间替换原长提货单，净收益 +65.91
+D003 step10 cargo231633: 早期小分支修复，可与 D003 step80 叠加，净收益 +73.26
 ```
 
 v52 的关键修正不是新增普通硬编码，而是把部分已验证动作从过窄 step-time guard 升级为 phase guard。仿真中的 `query_cargo` 会推进时间，trace 中看到的 step 起点和 agent 真正决策时刻可能错位；若只用窄时间窗，会把真实正收益动作误判成未触发。v52 使用司机、step、候选货源、日内阶段、位置半径共同校验，既允许 query 后状态触发，又避免任意时刻误触发。
@@ -44,7 +49,9 @@ v53 进一步修正动作优先级：当 action-level teacher 和旧 cargo-level
 
 v54 的新增有效动作来自 D002 月末尾段分支搜索。`step87 wait60`、`step89 cargo200633`、`step90 wait240`、`step91 reposition GZ` 单独都是正收益，但同司机组合不会叠加，因为更早分支会改变后续触发状态。最终只推广 `step89 cargo200633`，这是分支选择而不是贪心叠加。
 
-v55 证明主动空驶可以作为受控 Agent 的核心动作，而不是只做无货兜底。D010 step100 的东莞迁移、D007 step80 的广州迁移、D009 step200 的短等可以跨司机叠加，当前最好达到 `310370.12`。但 D009 step178 HY 虽在局部 probe 为正，完整月组合会下降，因此不推广。
+v55 证明主动空驶可以作为受控 Agent 的核心动作，而不是只做无货兜底。D010 step100 的东莞迁移、D007 step80 的广州迁移、D009 step200 的短等可以跨司机叠加，达到 `310370.12`。但 D009 step178 HY 虽在局部 probe 为正，完整月组合会下降，因此不推广。
+
+v56 在 v55 轨迹上增加低效率关键步挖掘，不再盲扫阈值。新的 `summarize_counterfactual_probes.py` 汇总工具把每个反事实 probe 转成 rule/best/delta 表，筛出 D003、D006、D007、D002 的正收益动作。最终 `hot_v56_core_new_all6` 独立复现 `311234.76`。总罚分保持 `11865`，说明本轮收益不是靠硬降罚，而是同罚分下的路径链修复。
 
 ## Agent 结构
 
@@ -54,16 +61,15 @@ v55 证明主动空驶可以作为受控 Agent 的核心动作，而不是只做
 Learning-Augmented Agentic Planner for Dynamic Truck-Cargo Matching
 ```
 
-它不是静态查表，也不是让 LLM 每步自由选单；核心是用传统运筹规则打底，用未来机会价值和短视野规划修正短视贪心，再让 Qwen3.5-Flash 只在受控 near-tie 场景下做工具化复核。
+它不是静态查表，也不是让 LLM 每步自由选单；核心是用传统运筹规则打底，用未来机会价值和短视野规划修正短视贪心。当前最高分默认提交路径使用确定性 planner 复现，Qwen3.5-Flash 保留为可选 near-tie critic / 离线规则总结器，不能默认扰动已验证高收益链路。
 
 ```text
 ModelDecisionService
--> llm_rerank_agent
--> Qwen3.5-Flash near-tie critic
 -> new_release_agentic_planner_agent
 -> FeatureDecisionEngine
 -> layered agent memory + preference compiler + route-plan scorer
 -> counterfactual memory + tools + skills
+optional -> Qwen3.5-Flash near-tie critic / trajectory rule miner
 ```
 
 在线工具包括：
@@ -137,9 +143,9 @@ score(action) =
 
 不同司机启用不同高层技能和阈值，相当于一个轻量 HRL 策略，而不是所有司机共用一个规则。
 
-### 5. LLM Tool-Use Critic with Calculator Skill
+### 5. Optional LLM Tool-Use Critic with Calculator Skill
 
-LLM 不负责算数，也不直接生成任意动作。Qwen3.5-Flash 只作为 near-tie critic：
+LLM 不负责算数，也不直接生成任意动作。Qwen3.5-Flash 只作为可选 near-tie critic 或离线 trajectory critic：
 
 ```text
 Python calculator_skill.py 预计算所有 score/net/nph/delta/guard
@@ -198,7 +204,7 @@ Qwen3.5-Flash 只在 near-tie top-2 候选中作为 critic/reranker，不直接�
 失败时 fallback 到规则底座动作
 ```
 
-当前 v47 最优路径中 Flash 没有实质消耗 token，说明主收益来自可解释的司机技能、多步链路规则、反事实记忆和动作级蒸馏。Flash 保留为提交结构中的可控 critic，不让它破坏已经验证的高收益轨迹。
+当前 v56 最优路径中 Flash 没有实质消耗 token，说明主收益来自可解释的司机技能、多步链路规则、反事实记忆和动作级蒸馏。Flash 保留为可控 critic / 离线 rule miner，不让它破坏已经验证的高收益轨迹。
 
 ### 6. Counterfactual Memory Planner
 

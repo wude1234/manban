@@ -3639,6 +3639,53 @@ def _v55_broad_action_env(
     return env
 
 
+def _v56_d007_late_env(
+    *,
+    d007_114_sw: bool = False,
+    d007_122_wait: bool = False,
+    d003_80: bool = False,
+    d006_17: bool = False,
+    d002_78: bool = False,
+    d003_10: bool = False,
+) -> dict[str, str]:
+    env = _v55_broad_action_env(d010_100_dg=True, d007_80_gz=True, d009_200_wait=True)
+    switches = [
+        item.strip()
+        for item in env.get("AGENT_AP_COUNTERFACTUAL_SWITCHES", "").split(",")
+        if item.strip()
+    ]
+    if d003_80:
+        switches.append("D003:80:435788")
+    if d006_17:
+        switches.append("D006:17:335523")
+    if d002_78:
+        switches.append("D002:78:177381")
+    if d003_10:
+        switches.append("D003:10:231633")
+    if switches:
+        env["AGENT_AP_ENABLE_COUNTERFACTUAL_SWITCHES"] = "1"
+        env["AGENT_AP_COUNTERFACTUAL_SWITCHES"] = ",".join(switches)
+    if d007_114_sw:
+        env.update(
+            {
+                "AGENT_AP_ENABLE_DISTILLED_D007_STEP114_REPOS_SW": "1",
+                "AGENT_AP_D007_STEP114_REPOS_MIN_MINUTE": str(4 * 60),
+                "AGENT_AP_D007_STEP114_REPOS_MAX_MINUTE": str(6 * 60 + 30),
+                "AGENT_AP_D007_STEP114_REPOS_LOCATION_RADIUS_KM": "20",
+            }
+        )
+    if d007_122_wait:
+        env.update(
+            {
+                "AGENT_AP_ENABLE_DISTILLED_D007_STEP122_WAIT": "1",
+                "AGENT_AP_D007_STEP122_MIN_MINUTE": str(17 * 60),
+                "AGENT_AP_D007_STEP122_MAX_MINUTE": str(18 * 60 + 30),
+                "AGENT_AP_D007_STEP122_LOCATION_RADIUS_KM": "16",
+            }
+        )
+    return env
+
+
 PRESETS.update(
     {
         # v32: exact counterfactual winners discovered by
@@ -3995,6 +4042,31 @@ PRESETS.update(
         "hot_v55_d010100_d009178": _v55_broad_action_env(d010_100_dg=True, d009_178_hy=True),
         "hot_v55_all_broad": _v55_broad_action_env(
             d010_100_dg=True, d007_80_gz=True, d009_178_hy=True, d009_200_wait=True
+        ),
+        # v56: D007 late-route action teachers mined from the v55 trajectory.
+        # These test whether the local full-tail gains stack in full-month grid
+        # after the step80 GZ reposition branch.
+        "hot_v56_base_v55": _v56_d007_late_env(),
+        "hot_v56_d007114_repos_sw": _v56_d007_late_env(d007_114_sw=True),
+        "hot_v56_d007122_wait30": _v56_d007_late_env(d007_122_wait=True),
+        "hot_v56_d007114_d007122": _v56_d007_late_env(d007_114_sw=True, d007_122_wait=True),
+        "hot_v56_d00380_435788": _v56_d007_late_env(d003_80=True),
+        "hot_v56_d00617_335523": _v56_d007_late_env(d006_17=True),
+        "hot_v56_d00278_177381": _v56_d007_late_env(d002_78=True),
+        "hot_v56_d00310_231633": _v56_d007_late_env(d003_10=True),
+        "hot_v56_core_new_top4": _v56_d007_late_env(
+            d007_114_sw=True,
+            d007_122_wait=True,
+            d003_80=True,
+            d006_17=True,
+        ),
+        "hot_v56_core_new_all6": _v56_d007_late_env(
+            d007_114_sw=True,
+            d007_122_wait=True,
+            d003_80=True,
+            d006_17=True,
+            d002_78=True,
+            d003_10=True,
         ),
     }
 )

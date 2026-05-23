@@ -681,6 +681,10 @@ def _distilled_counterfactual_action(status: dict[str, Any], viable: list[dict[s
         return _d007_step121_repos_fs_distilled_action(status, viable)
     if driver_id == "D007" and step == 80 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D007_STEP80_REPOS_GZ", False):
         return _d007_step80_repos_gz_distilled_action(status, viable)
+    if driver_id == "D007" and step == 114 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D007_STEP114_REPOS_SW", False):
+        return _d007_step114_repos_sw_distilled_action(status, viable)
+    if driver_id == "D007" and step == 122 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D007_STEP122_WAIT", False):
+        return _d007_step122_wait_distilled_action(status, viable)
     if driver_id == "D005" and step == 123 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D005_STEP123", False):
         return _d005_step123_distilled_action(status, viable)
     if driver_id == "D005" and step == 128 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D005_STEP128_REPOS_FS", False):
@@ -1528,6 +1532,56 @@ def _d007_step121_repos_fs_distilled_action(status: dict[str, Any], viable: list
             "longitude": _env_float("AGENT_AP_D007_STEP121_REPOS_LNG", 113.12),
         },
     }
+
+
+def _d007_step114_repos_sw_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:
+    if _env_bool("AGENT_AP_D007_STEP114_REPOS_REQUIRE_VISIBLE_LOSER", True) and not _has_visible_cargo(
+        viable, "AGENT_AP_D007_STEP114_REPOS_LOSER_IDS", "475223"
+    ):
+        return None
+    if not _phase_guard(
+        status,
+        day_env="AGENT_AP_D007_STEP114_REPOS_DAY",
+        default_day=28,
+        min_env="AGENT_AP_D007_STEP114_REPOS_MIN_MINUTE",
+        default_minute=4 * 60,
+        max_env="AGENT_AP_D007_STEP114_REPOS_MAX_MINUTE",
+        default_max_minute=6 * 60 + 30,
+        center_lat=22.21,
+        center_lng=113.40,
+        radius_env="AGENT_AP_D007_STEP114_REPOS_LOCATION_RADIUS_KM",
+        default_radius_km=20.0,
+    ):
+        return None
+    return {
+        "action": "reposition",
+        "params": {
+            "latitude": _env_float("AGENT_AP_D007_STEP114_REPOS_LAT", 22.80),
+            "longitude": _env_float("AGENT_AP_D007_STEP114_REPOS_LNG", 112.90),
+        },
+    }
+
+
+def _d007_step122_wait_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:
+    if _env_bool("AGENT_AP_D007_STEP122_REQUIRE_VISIBLE_LOSER", True) and not _has_visible_cargo(
+        viable, "AGENT_AP_D007_STEP122_LOSER_IDS", "490070"
+    ):
+        return None
+    if not _phase_guard(
+        status,
+        day_env="AGENT_AP_D007_STEP122_DAY",
+        default_day=29,
+        min_env="AGENT_AP_D007_STEP122_MIN_MINUTE",
+        default_minute=17 * 60,
+        max_env="AGENT_AP_D007_STEP122_MAX_MINUTE",
+        default_max_minute=18 * 60 + 30,
+        center_lat=23.25,
+        center_lng=113.49,
+        radius_env="AGENT_AP_D007_STEP122_LOCATION_RADIUS_KM",
+        default_radius_km=16.0,
+    ):
+        return None
+    return {"action": "wait", "params": {"duration_minutes": _env_int("AGENT_AP_D007_STEP122_WAIT_MINUTES", 30)}}
 
 
 def _d005_step123_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:

@@ -14,12 +14,13 @@
 ## Current Best
 
 ```text
-version = v55 candidate
-preset = hot_v55_d010100_d00780_d009200
-score = 310370.12
+version = v56 validated submission default
+preset = hot_v56_core_new_all6
+score = 311234.76
 penalty = 11865
-run_dir = demo/results/grid_agentic_algo/20260523_190658_submission_v55_check/01_hot_v55_d010100_d00780_d009200
-last_commit = 8e27b06 v54 d002 branch planner score 309885
+run_dir = demo/results/grid_agentic_algo/20260523_203303_submission_v56_check/01_hot_v56_core_new_all6
+default_run = demo/results/actions_202603_*_20260523_210412.jsonl + demo/results/monthly_income_202603.json
+last_commit = pending v56 commit
 ```
 
 核心发现：
@@ -35,13 +36,18 @@ action-level teacher must override older cargo-level switch on the same driver/s
 
 ## Active Experiments
 
-当前正在基于 v54 best 做下一轮 rebase：
+当前正在基于 v56 best 做下一轮自动探索：
 
 ```text
-grid_tag = autonight_v54_d002_d004_tail
-status = v55 grid completed
-purpose = continue from v55 best; D010/D007 active reposition and D009 late wait are promoted
-previous_grid = demo/results/grid_agentic_algo/20260523_184012_autonight_v55_broad_action_grid
+status = v56 promoted and default submission path validated; commit in progress
+purpose = next mine from v56 trajectory after commit; do not continue from v55
+current_best_grid = demo/results/grid_agentic_algo/20260523_203303_submission_v56_check/01_hot_v56_core_new_all6
+completed_probe_dirs =
+  results/autonight_v56_d002_inefficiency_probe
+  results/autonight_v56_d003_inefficiency_probe
+  results/autonight_v56_d004_inefficiency_probe
+  results/autonight_v56_d006_rest_inefficiency_probe
+  results/autonight_v56_d007_late_rebase_probe
 ```
 
 上一轮基于 v48 best 并行探索 5 条线，均已完成：
@@ -385,6 +391,61 @@ Interpretation:
 ```text
 Active reposition is now validated as a first-class Agent action. It works when a specific driver phase has a poor after-state, not as a global hotspot bias.
 The high-yield pattern is: identify phase where wait/take_order leads to low future state value, branch to a reposition point, then validate full-month.
+```
+
+### v56 rebase saturation checks
+
+```text
+D010 after step100 DG reposition: steps 101-112 all delta = 0.
+D007 after step80 GZ reposition: steps 81-90 all delta = 0.
+D009 after step200 wait60: steps 201-204 all delta = 0.
+```
+
+Interpretation:
+
+```text
+v55 的三个新增动作都是完整分支，不是“还要在后面补一个动作”的半成品。
+继续沿这三条后继链硬挖收益很低；下一轮要从 v55 真实轨迹自动找低效率/高罚分裂缝。
+当前主要裂缝：D006 休息罚分、D004 日程约束、D003/D004/D007 高空驶低效率单、D009 夜间回家边界。
+```
+
+### v56 inefficiency mining result
+
+```text
+grid = demo/results/grid_agentic_algo/20260523_201512_autonight_v56_core_new_grid
+validation = demo/results/grid_agentic_algo/20260523_203303_submission_v56_check/01_hot_v56_core_new_all6
+best = hot_v56_core_new_all6
+score = 311234.76
+delta_vs_v55 = +864.64
+penalty = 11865
+```
+
+Promoted:
+
+```text
+D003 step80 cargo435788 over cargo289443: +304.60, penalty unchanged.
+D006 step17 cargo335523 over cargo338799: +219.65, penalty unchanged.
+D007 step114 reposition SW over cargo475223: +201.22, penalty unchanged.
+D002 step78 cargo177381 over cargo467216: +65.91, penalty unchanged.
+D003 step10 cargo231633 over cargo235565: +73.26, penalty unchanged.
+```
+
+Rejected / not promoted:
+
+```text
+D007 step122 wait30 is +208.42 alone, but conflicts with D007 step114 in the promoted all6 path.
+D004 inefficiency probe found no positive action among tested steps.
+D006 forced-rest style waits still lose too much gross; rest penalty is not the next high-yield target.
+```
+
+Interpretation:
+
+```text
+The new high-yield pattern is not penalty reduction.  Total penalty stays 11865.
+The gain comes from counterfactual route repair: same-driver state is shifted into a better month-end cargo chain while preserving preference risk.
+D003 is again a main battlefield; step80 plus step10 jointly improve gross and reduce distance under the same deadhead penalty cap.
+D006 still pays the 5200 rest penalty, but an early cargo replacement improves later chain value by +219.65 without changing violations.
+D007 late action choices are mutually exclusive; full-grid validation picks step114 reposition in the all6 path, not the standalone step122 wait.
 ```
 
 ### D008 phase actions
