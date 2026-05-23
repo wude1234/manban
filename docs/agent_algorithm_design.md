@@ -5,8 +5,8 @@
 0509 当前稳定最好：
 
 ```text
-score = 313500.75
-penalty = 13065.0
+score = 314347.46
+penalty = 12465.0
 failed_driver_count = 0
 ```
 
@@ -14,12 +14,12 @@ failed_driver_count = 0
 
 ```text
 AGENT_STRATEGY = new_release_agentic_planner_agent
-profile = hot_v73_d00148_d004seq_d010s23_no_s2
+profile = hot_v74_d010_step82_repos_dg
 base = v30 driver-specific planner
-upgrade = v32-v73 counterfactual memory + phase action gates + low-efficiency route repair + exact sequence probing + wait-as-route-plan teacher + schedule-aware value teacher + two-step route rebase + clean harness ablation
+upgrade = v32-v74 counterfactual memory + phase action gates + low-efficiency route repair + exact sequence probing + wait-as-route-plan teacher + schedule-aware value teacher + two-step route rebase + clean harness ablation + v74 D010 active reposition route repair
 ```
 
-这个结果的意义不是最高分本身，而是说明：0508 上有效的司机独立规则迁移到 0509 后仍成立，且“轨迹记录 + 反事实回放 + 规则蒸馏”的 agentic harness 能继续从固定底座中挖出真实长期收益。v56/v57 的新增收益没有降低总罚分，而是在同罚分下修复 D003/D006/D007/D002/D010 的后继路线状态；v61/v65 进一步证明主动迁移和双步序列 rebase 可以在单步 regret 饱和后继续找到小的路线修复；v70 证明等待也可以是主动 Route Plan 动作，而不是无货兜底；v71 证明偏好风险可以通过早期订单选择自然修复，而不是硬控；v72/v73 证明双步 route rebase 和干净 ablation 能继续把互斥 teacher 选对。
+这个结果的意义不是最高分本身，而是说明：0508 上有效的司机独立规则迁移到 0509 后仍成立，且“轨迹记录 + 反事实回放 + 规则蒸馏”的 agentic harness 能继续从固定底座中挖出真实长期收益。v56/v57 的新增收益没有降低总罚分，而是在同罚分下修复 D003/D006/D007/D002/D010 的后继路线状态；v61/v65 进一步证明主动迁移和双步序列 rebase 可以在单步 regret 饱和后继续找到小的路线修复；v70 证明等待也可以是主动 Route Plan 动作，而不是无货兜底；v71 证明偏好风险可以通过早期订单选择自然修复，而不是硬控；v72/v73 证明双步 route rebase 和干净 ablation 能继续把互斥 teacher 选对；v74 证明高可疑动作必须经过 exact-tail 验证，真正的新增来自 D010 月末主动空驶重排路线。
 
 ## 2. 核心发现
 
@@ -48,7 +48,8 @@ upgrade = v32-v73 counterfactual memory + phase action gates + low-efficiency ro
 - v68/v69 证明 destination/opportunity value 适合作为候选生成器，而不是直接打分器。大多数 value 分支为负，但 exact-tail validation 找到 D009 step180 `cargo181577` 和 D010 step123 `cargo484817` 两个非 top-k 小正收益，组合后达到 `312415.71`。
 - v70 证明短等待本身也需要进入动作级规划。D005 step49 `wait120` 放弃一个早期低链路订单，等待后进入更高价值短链，罚分不变且 D005 净收益 `+158.24`。这说明“未来收益”不能只由目的地区域强弱解释，还要看货源释放窗口和接单后完成时间是否压住后继链。
 - v71 证明偏好罚分需要作为边际状态成本参与候选选择。D004 step11 选择 `cargo235854` 后 gross 下降、距离上升，但后续日程罚分下降 `400`，最终净收益 `+39.20`。这类样本说明 Agent 需要比较“当前收益 + 后继路线 + 偏好风险变化”，而不是只追当前 NPH。
-- v72/v73 证明序列级 route rebase 是下一阶段主线。D004 step49 `cargo379155` 单独会把后续路线带偏，必须和 rebased path 上的 step56 `cargo93338` 组合执行，完整月 D004 净收益 `+277.93`。D001 step48 `wait30` 额外 `+54.55`。D010 step2 主动空驶虽然为正，但被 D010 step23 `cargo330064` 支配；清理 grid harness 的 submission-default 污染后，step23 可与 D001/D004 跨司机叠加，最终达到 `313500.75`。
+- v72/v73 证明序列级 route rebase 是下一阶段主线。D004 step49 `cargo379155` 单独会把后续路线带偏，必须和 rebased path 上的 step56 `cargo93338` 组合执行，完整月 D004 净收益 `+277.93`。D001 step48 `wait30` 额外 `+54.55`。D010 step2 主动空驶虽然为正，但被 D010 step23 `cargo330064` 支配；清理 grid harness 的 submission-default 污染后，step23 可与 D001/D004 跨司机叠加，达到 `313500.75`。
+- v74 证明全司机并行探测后仍能找到新的高收益 action-level teacher。80 个高可疑 step 中只有 D010 step82 为强正收益，说明“高空驶/长等待/高 scan”只能作为候选选择器，不能直接变成策略规则。step82 选择主动空驶到 DG 后重排后续链，并把 D010 连续休息罚分降低 `600`，总分提升到 `314347.46`。
 
 ### 2.2 明确负方向
 

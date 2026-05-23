@@ -14,13 +14,13 @@
 ## Current Best
 
 ```text
-version = v73 validated submission default candidate
-preset = hot_v73_d00148_d004seq_d010s23_no_s2
-score = 313500.75
-penalty = 13065
-run_dir = demo/results/grid_agentic_algo/20260524_054125_autonight_v73_clean_disable_defaults/04_hot_v73_d00148_d004seq_d010s23_no_s2
-default_run = demo/results/actions_202603_D001-D010_20260524_055358.jsonl + demo/results/monthly_income_202603.json
-last_commit = pending v73 commit
+version = v74 validated submission default candidate
+preset = hot_v74_d010_step82_repos_dg
+score = 314347.46
+penalty = 12465
+run_dir = demo/results/grid_agentic_algo/20260524_061501_autonight_v74_d010_candidates_grid/01_hot_v74_d010_step82_repos_dg
+default_run = demo/results/actions_202603_D001-D010_20260524_062627.jsonl + demo/results/monthly_income_202603.json
+last_commit = pending v74 commit
 ```
 
 核心发现：
@@ -42,6 +42,21 @@ D001 step48 shows a short wait can improve the next rest/order chain without cha
 D010 step2 shows active reposition can pay, but it is dominated by the cleaner D010 step23 route teacher
 D010 step23 cargo330064 is a stronger early route repair than step2 reposition; it requires disabling the conflicting step2 path
 v73 main.py default path has been validated: D010 step2 takes cargo21, D010 step23 takes cargo330064, total score reproduces 313500.75
+v74 shows D010 step82 active reposition DG is the next high-value route repair: it lowers D010 rest penalty by 600 while preserving/rebuilding the monthly cargo chain
+```
+
+### v74 result
+
+```text
+grid = results/grid_agentic_algo/20260524_061501_autonight_v74_d010_candidates_grid
+best = hot_v74_d010_step82_repos_dg
+score = 314347.46
+penalty = 12465
+promoted =
+  v73 full stack
+  D010 step82 reposition to DG (23.04,113.75)
+finding = one-step exact-tail probes across 10 drivers found positives only on D010. Step82 is a genuine action-level route repair: instead of taking cargo290384 from (23.48,114.79), reposition to DG, enter cargo290652 -> wait180 -> cargo446813 -> cargo290811, and reduce D010 continuous-rest penalty from 1800 to 1200. Step84 wait180 is a weaker alternative on the old route; step97 cargo186578 does not add in grid. Promote step82 only.
+default_validation = results/actions_202603_D*_20260524_062627.jsonl, score 314347.46, penalty 12465, failed_driver_count 0
 ```
 
 ### v73 result
@@ -61,12 +76,24 @@ default_validation = results/actions_202603_D*_20260524_055358.jsonl, score 3135
 
 ## Active Experiments
 
-当前正在基于 v65 validated best 做下一轮自动探索：
+当前正在基于 v73 validated best 做 v74 自动探索：
 
 ```text
-status = v65 promoted, grid-confirmed, default submission path validated
-purpose = commit v65, then continue exact sequence probes from earlier route phases
-current_best_grid = demo/results/grid_agentic_algo/20260524_012025_autonight_v65_d007_step114_grid/02_hot_v65_d007_step114_475223
+status = v73 promoted, grid-confirmed, default submission path validated and committed
+purpose = mine new exact-tail regret from the v73 route, then promote only full-month positive teacher actions
+current_best_grid = demo/results/grid_agentic_algo/20260524_054125_autonight_v73_clean_disable_defaults/04_hot_v73_d00148_d004seq_d010s23_no_s2
+current_best_default = demo/results/actions_202603_D001-D010_20260524_055358.jsonl
+v74_selection = demo/results/autonight_v74_v73_probe_steps.md
+v74_probe_policy =
+  one-step exact-tail first, with top cargo + value cargo + wait/reposition peer actions
+  use per-driver v73 net as baseline
+  promote only if exact driver net improves and full grid composition beats 313500.75
+v74_one_step_summary = demo/results/autonight_v74_one_step_summary.md
+v74_one_step_finding =
+  80 tested high-regret-looking steps across all 10 drivers produced positives only on D010
+  D001/D002/D003/D004/D005/D006/D007/D008/D009 suspicious high-wait/high-deadhead states were rule-optimal under exact tail scoring
+  D010 step82 reposition DG, step84 wait180, step97 cargo186578 are candidate teachers, but they may be mutually exclusive and require grid validation
+  this reinforces that high pickup/wait/reposition signals are only probe selectors, not online policy rules
 completed_probe_dirs =
   results/autonight_v56_d002_inefficiency_probe
   results/autonight_v56_d003_inefficiency_probe
@@ -120,6 +147,20 @@ active_probe_dirs =
   results/sequence_counterfactual/autonight_v66_D004_mid_pairs
   results/sequence_counterfactual/autonight_v66_D007_mid_pairs
   results/sequence_counterfactual/autonight_v66_D008_mid_pairs
+  results/autonight_v74_v73_probe_steps.md
+  results/autonight_v74_one_step_summary.md
+  results/autonight_v74_D001_one_step
+  results/autonight_v74_D002_one_step
+  results/autonight_v74_D003_one_step
+  results/autonight_v74_D004_one_step
+  results/autonight_v74_D005_one_step
+  results/autonight_v74_D006_one_step
+  results/autonight_v74_D007_one_step
+  results/autonight_v74_D008_one_step
+  results/autonight_v74_D009_one_step
+  results/autonight_v74_D010_one_step
+active_grid =
+  results/grid_agentic_algo/*_autonight_v74_d010_candidates_grid
 ```
 
 ### v58 result

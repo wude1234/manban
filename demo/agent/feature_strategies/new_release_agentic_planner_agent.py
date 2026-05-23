@@ -635,6 +635,12 @@ def _distilled_counterfactual_action(status: dict[str, Any], viable: list[dict[s
         return _d010_step2_repos_gz_distilled_action(status, viable)
     if driver_id == "D010" and step == 23 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D010_STEP23_330064", False):
         return _d010_step23_330064_distilled_action(status, viable)
+    if driver_id == "D010" and step == 82 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D010_STEP82_REPOS_DG", False):
+        return _d010_step82_repos_dg_distilled_action(status, viable)
+    if driver_id == "D010" and step == 84 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D010_STEP84_WAIT", False):
+        return _d010_step84_wait_distilled_action(status, viable)
+    if driver_id == "D010" and step == 97 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D010_STEP97", False):
+        return _d010_step97_distilled_action(status, viable)
     if driver_id == "D004" and step == 87 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D004_STEP87", False):
         return _d004_step87_distilled_action(status, viable)
     if driver_id == "D009" and step == 172 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D009_STEP172", False):
@@ -1063,6 +1069,84 @@ def _d010_step23_330064_distilled_action(status: dict[str, Any], viable: list[di
     if float(winner.get("estimated_net", 0.0)) < _env_float("AGENT_AP_D010_STEP23_MIN_NET", 400.0):
         return None
     if float(winner.get("haul_km", 0.0)) < _env_float("AGENT_AP_D010_STEP23_MIN_HAUL_KM", 80.0):
+        return None
+    return {"action": "take_order", "params": {"cargo_id": winner_id}}
+
+
+def _d010_step82_repos_dg_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:
+    if _env_bool("AGENT_AP_D010_STEP82_REPOS_REQUIRE_VISIBLE_LOSER", True) and not _has_visible_cargo(
+        viable, "AGENT_AP_D010_STEP82_REPOS_LOSER_IDS", "290384"
+    ):
+        return None
+    if not _phase_guard(
+        status,
+        day_env="AGENT_AP_D010_STEP82_REPOS_DAY",
+        default_day=22,
+        min_env="AGENT_AP_D010_STEP82_REPOS_MIN_MINUTE",
+        default_minute=16 * 60,
+        max_env="AGENT_AP_D010_STEP82_REPOS_MAX_MINUTE",
+        default_max_minute=17 * 60 + 10,
+        center_lat=23.48,
+        center_lng=114.79,
+        radius_env="AGENT_AP_D010_STEP82_REPOS_LOCATION_RADIUS_KM",
+        default_radius_km=18.0,
+    ):
+        return None
+    return {
+        "action": "reposition",
+        "params": {
+            "latitude": _env_float("AGENT_AP_D010_STEP82_REPOS_LAT", 23.04),
+            "longitude": _env_float("AGENT_AP_D010_STEP82_REPOS_LNG", 113.75),
+        },
+    }
+
+
+def _d010_step84_wait_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:
+    if _env_bool("AGENT_AP_D010_STEP84_REQUIRE_VISIBLE_LOSER", True) and not _has_visible_cargo(
+        viable, "AGENT_AP_D010_STEP84_LOSER_IDS", "450841"
+    ):
+        return None
+    if not _phase_guard(
+        status,
+        day_env="AGENT_AP_D010_STEP84_DAY",
+        default_day=23,
+        min_env="AGENT_AP_D010_STEP84_MIN_MINUTE",
+        default_minute=14 * 60 + 30,
+        max_env="AGENT_AP_D010_STEP84_MAX_MINUTE",
+        default_max_minute=15 * 60 + 10,
+        center_lat=24.34,
+        center_lng=114.81,
+        radius_env="AGENT_AP_D010_STEP84_LOCATION_RADIUS_KM",
+        default_radius_km=15.0,
+    ):
+        return None
+    return {"action": "wait", "params": {"duration_minutes": _env_int("AGENT_AP_D010_STEP84_WAIT_MINUTES", 180)}}
+
+
+def _d010_step97_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:
+    winner_id = os.getenv("AGENT_AP_D010_STEP97_WINNER_ID", "186578").strip()
+    winner = _feature_by_cargo_id(viable, winner_id)
+    if winner is None:
+        return None
+    if _env_bool("AGENT_AP_D010_STEP97_REQUIRE_VISIBLE_LOSER", True) and not _has_visible_cargo(
+        viable, "AGENT_AP_D010_STEP97_LOSER_IDS", "191232"
+    ):
+        return None
+    if not _phase_guard(
+        status,
+        day_env="AGENT_AP_D010_STEP97_DAY",
+        default_day=28,
+        min_env="AGENT_AP_D010_STEP97_MIN_MINUTE",
+        default_minute=2 * 60,
+        max_env="AGENT_AP_D010_STEP97_MAX_MINUTE",
+        default_max_minute=2 * 60 + 30,
+        center_lat=22.53,
+        center_lng=114.21,
+        radius_env="AGENT_AP_D010_STEP97_LOCATION_RADIUS_KM",
+        default_radius_km=12.0,
+    ):
+        return None
+    if float(winner.get("estimated_net", 0.0)) < _env_float("AGENT_AP_D010_STEP97_WINNER_MIN_NET", 200.0):
         return None
     return {"action": "take_order", "params": {"cargo_id": winner_id}}
 

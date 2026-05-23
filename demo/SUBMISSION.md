@@ -2,22 +2,30 @@
 
 ## 当前提交版本
 
-提交 profile：`v73_d010_step23_route_teacher_313500`
+提交 profile：`v74_d010_step82_route_teacher_314347`
 
 本地 0509 数据当前最好复现结果：
 
 ```text
-score = 313500.75
-total_preference_penalty = 13065.0
+score = 314347.46
+total_preference_penalty = 12465.0
 failed_driver_count = 0
 ```
 
 对应实验：
 
 ```text
-demo/results/grid_agentic_algo/20260524_054125_autonight_v73_clean_disable_defaults/04_hot_v73_d00148_d004seq_d010s23_no_s2
-preset = hot_v73_d00148_d004seq_d010s23_no_s2
+demo/results/grid_agentic_algo/20260524_061501_autonight_v74_d010_candidates_grid/01_hot_v74_d010_step82_repos_dg
+preset = hot_v74_d010_step82_repos_dg
 ```
+
+v74 相比 v73 的新增有效动作：
+
+```text
+D010 step82 reposition DG: 在 03-23 16:20 后不直接接 cargo290384，而是主动空驶到东莞附近 (23.04,113.75)，后续进入 cargo290652 -> wait180 -> cargo446813 -> cargo290811 的新链路。D010 净收益 +846.71，总罚分 -600；这是 action-level Route Plan，不是单纯 cargo rerank。
+```
+
+v74 第一轮 one-step exact-tail probe 对 10 个司机共 80 个高可疑 step 做了 top cargo、value cargo、wait、reposition 对照；除 D010 外，D001-D009 的这些高空驶/长等待/高 scan 状态均保持原动作最优。D010 step84 wait180 也是正收益但低于 step82，且与 step82 属于同一月末链路替代；D010 step97 cargo186578 在 full-grid 中无增益，因此当前默认只推广 step82。
 
 v73 相比 v71 的新增有效动作：
 

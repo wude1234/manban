@@ -3731,6 +3731,9 @@ def _v60_d004_step7_env(
     d004_seq49_56: bool = False,
     d010_step2_repos_gz: bool = False,
     d010_step23_330064: bool = False,
+    d010_step82_repos_dg: bool = False,
+    d010_step84_wait180: bool = False,
+    d010_step97_186578: bool = False,
     d001_step48_wait30: bool = False,
 ) -> dict[str, str]:
     env = _v57_action_regret_env(d007_61=True, d010_121=True)
@@ -3834,6 +3837,35 @@ def _v60_d004_step7_env(
                 "AGENT_AP_D010_STEP23_MAX_MINUTE": str(10 * 60 + 10),
                 "AGENT_AP_D010_STEP23_LOCATION_RADIUS_KM": "12",
                 "AGENT_AP_D010_STEP23_MIN_NET": "400",
+            }
+        )
+    if d010_step82_repos_dg:
+        env.update(
+            {
+                "AGENT_AP_ENABLE_DISTILLED_D010_STEP82_REPOS_DG": "1",
+                "AGENT_AP_D010_STEP82_REPOS_MIN_MINUTE": str(16 * 60),
+                "AGENT_AP_D010_STEP82_REPOS_MAX_MINUTE": str(17 * 60 + 10),
+                "AGENT_AP_D010_STEP82_REPOS_LOCATION_RADIUS_KM": "18",
+            }
+        )
+    if d010_step84_wait180:
+        env.update(
+            {
+                "AGENT_AP_ENABLE_DISTILLED_D010_STEP84_WAIT": "1",
+                "AGENT_AP_D010_STEP84_MIN_MINUTE": str(14 * 60 + 30),
+                "AGENT_AP_D010_STEP84_MAX_MINUTE": str(15 * 60 + 10),
+                "AGENT_AP_D010_STEP84_LOCATION_RADIUS_KM": "15",
+                "AGENT_AP_D010_STEP84_WAIT_MINUTES": "180",
+            }
+        )
+    if d010_step97_186578:
+        env.update(
+            {
+                "AGENT_AP_ENABLE_DISTILLED_D010_STEP97": "1",
+                "AGENT_AP_D010_STEP97_MIN_MINUTE": str(2 * 60),
+                "AGENT_AP_D010_STEP97_MAX_MINUTE": str(2 * 60 + 30),
+                "AGENT_AP_D010_STEP97_LOCATION_RADIUS_KM": "12",
+                "AGENT_AP_D010_STEP97_WINNER_MIN_NET": "200",
             }
         )
     if d001_step48_wait30:
@@ -4398,6 +4430,64 @@ PRESETS.update(
             d004_step11_235854=True,
             d001_step48_wait30=True,
             d010_step23_330064=True,
+        ),
+        "hot_v74_d010_step82_repos_dg": _v60_d004_step7_env(
+            dg=True,
+            step41_fs=True,
+            step93_297250=True,
+            d007_step114_475223=True,
+            d009_step180_181577=True,
+            d010_step123_484817=True,
+            d005_step49_wait120=True,
+            d004_step11_235854=True,
+            d001_step48_wait30=True,
+            d004_seq49_56=True,
+            d010_step23_330064=True,
+            d010_step82_repos_dg=True,
+        ),
+        "hot_v74_d010_step84_wait180": _v60_d004_step7_env(
+            dg=True,
+            step41_fs=True,
+            step93_297250=True,
+            d007_step114_475223=True,
+            d009_step180_181577=True,
+            d010_step123_484817=True,
+            d005_step49_wait120=True,
+            d004_step11_235854=True,
+            d001_step48_wait30=True,
+            d004_seq49_56=True,
+            d010_step23_330064=True,
+            d010_step84_wait180=True,
+        ),
+        "hot_v74_d010_step97_186578": _v60_d004_step7_env(
+            dg=True,
+            step41_fs=True,
+            step93_297250=True,
+            d007_step114_475223=True,
+            d009_step180_181577=True,
+            d010_step123_484817=True,
+            d005_step49_wait120=True,
+            d004_step11_235854=True,
+            d001_step48_wait30=True,
+            d004_seq49_56=True,
+            d010_step23_330064=True,
+            d010_step97_186578=True,
+        ),
+        "hot_v74_d010_82_84_97": _v60_d004_step7_env(
+            dg=True,
+            step41_fs=True,
+            step93_297250=True,
+            d007_step114_475223=True,
+            d009_step180_181577=True,
+            d010_step123_484817=True,
+            d005_step49_wait120=True,
+            d004_step11_235854=True,
+            d001_step48_wait30=True,
+            d004_seq49_56=True,
+            d010_step23_330064=True,
+            d010_step82_repos_dg=True,
+            d010_step84_wait180=True,
+            d010_step97_186578=True,
         ),
         "hot_v72_d00148_d010s2": _v60_d004_step7_env(
             dg=True,

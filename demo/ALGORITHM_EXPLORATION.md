@@ -5,10 +5,10 @@
 当前最好可复现分数：
 
 ```text
-score = 313500.75
-preset = hot_v73_d00148_d004seq_d010s23_no_s2
-penalty = 13065.0
-result_dir = results/grid_agentic_algo/20260524_054125_autonight_v73_clean_disable_defaults/04_hot_v73_d00148_d004seq_d010s23_no_s2
+score = 314347.46
+preset = hot_v74_d010_step82_repos_dg
+penalty = 12465.0
+result_dir = results/grid_agentic_algo/20260524_061501_autonight_v74_d010_candidates_grid/01_hot_v74_d010_step82_repos_dg
 ```
 
 这套分数不是靠单点阈值堆出来的，核心是把司机拆成不同画像后做收益-扣分权衡，并在关键决策步使用反事实回放验证“换一个候选货源是否让整个月更优”：
@@ -98,7 +98,9 @@ v32-v57: 对关键步骤做 candidate/action-level counterfactual rollout，验�
 
 37. v73 先修复 grid harness 污染：提交默认会在子进程 import 时 `setdefault` 注入当前最好 teacher，导致“关闭某个动作”的对照不干净。新增 `AGENT_DISABLE_SUBMISSION_DEFAULTS=1` 后，grid 只使用 preset env，v71/v72 都能干净复现。
 
-38. v73 证明 D010 step23 `cargo330064` 是更优的互斥路线修复。反事实中它单司机 `+555.12`；清理 harness 后，在不启用 D010 step2 的路径上可复现，并能与 D001 wait30、D004 step49->56 跨司机叠加，当前最好达到 `313500.75`。结论是：D010 step2 是小修，step23 是大修，二者不能贪心全开。
+38. v73 证明 D010 step23 `cargo330064` 是更优的互斥路线修复。反事实中它单司机 `+555.12`；清理 harness 后，在不启用 D010 step2 的路径上可复现，并能与 D001 wait30、D004 step49->56 跨司机叠加，达到 `313500.75`。结论是：D010 step2 是小修，step23 是大修，二者不能贪心全开。
+
+39. v74 对 v73 默认轨迹做全司机 one-step exact-tail action probe：每个司机选 8 个高可疑 step，并比较规则动作、top cargo、value cargo、wait、reposition。结果只有 D010 有正收益，其他 9 个司机的高空驶/长等待/高 scan 状态均为 rule-optimal。D010 step82 主动空驶到 DG 完整月达到 `314347.46`，总罚分 `12465`，比 v73 高 `+846.71`。它不是简单强区域规则，而是重排 03-23 到 03-25 的月末链：放弃 cargo290384，迁移到 DG 后进入 cargo290652 -> wait180 -> cargo446813 -> cargo290811，同时 D010 连续休息罚分从 `1800` 降到 `1200`。D010 step84 wait180 是同段链路的较弱替代，step97 cargo186578 full-grid 不增益，因此只推广 step82。
 
 ## 为什么不能继续一点点试阈值
 
