@@ -3308,6 +3308,233 @@ def _v48_phase_gate_env(*, d010: bool = False, d004: bool = False, d009: str = "
     return env
 
 
+def _v49_autonight_env(
+    *,
+    d010_101: bool = False,
+    d004_93: bool = False,
+    d004_95: bool = False,
+    d004_96: bool = False,
+    d006_65: bool = False,
+    d006_95: bool = False,
+    d001_77: bool = False,
+    d001_93: bool = False,
+    d001_98: bool = False,
+    d001_102: bool = False,
+) -> dict[str, str]:
+    env = _v48_phase_gate_env(d010=True, d004=True, d009="178")
+    if d010_101:
+        env["AGENT_AP_ENABLE_DISTILLED_D010_STEP101"] = "1"
+    if d004_93:
+        env["AGENT_AP_ENABLE_DISTILLED_D004_STEP93"] = "1"
+    if d004_95:
+        env["AGENT_AP_ENABLE_DISTILLED_D004_STEP95_REPOS_GZ"] = "1"
+    if d004_96:
+        env["AGENT_AP_ENABLE_DISTILLED_D004_STEP96_REPOS_FS"] = "1"
+    if d006_65:
+        env["AGENT_AP_ENABLE_DISTILLED_D006_STEP65_WAIT"] = "1"
+    if d006_95:
+        env["AGENT_AP_ENABLE_DISTILLED_D006_STEP95_REPOS_FS"] = "1"
+    if d001_77:
+        env["AGENT_AP_ENABLE_DISTILLED_D001_STEP77_WAIT"] = "1"
+    if d001_93:
+        env["AGENT_AP_ENABLE_DISTILLED_D001_STEP93_WAIT"] = "1"
+    if d001_98:
+        env["AGENT_AP_ENABLE_DISTILLED_D001_STEP98_REPOS_SZ"] = "1"
+    if d001_102:
+        env["AGENT_AP_ENABLE_DISTILLED_D001_STEP102_WAIT"] = "1"
+    return env
+
+
+def _v50_d006_tail_env(
+    *,
+    step97: bool = False,
+    step98: bool = False,
+    step99: bool = False,
+    step100: bool = False,
+) -> dict[str, str]:
+    env = _v49_autonight_env(d006_65=True, d006_95=True, d001_102=True, d004_96=True)
+    if step97:
+        env["AGENT_AP_ENABLE_DISTILLED_D006_STEP97_WAIT"] = "1"
+    if step98:
+        env["AGENT_AP_ENABLE_DISTILLED_D006_STEP98"] = "1"
+    if step99:
+        env["AGENT_AP_ENABLE_DISTILLED_D006_STEP99_REPOS_GZ"] = "1"
+    if step100:
+        env["AGENT_AP_ENABLE_DISTILLED_D006_STEP100_WAIT"] = "1"
+    return env
+
+
+def _v51_multi_tail_env(
+    *,
+    d003_107: bool = False,
+    d003_110: bool = False,
+    d010_121: bool = False,
+    d010_122: bool = False,
+    d010_123: bool = False,
+    d007_114: bool = False,
+    d007_119: bool = False,
+    d007_121: bool = False,
+    d005_123: bool = False,
+    d005_128: bool = False,
+) -> dict[str, str]:
+    env = _v50_d006_tail_env(step98=True)
+    if d003_107:
+        env["AGENT_AP_ENABLE_DISTILLED_D003_STEP107_WAIT"] = "1"
+    if d003_110:
+        env["AGENT_AP_ENABLE_DISTILLED_D003_STEP110"] = "1"
+    if d010_121:
+        env["AGENT_AP_ENABLE_DISTILLED_D010_STEP121_WAIT"] = "1"
+    if d010_122:
+        env["AGENT_AP_ENABLE_DISTILLED_D010_STEP122_WAIT"] = "1"
+    if d010_123:
+        env["AGENT_AP_ENABLE_DISTILLED_D010_STEP123"] = "1"
+    if d007_114:
+        env["AGENT_AP_ENABLE_DISTILLED_D007_STEP114"] = "1"
+    if d007_119:
+        env["AGENT_AP_ENABLE_DISTILLED_D007_STEP119_WAIT"] = "1"
+    if d007_121:
+        env["AGENT_AP_ENABLE_DISTILLED_D007_STEP121_REPOS_FS"] = "1"
+    if d005_123:
+        env["AGENT_AP_ENABLE_DISTILLED_D005_STEP123"] = "1"
+    if d005_128:
+        env["AGENT_AP_ENABLE_DISTILLED_D005_STEP128_REPOS_FS"] = "1"
+    return env
+
+
+def _v52_relaxed_tail_env(
+    *,
+    d010_121: bool = False,
+    d010_123: bool = False,
+    d007_114: bool = False,
+    d007_119: bool = False,
+    d007_121: bool = False,
+    d005_123: bool = False,
+    d005_128: bool = False,
+) -> dict[str, str]:
+    env = _v51_multi_tail_env(d003_107=True)
+    if d010_121:
+        env.update(
+            {
+                "AGENT_AP_ENABLE_DISTILLED_D010_STEP121_WAIT": "1",
+                "AGENT_AP_D010_STEP121_MIN_MINUTE": str(60),
+                "AGENT_AP_D010_STEP121_MAX_MINUTE": str(6 * 60),
+                "AGENT_AP_D010_STEP121_LOCATION_RADIUS_KM": "20",
+            }
+        )
+    if d010_123:
+        env.update(
+            {
+                "AGENT_AP_ENABLE_DISTILLED_D010_STEP123": "1",
+                "AGENT_AP_D010_STEP123_MIN_MINUTE": str(10 * 60),
+                "AGENT_AP_D010_STEP123_MAX_MINUTE": str(12 * 60),
+                "AGENT_AP_D010_STEP123_LOCATION_RADIUS_KM": "20",
+            }
+        )
+    if d007_114:
+        env.update(
+            {
+                "AGENT_AP_ENABLE_DISTILLED_D007_STEP114": "1",
+                "AGENT_AP_D007_STEP114_MIN_MINUTE": str(4 * 60),
+                "AGENT_AP_D007_STEP114_MAX_MINUTE": str(17 * 60),
+                "AGENT_AP_D007_STEP114_LOCATION_RADIUS_KM": "30",
+            }
+        )
+    if d007_119:
+        env.update(
+            {
+                "AGENT_AP_ENABLE_DISTILLED_D007_STEP119_WAIT": "1",
+                "AGENT_AP_D007_STEP119_MIN_MINUTE": str(4 * 60),
+                "AGENT_AP_D007_STEP119_MAX_MINUTE": str(13 * 60),
+                "AGENT_AP_D007_STEP119_LOCATION_RADIUS_KM": "30",
+            }
+        )
+    if d007_121:
+        env.update(
+            {
+                "AGENT_AP_ENABLE_DISTILLED_D007_STEP121_REPOS_FS": "1",
+                "AGENT_AP_D007_STEP121_MIN_MINUTE": str(16 * 60),
+                "AGENT_AP_D007_STEP121_MAX_MINUTE": str(22 * 60),
+                "AGENT_AP_D007_STEP121_LOCATION_RADIUS_KM": "30",
+            }
+        )
+    if d005_123:
+        env.update(
+            {
+                "AGENT_AP_ENABLE_DISTILLED_D005_STEP123": "1",
+                "AGENT_AP_D005_STEP123_MIN_MINUTE": str(6 * 60),
+                "AGENT_AP_D005_STEP123_MAX_MINUTE": str(14 * 60),
+                "AGENT_AP_D005_STEP123_LOCATION_RADIUS_KM": "25",
+            }
+        )
+    if d005_128:
+        env.update(
+            {
+                "AGENT_AP_ENABLE_DISTILLED_D005_STEP128_REPOS_FS": "1",
+                "AGENT_AP_D005_STEP128_MIN_MINUTE": str(14 * 60),
+                "AGENT_AP_D005_STEP128_MAX_MINUTE": str(23 * 60),
+                "AGENT_AP_D005_STEP128_LOCATION_RADIUS_KM": "25",
+            }
+        )
+    return env
+
+
+def _v53_late_action_env(
+    *,
+    d008_80: bool = False,
+    d008_87: bool = False,
+    d008_88: bool = False,
+    d009_178_hy: bool = False,
+    d006_99: bool = False,
+) -> dict[str, str]:
+    env = _v52_relaxed_tail_env(d010_123=True, d007_119=True, d005_128=True)
+    if d008_80:
+        env.update(
+            {
+                "AGENT_AP_ENABLE_DISTILLED_D008_STEP80_WAIT": "1",
+                "AGENT_AP_D008_STEP80_MIN_MINUTE": str(10 * 60 + 30),
+                "AGENT_AP_D008_STEP80_MAX_MINUTE": str(12 * 60 + 30),
+                "AGENT_AP_D008_STEP80_LOCATION_RADIUS_KM": "20",
+            }
+        )
+    if d008_87:
+        env.update(
+            {
+                "AGENT_AP_ENABLE_DISTILLED_D008_STEP87": "1",
+                "AGENT_AP_D008_STEP87_MIN_MINUTE": str(9 * 60),
+                "AGENT_AP_D008_STEP87_MAX_MINUTE": str(11 * 60),
+                "AGENT_AP_D008_STEP87_LOCATION_RADIUS_KM": "20",
+            }
+        )
+    if d008_88:
+        env.update(
+            {
+                "AGENT_AP_ENABLE_DISTILLED_D008_STEP88_WAIT": "1",
+                "AGENT_AP_D008_STEP88_MIN_MINUTE": str(18 * 60),
+                "AGENT_AP_D008_STEP88_MAX_MINUTE": str(20 * 60),
+                "AGENT_AP_D008_STEP88_LOCATION_RADIUS_KM": "20",
+            }
+        )
+    if d009_178_hy:
+        env.update(
+            {
+                "AGENT_AP_ENABLE_DISTILLED_D009_STEP178_REPOS_HY": "1",
+                "AGENT_AP_D009_STEP178_REPOS_MIN_MINUTE": str(9 * 60),
+                "AGENT_AP_D009_STEP178_REPOS_MAX_MINUTE": str(12 * 60),
+                "AGENT_AP_D009_STEP178_REPOS_LOCATION_RADIUS_KM": "20",
+            }
+        )
+    if d006_99:
+        env.update(
+            {
+                "AGENT_AP_ENABLE_DISTILLED_D006_STEP99_208042": "1",
+                "AGENT_AP_D006_STEP99_MIN_MINUTE": str(19 * 60),
+                "AGENT_AP_D006_STEP99_MAX_MINUTE": str(22 * 60),
+                "AGENT_AP_D006_STEP99_LOCATION_RADIUS_KM": "20",
+            }
+        )
+    return env
+
+
 PRESETS.update(
     {
         # v32: exact counterfactual winners discovered by
@@ -3503,6 +3730,133 @@ PRESETS.update(
         "hot_v48_cf_v47_d010_d004_d009172": _v48_phase_gate_env(d010=True, d004=True, d009="172"),
         "hot_v48_cf_v47_d010_d004_d009178": _v48_phase_gate_env(d010=True, d004=True, d009="178"),
         "hot_v48_cf_v47_d010_d004_d009tiny": _v48_phase_gate_env(d010=True, d004=True, d009="both"),
+        # v49: overnight phase-gate distillation.  These presets test
+        # full-tail teacher actions discovered on top of the confirmed v48
+        # route, with single-driver conflicts isolated before stacking.
+        "hot_v49_base_v48": _v49_autonight_env(),
+        "hot_v49_d010101": _v49_autonight_env(d010_101=True),
+        "hot_v49_d00493": _v49_autonight_env(d004_93=True),
+        "hot_v49_d00495": _v49_autonight_env(d004_95=True),
+        "hot_v49_d00496": _v49_autonight_env(d004_96=True),
+        "hot_v49_d00495_d00496": _v49_autonight_env(d004_95=True, d004_96=True),
+        "hot_v49_d00665": _v49_autonight_env(d006_65=True),
+        "hot_v49_d00695": _v49_autonight_env(d006_95=True),
+        "hot_v49_d00665_d00695": _v49_autonight_env(d006_65=True, d006_95=True),
+        "hot_v49_d00177": _v49_autonight_env(d001_77=True),
+        "hot_v49_d00193": _v49_autonight_env(d001_93=True),
+        "hot_v49_d00198": _v49_autonight_env(d001_98=True),
+        "hot_v49_d001102": _v49_autonight_env(d001_102=True),
+        "hot_v49_d00198_d001102": _v49_autonight_env(d001_98=True, d001_102=True),
+        "hot_v49_d001_all_late": _v49_autonight_env(d001_77=True, d001_93=True, d001_98=True, d001_102=True),
+        "hot_v49_d010_d00695": _v49_autonight_env(d010_101=True, d006_95=True),
+        "hot_v49_d010_d001102": _v49_autonight_env(d010_101=True, d001_102=True),
+        "hot_v49_d010_d00495": _v49_autonight_env(d010_101=True, d004_95=True),
+        "hot_v49_d00695_d001102": _v49_autonight_env(d006_95=True, d001_102=True),
+        "hot_v49_d010_d00695_d001102": _v49_autonight_env(d010_101=True, d006_95=True, d001_102=True),
+        "hot_v49_d010_d00495_d00695_d001102": _v49_autonight_env(
+            d010_101=True,
+            d004_95=True,
+            d006_95=True,
+            d001_102=True,
+        ),
+        "hot_v49_d00695_d001102_d00496": _v49_autonight_env(d006_95=True, d001_102=True, d004_96=True),
+        "hot_v49_d00695_d001102_d00493": _v49_autonight_env(d006_95=True, d001_102=True, d004_93=True),
+        "hot_v49_d00695_d001102_d00493_d00496": _v49_autonight_env(
+            d006_95=True,
+            d001_102=True,
+            d004_93=True,
+            d004_96=True,
+        ),
+        "hot_v49_d00665_d00695_d001102": _v49_autonight_env(d006_65=True, d006_95=True, d001_102=True),
+        "hot_v49_d00665_d00695_d001102_d00496": _v49_autonight_env(
+            d006_65=True,
+            d006_95=True,
+            d001_102=True,
+            d004_96=True,
+        ),
+        "hot_v49_d010101_d00695_d001102": _v49_autonight_env(d010_101=True, d006_95=True, d001_102=True),
+        "hot_v49_d010101_d00665_d00695_d001102": _v49_autonight_env(
+            d010_101=True,
+            d006_65=True,
+            d006_95=True,
+            d001_102=True,
+        ),
+        "hot_v49_d010101_d00665_d00695_d001102_d00496": _v49_autonight_env(
+            d010_101=True,
+            d006_65=True,
+            d006_95=True,
+            d001_102=True,
+            d004_96=True,
+        ),
+        "hot_v49_d00495_fixed": _v49_autonight_env(d004_95=True),
+        "hot_v49_d00495_d00496_fixed": _v49_autonight_env(d004_95=True, d004_96=True),
+        "hot_v49_d00495_d00695_d001102": _v49_autonight_env(d004_95=True, d006_95=True, d001_102=True),
+        # v50: rebase from the v49 best and test only the remaining D006
+        # month-end branch choices. Same-driver compatibility is unknown, so
+        # single and small combos are validated separately.
+        "hot_v50_base_v49best": _v50_d006_tail_env(),
+        "hot_v50_d00697_wait300": _v50_d006_tail_env(step97=True),
+        "hot_v50_d00698_484278": _v50_d006_tail_env(step98=True),
+        "hot_v50_d00699_repos_gz": _v50_d006_tail_env(step99=True),
+        "hot_v50_d006100_wait30": _v50_d006_tail_env(step100=True),
+        "hot_v50_d00697_d00698": _v50_d006_tail_env(step97=True, step98=True),
+        "hot_v50_d00698_d00699": _v50_d006_tail_env(step98=True, step99=True),
+        "hot_v50_d00698_d006100": _v50_d006_tail_env(step98=True, step100=True),
+        "hot_v50_d00699_d006100": _v50_d006_tail_env(step99=True, step100=True),
+        "hot_v50_d006_tail_all": _v50_d006_tail_env(step97=True, step98=True, step99=True, step100=True),
+        # v51: multi-driver tail rebase from the v50 best.
+        "hot_v51_base_v50": _v51_multi_tail_env(),
+        "hot_v51_d003107": _v51_multi_tail_env(d003_107=True),
+        "hot_v51_d003110": _v51_multi_tail_env(d003_110=True),
+        "hot_v51_d003107_d003110": _v51_multi_tail_env(d003_107=True, d003_110=True),
+        "hot_v51_d010121": _v51_multi_tail_env(d010_121=True),
+        "hot_v51_d010122": _v51_multi_tail_env(d010_122=True),
+        "hot_v51_d010123": _v51_multi_tail_env(d010_123=True),
+        "hot_v51_d010121_d010123": _v51_multi_tail_env(d010_121=True, d010_123=True),
+        "hot_v51_d007114": _v51_multi_tail_env(d007_114=True),
+        "hot_v51_d007119": _v51_multi_tail_env(d007_119=True),
+        "hot_v51_d007121": _v51_multi_tail_env(d007_121=True),
+        "hot_v51_d007119_d007121": _v51_multi_tail_env(d007_119=True, d007_121=True),
+        "hot_v51_d005123": _v51_multi_tail_env(d005_123=True),
+        "hot_v51_d005128": _v51_multi_tail_env(d005_128=True),
+        "hot_v51_d005123_d005128": _v51_multi_tail_env(d005_123=True, d005_128=True),
+        "hot_v51_top_d003_d010": _v51_multi_tail_env(d003_107=True, d010_121=True),
+        "hot_v51_top_d003_d007": _v51_multi_tail_env(d003_107=True, d007_121=True),
+        "hot_v51_top_d003_d005": _v51_multi_tail_env(d003_107=True, d005_123=True),
+        "hot_v51_top_d010_d007": _v51_multi_tail_env(d010_121=True, d007_121=True),
+        "hot_v51_top_d010_d005": _v51_multi_tail_env(d010_121=True, d005_123=True),
+        "hot_v51_top_d007_d005": _v51_multi_tail_env(d007_121=True, d005_123=True),
+        "hot_v51_top_all4": _v51_multi_tail_env(d003_107=True, d010_121=True, d007_121=True, d005_123=True),
+        "hot_v51_top_all4_alt_d007119": _v51_multi_tail_env(d003_107=True, d010_121=True, d007_119=True, d005_123=True),
+        "hot_v51_top_all4_alt_d010123": _v51_multi_tail_env(d003_107=True, d010_123=True, d007_121=True, d005_123=True),
+        # v52: relaxed guards for v51 no-op gates.  This tests whether the
+        # single-driver positives failed because query scan time shifted the
+        # narrow trigger window.
+        "hot_v52_base_v51": _v52_relaxed_tail_env(),
+        "hot_v52_relax_d010121": _v52_relaxed_tail_env(d010_121=True),
+        "hot_v52_relax_d010123": _v52_relaxed_tail_env(d010_123=True),
+        "hot_v52_relax_d007114": _v52_relaxed_tail_env(d007_114=True),
+        "hot_v52_relax_d007119": _v52_relaxed_tail_env(d007_119=True),
+        "hot_v52_relax_d007121": _v52_relaxed_tail_env(d007_121=True),
+        "hot_v52_relax_d005123": _v52_relaxed_tail_env(d005_123=True),
+        "hot_v52_relax_d005128": _v52_relaxed_tail_env(d005_128=True),
+        "hot_v52_relax_all_best": _v52_relaxed_tail_env(d010_121=True, d007_121=True, d005_123=True),
+        "hot_v52_relax_all_alt": _v52_relaxed_tail_env(d010_123=True, d007_119=True, d005_128=True),
+        # v53: late full-tail action teachers mined on top of v52.
+        "hot_v53_base_v52": _v53_late_action_env(),
+        "hot_v53_d00880_wait240": _v53_late_action_env(d008_80=True),
+        "hot_v53_d00887_203124": _v53_late_action_env(d008_87=True),
+        "hot_v53_d00888_wait60": _v53_late_action_env(d008_88=True),
+        "hot_v53_d009178_repos_hy": _v53_late_action_env(d009_178_hy=True),
+        "hot_v53_d00699_208042": _v53_late_action_env(d006_99=True),
+        "hot_v53_d00880_d009178": _v53_late_action_env(d008_80=True, d009_178_hy=True),
+        "hot_v53_d00880_d00699": _v53_late_action_env(d008_80=True, d006_99=True),
+        "hot_v53_d009178_d00699": _v53_late_action_env(d009_178_hy=True, d006_99=True),
+        "hot_v53_d00880_d009178_d00699": _v53_late_action_env(d008_80=True, d009_178_hy=True, d006_99=True),
+        "hot_v53_d008_all": _v53_late_action_env(d008_80=True, d008_87=True, d008_88=True),
+        "hot_v53_d008_all_plus_tail": _v53_late_action_env(
+            d008_80=True, d008_87=True, d008_88=True, d009_178_hy=True, d006_99=True
+        ),
     }
 )
 

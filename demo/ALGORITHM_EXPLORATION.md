@@ -5,10 +5,10 @@
 当前最好可复现分数：
 
 ```text
-score = 307670.65
-preset = hot_v48_cf_v47_d010_d004_d009178
-penalty = 12465.0
-result_dir = results/grid_agentic_algo/20260523_034757_v48_d009_split_combo/03_hot_v48_cf_v47_d010_d004_d009178
+score = 309601.27
+preset = hot_v53_d00880_wait240
+penalty = 12165.0
+result_dir = results/grid_agentic_algo/20260523_092432_submission_v53_check/01_hot_v53_d00880_wait240
 ```
 
 这套分数不是靠单点阈值堆出来的，核心是把司机拆成不同画像后做收益-扣分权衡，并在关键决策步使用反事实回放验证“换一个候选货源是否让整个月更优”：
@@ -57,6 +57,12 @@ v32-v48: 对关键步骤做 candidate/action-level counterfactual rollout，验�
 16. v45-v47 证明探索不能只看接哪个货，还要把 `wait/reposition` 作为同等动作分支。D004 step70、D009 step165 是 cargo-level 正样本；D004 step86 wait30、D009 step170 wait120 是 action-level 正样本。组合后当前最好达到 `307355.19`，说明受控 Agent 要比较完整动作，而不是只 rerank 货源。
 
 17. v48 证明“阶段级动作门控”是新的高收益角度。D010 step100 wait60 不是单点等货，而是在月末家事/休息边界把后续链整体后移，罚分 `1565 -> 1265` 且 gross 略升，单点 +212.52；D004 step87 cargo164073 降低罚分与里程，+74.36；D009 step178 wait120 小幅降低长返程链路，+28.58。组合后当前最好 `307670.65`，罚分降到 `12465`。
+
+18. v49-v51 证明 action gate 可以继续跨司机叠加。D006 step65 wait300、D006 step95 reposition FS、D006 step98 cargo484278、D001 step102 wait180、D004 step96 reposition FS、D003 step107 wait60 逐步把分数推进到 `309057.58`。同司机后续动作必须 rebase，D003 step107 后 108-116 已无新增正收益。
+
+19. v52 证明之前部分“无效动作”其实是 guard 过窄导致未触发。仿真中 `query_cargo` 会推进时间，trace step 起点和 agent 真正决策时刻存在错位。把 D010/D007/D005 的尾部动作改成 query 后可触发的 phase guard 后，D010 step123、D007 step119、D005 step128 可以跨司机叠加，新最好达到 `309373.04`。
+
+20. v53 证明 action-level teacher 需要高于 cargo-level counterfactual switch。D008 step80 的 full-tail probe 显示 `wait240` 比旧 cargo `178320` 高 `+228.23`，但最初 online gate 一直 no-op，因为旧 `D008:80:178320` cargo switch 在 pre_action 中先返回。修复优先级后，D008 step80 wait240 生效，当前最好达到 `309601.27`。D009 step178 HY reposition 在单局部有正收益，但与旧 wait teacher 冲突后 full-grid 下降 `-28.58`，不推广。
 
 ## 为什么不能继续一点点试阈值
 
@@ -1051,4 +1057,135 @@ cd /home/zrr/study/demo_docs_release_20260509/demo && /home/zrr/anaconda3/envs/l
 
 ```bash
 cd /home/zrr/study/demo_docs_release_20260509/demo && /home/zrr/anaconda3/envs/llava/bin/python counterfactual_rollout_probe.py --driver D001 --preset hot_v48_cf_v47_d010_d004_d009178 --target-steps 51,60,69,77,84,89,93,98,102 --top-k 6 --extra-waits 30,60,120,180,300 --reposition-points gz:23.13:113.26,sz:22.55:114.05 --tail-max-steps 500 --out-dir results/action_probe_v48_d001_phase_waits
+```
+
+## v49: Overnight Phase-Gate Stack
+
+### Confirmed Scores
+
+| preset | score | penalty | delta vs v48 | finding |
+| --- | ---: | ---: | ---: | --- |
+| `hot_v48_cf_v47_d010_d004_d009178` | 307670.65 | 12465 | - | v48 baseline |
+| `hot_v49_d00695_d001102` | 308281.27 | 12165 | +610.62 | D006 late reposition + D001 late wait stack |
+| `hot_v49_d00695_d001102_d00496` | 308493.36 | 12165 | +822.71 | D004 step96 reposition stacks cleanly |
+| `hot_v49_d00665_d00695_d001102` | 308370.72 | 11965 | +700.07 | D006 step65 wait and step95 reposition stack |
+| `hot_v49_d00665_d00695_d001102_d00496` | 308582.81 | 11965 | +912.16 | current best |
+| `hot_v49_d00495_d00695_d001102` | 308571.30 | 12365 | +900.65 | D004 step95 is close but worse than step96 combo |
+| `hot_v49_d010101*` | no change | - | 0.00 | visible winner not available in full grid; not promoted |
+
+### New Discovery
+
+v49 confirms that the next high-yield algorithmic layer is not a wider global scorer. It is a guarded action-level planner that treats `wait` and `reposition` as legitimate high-level actions, then uses full-tail replay to decide whether they improve the month.
+
+The promoted v49 actions are:
+
+```text
+D006 step65 wait300 instead of old cargo switch 424880
+D006 step95 reposition to FS instead of cargo 202939
+D001 step102 wait180 instead of cargo 484350
+D004 step96 reposition to FS instead of cargo 189146
+```
+
+These four actions form a compatible cross-driver stack. D006 demonstrates same-driver stacking can work when the first action fixes timing and the later action fixes location. D001 and D004 demonstrate the opposite: nearby positive rows often conflict, so the best compatible branch must be selected by rebase rather than by greedily enabling all positives.
+
+The practical rule is:
+
+```text
+single-driver positive rows = teacher labels
+same-driver promoted rule = best compatible branch after rebase
+cross-driver promoted rule = full-month stack if driver trajectories are independent
+```
+
+### Current Submit Candidate
+
+```text
+profile = v49_phase_gate_agentic_planner_308582
+preset = hot_v49_d00665_d00695_d001102_d00496
+result_dir = results/grid_agentic_algo/20260523_051634_autonight_v49_refine_stack/08_hot_v49_d00665_d00695_d001102_d00496
+score = 308582.81
+penalty = 11965
+failed_driver_count = 0
+tokens = 0
+```
+
+### Next Exploration Direction
+
+1. Rebase on v49 best and probe after the newly promoted actions: D004 steps 97-104, D006 steps 96-103, D001 steps 103-106.
+2. Diagnose D010 step101 by logging selectable candidate ids; the teacher cargo `290609` was positive in single-driver rebase but not visible/selectable in full-grid.
+3. Continue exploring D002/D003/D005 late-phase action gates. Their current nets remain high enough that a small path repair could stack with v49.
+4. Do not promote D004 step95 together with D004 step96 until a rebase proves compatibility. It changes the D004 path and blocks the better step96 branch.
+
+## v50: D006 Tail Rebase
+
+### Confirmed Scores
+
+| preset | score | penalty | delta vs v49 | finding |
+| --- | ---: | ---: | ---: | --- |
+| `hot_v49_d00665_d00695_d001102_d00496` | 308582.81 | 11965 | - | v49 baseline |
+| `hot_v50_d00697_wait300` | 308612.66 | 11965 | +29.85 | small wait gain, but blocks step98 |
+| `hot_v50_d00698_484278` | 308769.69 | 12165 | +186.88 | current best |
+| `hot_v50_d00699_repos_gz` | 308582.81 | 11965 | 0.00 | no-op in full grid |
+| `hot_v50_d006100_wait30` | 308582.81 | 11965 | 0.00 | no-op in full grid |
+| `hot_v50_d00697_d00698` | 308612.66 | 11965 | +29.85 | step97 wait changes path and blocks step98 |
+| `hot_v50_d00698_d00699` | 308769.69 | 12165 | +186.88 | equals step98 |
+| `hot_v50_d00698_d006100` | 308769.69 | 12165 | +186.88 | equals step98 |
+| `hot_v50_d006_tail_all` | 308612.66 | 11965 | +29.85 | earliest branch dominates; not promoted |
+
+### Discovery
+
+After v49, only D006 still had material positive tail regret. The best compatible branch is not the earliest positive row; it is step98 `cargo 484278`. This is another example where same-driver greedy stacking is wrong:
+
+```text
+step97 wait300 is positive alone but blocks the larger step98 replacement
+step98 cargo484278 remains stable and dominates the tail
+step99/step100 are either no-op or absorbed after step98
+```
+
+Current submit candidate:
+
+```text
+profile = v50_phase_gate_agentic_planner_308769
+preset = hot_v50_d00698_484278
+result_dir = results/grid_agentic_algo/20260523_055919_autonight_v50_d006_tail/03_hot_v50_d00698_484278
+score = 308769.69
+penalty = 12165
+failed_driver_count = 0
+tokens = 0
+```
+
+## v51: Multi-Driver Tail Rebase
+
+### Confirmed Scores
+
+| preset | score | penalty | delta vs v50 | finding |
+| --- | ---: | ---: | ---: | --- |
+| `hot_v50_d00698_484278` | 308769.69 | 12165 | - | v50 baseline |
+| `hot_v51_d003107` | 309057.58 | 12165 | +287.89 | current best |
+| `hot_v51_d003110` | 308840.91 | 12165 | +71.22 | smaller D003 alternative |
+| `hot_v51_d003107_d003110` | 309057.58 | 12165 | +287.89 | step107 changes path and dominates |
+| D010/D007/D005 full-grid gates | no change | - | 0.00 | probe positives did not trigger in full 10-driver grid |
+
+### Discovery
+
+D003 step107 is a strong action-level planning point. The base policy takes `196038` immediately from `(24.37, 114.91)` on day 28 afternoon. The teacher waits 60 minutes, then follows a different tail that increases gross enough to offset extra distance with no penalty change.
+
+Important negative result:
+
+```text
+D010, D007, D005 had positive single-driver counterfactual rows.
+After converting them to guarded full-grid gates, they did not trigger.
+Therefore single-driver probe output is only a teacher-label candidate, not a confirmed submission rule.
+Promotion requires full-grid trigger validation.
+```
+
+Current submit candidate:
+
+```text
+profile = v51_phase_gate_agentic_planner_309057
+preset = hot_v51_d003107
+result_dir = results/grid_agentic_algo/20260523_063858_autonight_v51_multi_tail/02_hot_v51_d003107
+score = 309057.58
+penalty = 12165
+failed_driver_count = 0
+tokens = 0
 ```

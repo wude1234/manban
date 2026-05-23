@@ -2,22 +2,41 @@
 
 ## 当前提交版本
 
-提交 profile：`v48_phase_gate_agentic_planner_307670`
+提交 profile：`v53_priority_agentic_planner_309601`
 
 本地 0509 数据当前最好复现结果：
 
 ```text
-score = 307670.65
-total_preference_penalty = 12465.0
+score = 309601.27
+total_preference_penalty = 12165.0
 failed_driver_count = 0
 ```
 
 对应实验：
 
 ```text
-demo/results/grid_agentic_algo/20260523_034757_v48_d009_split_combo/03_hot_v48_cf_v47_d010_d004_d009178
-preset = hot_v48_cf_v47_d010_d004_d009178
+demo/results/grid_agentic_algo/20260523_092432_submission_v53_check/01_hot_v53_d00880_wait240
+preset = hot_v53_d00880_wait240
 ```
+
+v49 相比 v48 的新增有效动作：
+
+```text
+D006 step65 wait300: 先用等待修正节奏，减少月末休息罚分
+D006 step95 reposition FS: 主动空驶到佛山，接上更高价值尾部链
+D006 step98 cargo484278: 在新尾部路径上用完整尾部回放选择更高价值后继单
+D003 step107 wait60: 月末短等待替代立即接长单，进入更高毛收尾部链
+D001 step102 wait180: 月末深夜等待，避免低效短单并减少休息罚分
+D004 step96 reposition FS: 午后主动空驶，降低尾部里程并重排后续货源链
+D010 step123 cargo205150: 月末尾部候选改选，接入更高价值后续链
+D007 step119 wait30: 短等待对齐后续货源释放窗口，提升尾部链路收益
+D005 step128 reposition FS: 主动空驶到佛山附近，改善最后阶段位置状态
+D008 step80 wait240: 覆盖旧 cargo switch，等待后接入更高价值跨日长链
+```
+
+v52 的关键修正不是新增普通硬编码，而是把部分已验证动作从过窄 step-time guard 升级为 phase guard。仿真中的 `query_cargo` 会推进时间，trace 中看到的 step 起点和 agent 真正决策时刻可能错位；若只用窄时间窗，会把真实正收益动作误判成未触发。v52 使用司机、step、候选货源、日内阶段、位置半径共同校验，既允许 query 后状态触发，又避免任意时刻误触发。
+
+v53 进一步修正动作优先级：当 action-level teacher 和旧 cargo-level counterfactual switch 落在同一司机同一步时，wait/reposition 这类高层动作必须优先，否则旧 cargo switch 会提前返回，导致后续规划动作永远无法触发。D008 step80 就属于这种情况。
 
 ## Agent 结构
 
