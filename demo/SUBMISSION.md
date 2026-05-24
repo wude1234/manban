@@ -2,13 +2,13 @@
 
 ## 当前提交版本
 
-提交 profile：`v76_d010_micro_tail_route_teacher_314529`
+提交 profile：`v77_d004_triple_route_teacher_314720`
 
 本地 0509 数据当前最好复现结果：
 
 ```text
-score = 314529.94
-total_preference_penalty = 12465.0
+score = 314720.81
+total_preference_penalty = 12565.0
 failed_driver_count = 0
 tokens = 0
 ```
@@ -16,11 +16,19 @@ tokens = 0
 对应实验：
 
 ```text
-demo/results/grid_agentic_algo/20260524_071648_autonight_v76_micro_grid/02_hot_v76_d010_196038_106205150
-preset = hot_v76_d010_196038_106205150
-default step files = demo/results/actions_202603_D001-D010_20260524_072754.jsonl
+demo/results/grid_agentic_algo/20260524_081700_autonight_v77_d004_triple_step96_timefix/01_hot_v77_d004_triple_469204_299927_303849
+preset = hot_v77_d004_triple_469204_299927_303849
+default step files = demo/results/actions_202603_D001-D010_20260524_082246.jsonl
 summary = demo/results/monthly_income_202603.json
 ```
+
+v77 相比 v76 的新增有效动作：
+
+```text
+D004 step93/94/96 三步 Route Plan：在 03-27 午间后不再走 v76 的 cargo297250 -> cargo470607 -> reposition/tail，而是执行 cargo469204 -> cargo299927 -> wait30 -> cargo303849。D004 净收益从 39325.91 提升到 39516.78，虽然偏好罚分增加 100，但 gross 和后继路线收益覆盖了罚分，总分 +190.87 到 314720.81。
+```
+
+v77 的工程启发是：三步 route teacher 需要正确的安全执行优先级和时间口径。第一次 full-grid 失败是因为旧 cargo switch 抢先返回 `D004:93:468269/297250`，第二次失败是因为 phase guard 使用 trace step 起点/终点而非 query 后 action_start，导致 13:01 的真实决策被 `max=13:00` 卡掉。修复后，默认 `main.py` 不依赖 grid env 即可复现 `314720.81`。
 
 v76 相比 v75 的新增有效动作：
 

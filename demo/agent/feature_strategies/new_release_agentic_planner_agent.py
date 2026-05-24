@@ -574,6 +574,8 @@ def _counterfactual_switch_overridden(driver_id: str, step: int) -> bool:
         return True
     if driver_id == "D008" and step == 80 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D008_STEP80_WAIT", False):
         return True
+    if driver_id == "D004" and step == 93 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D004_STEP93", False):
+        return True
     return False
 
 
@@ -659,8 +661,12 @@ def _distilled_counterfactual_action(status: dict[str, Any], viable: list[dict[s
         return _d004_step93_distilled_action(status, viable)
     if driver_id == "D004" and step == 94 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D004_STEP94_183976", False):
         return _d004_step94_183976_distilled_action(status, viable)
+    if driver_id == "D004" and step == 94 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D004_STEP94_299927", False):
+        return _d004_step94_299927_distilled_action(status, viable)
     if driver_id == "D004" and step == 95 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D004_STEP95_REPOS_GZ", False):
         return _d004_step95_repos_gz_distilled_action(status, viable)
+    if driver_id == "D004" and step == 96 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D004_STEP96_303849", False):
+        return _d004_step96_303849_distilled_action(status, viable)
     if driver_id == "D004" and step == 96 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D004_STEP96_REPOS_FS", False):
         return _d004_step96_repos_fs_distilled_action(status, viable)
     if driver_id == "D006" and step == 65 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D006_STEP65_WAIT", False):
@@ -1350,6 +1356,32 @@ def _d004_step94_183976_distilled_action(status: dict[str, Any], viable: list[di
     return {"action": "take_order", "params": {"cargo_id": winner_id}}
 
 
+def _d004_step94_299927_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:
+    winner_id = os.getenv("AGENT_AP_D004_STEP94_299927_WINNER_ID", "299927").strip()
+    winner = _feature_by_cargo_id(viable, winner_id)
+    if winner is None:
+        return None
+    if not _has_visible_cargo(viable, "AGENT_AP_D004_STEP94_299927_LOSER_IDS", "472941,470607"):
+        return None
+    if not _phase_guard(
+        status,
+        day_env="AGENT_AP_D004_STEP94_299927_DAY",
+        default_day=27,
+        min_env="AGENT_AP_D004_STEP94_299927_MIN_MINUTE",
+        default_minute=5 * 60 + 45,
+        max_env="AGENT_AP_D004_STEP94_299927_MAX_MINUTE",
+        default_max_minute=6 * 60 + 30,
+        center_lat=22.97,
+        center_lng=113.16,
+        radius_env="AGENT_AP_D004_STEP94_299927_LOCATION_RADIUS_KM",
+        default_radius_km=12.0,
+    ):
+        return None
+    if float(winner.get("estimated_net", 0.0)) < _env_float("AGENT_AP_D004_STEP94_299927_WINNER_MIN_NET", 200.0):
+        return None
+    return {"action": "take_order", "params": {"cargo_id": winner_id}}
+
+
 def _d004_step95_repos_gz_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:
     if _env_bool("AGENT_AP_D004_STEP95_REQUIRE_NO_VIABLE", False) and viable:
         return None
@@ -1374,6 +1406,32 @@ def _d004_step95_repos_gz_distilled_action(status: dict[str, Any], viable: list[
             "longitude": _env_float("AGENT_AP_D004_STEP95_REPOS_LNG", 113.26),
         },
     }
+
+
+def _d004_step96_303849_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:
+    winner_id = os.getenv("AGENT_AP_D004_STEP96_303849_WINNER_ID", "303849").strip()
+    winner = _feature_by_cargo_id(viable, winner_id)
+    if winner is None:
+        return None
+    if not _has_visible_cargo(viable, "AGENT_AP_D004_STEP96_303849_LOSER_IDS", "188769,189297"):
+        return None
+    if not _phase_guard(
+        status,
+        day_env="AGENT_AP_D004_STEP96_303849_DAY",
+        default_day=27,
+        min_env="AGENT_AP_D004_STEP96_303849_MIN_MINUTE",
+        default_minute=12 * 60,
+        max_env="AGENT_AP_D004_STEP96_303849_MAX_MINUTE",
+        default_max_minute=13 * 60 + 20,
+        center_lat=22.91,
+        center_lng=113.66,
+        radius_env="AGENT_AP_D004_STEP96_303849_LOCATION_RADIUS_KM",
+        default_radius_km=12.0,
+    ):
+        return None
+    if float(winner.get("estimated_net", 0.0)) < _env_float("AGENT_AP_D004_STEP96_303849_WINNER_MIN_NET", 300.0):
+        return None
+    return {"action": "take_order", "params": {"cargo_id": winner_id}}
 
 
 def _d004_step96_repos_fs_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:

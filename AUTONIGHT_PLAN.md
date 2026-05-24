@@ -14,13 +14,13 @@
 ## Current Best
 
 ```text
-version = v76 validated submission default candidate
-preset = hot_v76_d010_196038_106205150
-score = 314529.94
-penalty = 12465
-run_dir = demo/results/grid_agentic_algo/20260524_071648_autonight_v76_micro_grid/02_hot_v76_d010_196038_106205150
-default_run = demo/results/actions_202603_D001-D010_20260524_072754.jsonl + demo/results/monthly_income_202603.json
-last_commit = pending v76 commit
+version = v77 validated submission default candidate
+preset = hot_v77_d004_triple_469204_299927_303849
+score = 314720.81
+penalty = 12565
+run_dir = demo/results/grid_agentic_algo/20260524_081700_autonight_v77_d004_triple_step96_timefix/01_hot_v77_d004_triple_469204_299927_303849
+default_run = demo/results/actions_202603_D001-D010_20260524_082246.jsonl + demo/results/monthly_income_202603.json
+last_commit = pending v77 commit
 ```
 
 核心发现：
@@ -45,6 +45,23 @@ v73 main.py default path has been validated: D010 step2 takes cargo21, D010 step
 v74 shows D010 step82 active reposition DG is the next high-value route repair: it lowers D010 rest penalty by 600 while preserving/rebuilding the monthly cargo chain
 v75 shows D010 step103 cargo200361 is a clean month-end destination-value repair: penalty unchanged, but the unload region supports cargo203410 -> cargo490251 instead of the weaker 116.56 tail
 v76 shows same-driver positive teachers must stay mutable: after adding a step106 teacher, the older D010 step103=196038 branch beats the v75 200361 branch by 17.26
+v77 shows exact three-step rebase can still break the plateau: D004 step93/94/96 must be planned as a linked route teacher, and phase guards must use query-after action_start time rather than trace step start/end time
+```
+
+### v77 result
+
+```text
+grid = results/grid_agentic_algo/20260524_081700_autonight_v77_d004_triple_step96_timefix
+best = hot_v77_d004_triple_469204_299927_303849
+score = 314720.81
+penalty = 12565
+promoted =
+  v76 full stack
+  D004 step93 cargo469204
+  D004 step94 cargo299927
+  D004 step96 cargo303849
+finding = v77 is a true three-step Route Plan teacher. The first two attempts failed because an old cargo switch overrode the route teacher and because phase guards were written against trace time instead of query-after decision time. After fixing both, D004 follows cargo469204 -> cargo299927 -> wait30 -> cargo303849, raises D004 net from 39325.91 to 39516.78, and lifts total score by +190.87 despite +100 extra D004 preference penalty.
+default_validation = results/actions_202603_D*_20260524_082246.jsonl, score 314720.81, penalty 12565, failed_driver_count 0
 ```
 
 ### v76 result

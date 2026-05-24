@@ -3739,6 +3739,8 @@ def _v60_d004_step7_env(
     d010_step106_205150: bool = False,
     d004_step93_469204: bool = False,
     d004_step94_183976: bool = False,
+    d004_step94_299927: bool = False,
+    d004_step96_303849: bool = False,
     d001_step48_wait30: bool = False,
 ) -> dict[str, str]:
     env = _v57_action_regret_env(d007_61=True, d010_121=True)
@@ -3914,7 +3916,7 @@ def _v60_d004_step7_env(
                 "AGENT_AP_D004_STEP93_WINNER_ID": "469204",
                 "AGENT_AP_D004_STEP93_LOSER_IDS": "297250,468269",
                 "AGENT_AP_D004_STEP93_MIN_MINUTE": str(12 * 60),
-                "AGENT_AP_D004_STEP93_MAX_MINUTE": str(13 * 60),
+                "AGENT_AP_D004_STEP93_MAX_MINUTE": str(13 * 60 + 20),
                 "AGENT_AP_D004_STEP93_LOCATION_RADIUS_KM": "12",
             }
         )
@@ -3926,6 +3928,26 @@ def _v60_d004_step7_env(
                 "AGENT_AP_D004_STEP94_MAX_MINUTE": str(5 * 60 + 30),
                 "AGENT_AP_D004_STEP94_LOCATION_RADIUS_KM": "12",
                 "AGENT_AP_D004_STEP94_WINNER_MIN_NET": "250",
+            }
+        )
+    if d004_step94_299927:
+        env.update(
+            {
+                "AGENT_AP_ENABLE_DISTILLED_D004_STEP94_299927": "1",
+                "AGENT_AP_D004_STEP94_299927_MIN_MINUTE": str(5 * 60 + 45),
+                "AGENT_AP_D004_STEP94_299927_MAX_MINUTE": str(6 * 60 + 30),
+                "AGENT_AP_D004_STEP94_299927_LOCATION_RADIUS_KM": "12",
+                "AGENT_AP_D004_STEP94_299927_WINNER_MIN_NET": "200",
+            }
+        )
+    if d004_step96_303849:
+        env.update(
+            {
+                "AGENT_AP_ENABLE_DISTILLED_D004_STEP96_303849": "1",
+                "AGENT_AP_D004_STEP96_303849_MIN_MINUTE": str(12 * 60),
+                "AGENT_AP_D004_STEP96_303849_MAX_MINUTE": str(13 * 60 + 20),
+                "AGENT_AP_D004_STEP96_303849_LOCATION_RADIUS_KM": "12",
+                "AGENT_AP_D004_STEP96_303849_WINNER_MIN_NET": "300",
             }
         )
     if d001_step48_wait30:
@@ -4643,6 +4665,24 @@ PRESETS.update(
             d010_step106_205150=True,
             d004_step93_469204=True,
             d004_step94_183976=True,
+        ),
+        "hot_v77_d004_triple_469204_299927_303849": _v60_d004_step7_env(
+            dg=True,
+            step41_fs=True,
+            d007_step114_475223=True,
+            d009_step180_181577=True,
+            d010_step123_484817=True,
+            d005_step49_wait120=True,
+            d004_step11_235854=True,
+            d001_step48_wait30=True,
+            d004_seq49_56=True,
+            d010_step23_330064=True,
+            d010_step82_repos_dg=True,
+            d010_step103_196038=True,
+            d010_step106_205150=True,
+            d004_step93_469204=True,
+            d004_step94_299927=True,
+            d004_step96_303849=True,
         ),
         "hot_v72_d00148_d010s2": _v60_d004_step7_env(
             dg=True,

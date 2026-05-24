@@ -5,10 +5,10 @@
 当前最好可复现分数：
 
 ```text
-score = 314529.94
-preset = hot_v76_d010_196038_106205150
-penalty = 12465.0
-result_dir = results/grid_agentic_algo/20260524_071648_autonight_v76_micro_grid/02_hot_v76_d010_196038_106205150
+score = 314720.81
+preset = hot_v77_d004_triple_469204_299927_303849
+penalty = 12565.0
+result_dir = results/grid_agentic_algo/20260524_081700_autonight_v77_d004_triple_step96_timefix/01_hot_v77_d004_triple_469204_299927_303849
 ```
 
 这套分数不是靠单点阈值堆出来的，核心是把司机拆成不同画像后做收益-扣分权衡，并在关键决策步使用反事实回放验证“换一个候选货源是否让整个月更优”：
@@ -81,6 +81,10 @@ v32-v57: 对关键步骤做 candidate/action-level counterfactual rollout，验�
 28. v74-v75 证明 D010 月末仍是高价值的 Route Plan 搜索区。v74 的 step82 主动空驶到 DG 通过路线重排把 D010 休息罚分降低 `600`，总分到 `314347.46`。v75 在 v74 rebased tail 上继续做二步序列回放，发现 step103 改接 `cargo200361` 比原 `cargo196038` 更好：总罚分不变，但卸货位置从粤东侧 `(23.49,116.56)` 改回珠三角侧 `(22.90,113.76)`，后续能接 `203410 -> 490251`，总分到 `314512.68`。这说明“区域强弱”不是核心判断，核心是当前动作把司机送入哪条可执行后继链。
 
 29. v76 证明同司机 teacher 必须可撤销、可重组。继续在 v75 尾链上做二步 sequence replay 后，`cargo196038 -> wait180 -> cargo484175 -> cargo205150` 反而比 v75 的 `cargo200361 -> wait180 -> cargo203410 -> cargo490251` 高 `+17.26`，总分到 `314529.94`，罚分不变。D004 的 step93/94 局部微正没有通过 full-grid 验证，说明小正样本尤其要防止 harness/路径冲突。
+
+30. v77 证明三步 exact rebase 仍能突破 v76 平台。新增 `triple_counterfactual_probe.py` 后，先修复了一个重要 harness bug：probe 在 `_decide()` 之后才记录 step_start，而 `_decide()` 已经消耗 query scan 时间，导致 action trace 被 `calc_monthly_income` 判“时间推进不一致”并归零。修复后，D008/D010 三步窗口均保持 rule 最优，但 D004 step93/94/96 找到 `cargo469204 -> cargo299927 -> cargo303849`，D004 单司机 `+190.87`。
+
+31. v77 的 full-grid 过程说明 Agent 安全执行层不只是合法性校验，还要管理规则优先级和时间口径。第一次蒸馏失败是旧 cargo-level switch 抢在 route-level teacher 前返回，第二次失败是 phase guard 写成 trace 时间，真实 query 后 action_start 比窗口晚 1 分钟。修复后，D004 路径变为 `469204 -> 299927 -> wait30 -> 303849`，总分达到 `314720.81`。这验证了官方分享里的 Route Plan 比单单排序更重要，也说明 Memory 应该记录可重估的多步状态模式，而不是僵硬预录轨迹。
 
 28. v62/v63 证明 v61 后单步 regret mining 已经饱和。对 D001/D002/D004/D005/D006/D007/D008/D009 共 75 个关键 step 做 take/wait/reposition full-tail 单步替换，没有正收益动作。结论是：高空驶、高等待、高罚分只是探测信号，不是策略规则；下一步必须做序列级 rebase 或状态价值学习。
 
