@@ -14,13 +14,13 @@
 ## Current Best
 
 ```text
-version = v77 validated submission default candidate
-preset = hot_v77_d004_triple_469204_299927_303849
-score = 314720.81
+version = v84 validated submission default candidate
+preset = hot_v84_v77_d009_step110_398828
+score = 314846.83
 penalty = 12565
-run_dir = demo/results/grid_agentic_algo/20260524_081700_autonight_v77_d004_triple_step96_timefix/01_hot_v77_d004_triple_469204_299927_303849
-default_run = demo/results/actions_202603_D001-D010_20260524_082246.jsonl + demo/results/monthly_income_202603.json
-last_commit = pending v77 commit
+run_dir = demo/results/grid_agentic_algo/20260524_110711_autonight_v84_d009_step110_grid/01_hot_v84_v77_d009_step110_398828
+default_run = demo/results/actions_202603_D001-D010_20260524_111537.jsonl + demo/results/monthly_income_202603.json
+last_commit = pending v84 commit
 ```
 
 核心发现：
@@ -46,6 +46,41 @@ v74 shows D010 step82 active reposition DG is the next high-value route repair: 
 v75 shows D010 step103 cargo200361 is a clean month-end destination-value repair: penalty unchanged, but the unload region supports cargo203410 -> cargo490251 instead of the weaker 116.56 tail
 v76 shows same-driver positive teachers must stay mutable: after adding a step106 teacher, the older D010 step103=196038 branch beats the v75 200361 branch by 17.26
 v77 shows exact three-step rebase can still break the plateau: D004 step93/94/96 must be planned as a linked route teacher, and phase guards must use query-after action_start time rather than trace step start/end time
+v78/v79 show the v77 route is locally stable across D001/D003/D005/D006/D007/D009: one-step top-k/value/wait/reposition probes and two-step route rebases found no positive exact-tail candidates. The next search must change the candidate space itself, not just rearrange existing top-k actions.
+v80/v81 show D004 step58 has a near miss cargo93738 that saves 200 penalty and 129km but loses too much gross; two-step rebase cannot rescue it.
+v82 shows global layered/unit/latent/state-value scoring is not automatically useful: safe gates are no-op, while broad latent market bonuses break route chains. State value must be evidence-gated by exact-tail teacher labels.
+v83 shows D006 rest repair and D003 deadhead repair are not profitable; their remaining penalties are often rationally paid because gross-chain opportunity dominates saved preference/distance cost.
+v84 finds the first new exact-tail positive after the v77 plateau: D009 step110 cargo398828 improves D009 by +126.02 with unchanged 900 penalty. The pattern is route-plan value around home-return cost, not a generic hard-home rule.
+```
+
+### v84 result
+
+```text
+grid = results/grid_agentic_algo/20260524_110711_autonight_v84_d009_step110_grid
+best = hot_v84_v77_d009_step110_398828
+score = 314846.83
+penalty = 12565
+promoted =
+  v77 full stack
+  D009 step110 cargo398828 over cargo97891
+finding = D009 home-boundary probing was mostly negative, but step110 is a clean route-plan teacher. It keeps the same 900 home penalty, raises gross, reduces the next home-return distance, and lifts D009 net from 19725.44 to 19851.46. The online gate requires winner/loser visibility plus a tight 03-16 midday phase/location guard.
+default_validation = results/actions_202603_D*_20260524_111537.jsonl, score 314846.83, penalty 12565, failed_driver_count 0
+```
+
+### v80-v83 negative result
+
+```text
+v80_v81 =
+  D004 step58 cargo93738 is the closest near miss: -7.32 score, -200 penalty, -129km distance, -401 gross.
+  D004 step58/59/65 two-step rebases still keep rule optimal.
+v82 =
+  hot_v82_v77_unit_d004_d008 and several state/unit gates tie v77 but add no score.
+  layered_light, latent_market, and broad state-value variants regress sharply.
+  conclusion: future-value features are useful for candidate generation and teacher distillation, not as broad online bonuses.
+v83 =
+  D006 rest windows all negative; forced rest can save 200-400 penalty but destroys larger cargo-chain value.
+  D003 low-deadhead/value alternatives all negative or equal; deadhead cap makes distance repair less valuable than gross chain.
+  D009 home-boundary search finds one positive cargo teacher at step110 and many negative wait/reposition hard-home variants.
 ```
 
 ### v77 result
@@ -62,6 +97,35 @@ promoted =
   D004 step96 cargo303849
 finding = v77 is a true three-step Route Plan teacher. The first two attempts failed because an old cargo switch overrode the route teacher and because phase guards were written against trace time instead of query-after decision time. After fixing both, D004 follows cargo469204 -> cargo299927 -> wait30 -> cargo303849, raises D004 net from 39325.91 to 39516.78, and lifts total score by +190.87 despite +100 extra D004 preference penalty.
 default_validation = results/actions_202603_D*_20260524_082246.jsonl, score 314720.81, penalty 12565, failed_driver_count 0
+```
+
+### v78/v79 saturation result
+
+```text
+v78_one_step_summary = demo/results/autonight_v78_one_step_summary.md
+covered =
+  D001 steps 81/87/88/92/95/99/103
+  D002 steps 13/23/64/68/77/83
+  D003 steps 57/72/87/99/100/111
+  D005 steps 92/107/117/120/122/126/127
+  D006 steps 17/18/23/78/79/82/86/89
+  D007 steps 50/60/61/90/98/114/124
+  D009 steps 153/164/169/177/184/186/189/196/200
+finding = no positive one-step candidates. Rule actions are exact-tail optimal among top-k cargo, value cargo, waits, and configured reposition points at these states.
+
+v79_sequence_dirs =
+  demo/results/autonight_v79_D001_v77_sequence
+  demo/results/autonight_v79_D003_v77_sequence
+  demo/results/autonight_v79_D005_v77_sequence
+  demo/results/autonight_v79_D006_v77_sequence
+  demo/results/autonight_v79_D007_v77_sequence
+  demo/results/autonight_v79_D009_v77_sequence
+finding = no positive two-step route rebase. D009 has many equivalent wait variants but no score lift; D001/D003/D005/D006/D007 mostly choose the original rule branch. This suggests the current scorer already captures local NPH/time/penalty tradeoffs on the visible candidate subset.
+next_search = widen candidate space and state-value estimators:
+  1. deeper value-k and larger score-drop windows for D004/D008/D010 high-value tail states
+  2. alternative reposition points learned from actual unload clusters instead of only hand-written city hubs
+  3. broad candidate probes at near-miss states where delta is small (-30 to -100), because these are most likely to flip with a third action or different destination-value feature
+  4. mine low-ranked cargo from diagnostics, not just top-k/value-k, to test whether scorer misses destination-opportunity actions
 ```
 
 ### v76 result

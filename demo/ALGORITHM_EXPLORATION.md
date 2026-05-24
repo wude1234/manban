@@ -5,10 +5,10 @@
 当前最好可复现分数：
 
 ```text
-score = 314720.81
-preset = hot_v77_d004_triple_469204_299927_303849
+score = 314846.83
+preset = hot_v84_v77_d009_step110_398828
 penalty = 12565.0
-result_dir = results/grid_agentic_algo/20260524_081700_autonight_v77_d004_triple_step96_timefix/01_hot_v77_d004_triple_469204_299927_303849
+result_dir = results/grid_agentic_algo/20260524_110711_autonight_v84_d009_step110_grid/01_hot_v84_v77_d009_step110_398828
 ```
 
 这套分数不是靠单点阈值堆出来的，核心是把司机拆成不同画像后做收益-扣分权衡，并在关键决策步使用反事实回放验证“换一个候选货源是否让整个月更优”：
@@ -85,6 +85,10 @@ v32-v57: 对关键步骤做 candidate/action-level counterfactual rollout，验�
 30. v77 证明三步 exact rebase 仍能突破 v76 平台。新增 `triple_counterfactual_probe.py` 后，先修复了一个重要 harness bug：probe 在 `_decide()` 之后才记录 step_start，而 `_decide()` 已经消耗 query scan 时间，导致 action trace 被 `calc_monthly_income` 判“时间推进不一致”并归零。修复后，D008/D010 三步窗口均保持 rule 最优，但 D004 step93/94/96 找到 `cargo469204 -> cargo299927 -> cargo303849`，D004 单司机 `+190.87`。
 
 31. v77 的 full-grid 过程说明 Agent 安全执行层不只是合法性校验，还要管理规则优先级和时间口径。第一次蒸馏失败是旧 cargo-level switch 抢在 route-level teacher 前返回，第二次失败是 phase guard 写成 trace 时间，真实 query 后 action_start 比窗口晚 1 分钟。修复后，D004 路径变为 `469204 -> 299927 -> wait30 -> 303849`，总分达到 `314720.81`。这验证了官方分享里的 Route Plan 比单单排序更重要，也说明 Memory 应该记录可重估的多步状态模式，而不是僵硬预录轨迹。
+
+32. v80-v83 证明“未来价值”不能粗暴做全局加分。D004 step58 的 `cargo93738` 能少 200 罚分、少 129km，但 gross 损失更大，二步 rebase 后仍低 `7.32`；D006 强行补休、D003 降 deadhead、D009 提前回家/等待大多为负。v82 的 layered/latent market scorer 也显著退化，说明区域强弱、单位时间、偏好风险只能作为候选生成和 near-tie 解释，最终必须靠 exact-tail teacher 验证。
+
+33. v84 从 v83 的 D009 home-boundary probe 中挖出新的正样本：step110 从 `cargo97891` 改接 `cargo398828`。该动作不降低 900 回家罚分，但 gross 更高、后续返家空驶更短，D009 净收益 `19725.44 -> 19851.46`，完整月总分到 `314846.83`。启发是：偏好相关司机并不是简单硬回家，而是要比较“当前单收益 + 完单后回家成本 + 后继链”。实现上要求 winner/loser 同时可见、时间位置匹配，保持受控 Agent teacher。
 
 28. v62/v63 证明 v61 后单步 regret mining 已经饱和。对 D001/D002/D004/D005/D006/D007/D008/D009 共 75 个关键 step 做 take/wait/reposition full-tail 单步替换，没有正收益动作。结论是：高空驶、高等待、高罚分只是探测信号，不是策略规则；下一步必须做序列级 rebase 或状态价值学习。
 

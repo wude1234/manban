@@ -2,12 +2,12 @@
 
 ## 当前提交版本
 
-提交 profile：`v77_d004_triple_route_teacher_314720`
+提交 profile：`v84_d009_step110_route_teacher_314846`
 
 本地 0509 数据当前最好复现结果：
 
 ```text
-score = 314720.81
+score = 314846.83
 total_preference_penalty = 12565.0
 failed_driver_count = 0
 tokens = 0
@@ -16,11 +16,19 @@ tokens = 0
 对应实验：
 
 ```text
-demo/results/grid_agentic_algo/20260524_081700_autonight_v77_d004_triple_step96_timefix/01_hot_v77_d004_triple_469204_299927_303849
-preset = hot_v77_d004_triple_469204_299927_303849
-default step files = demo/results/actions_202603_D001-D010_20260524_082246.jsonl
+demo/results/grid_agentic_algo/20260524_110711_autonight_v84_d009_step110_grid/01_hot_v84_v77_d009_step110_398828
+preset = hot_v84_v77_d009_step110_398828
+default step files = demo/results/actions_202603_D001-D010_20260524_111537.jsonl
 summary = demo/results/monthly_income_202603.json
 ```
+
+v84 相比 v77 的新增有效动作：
+
+```text
+D009 step110 cargo398828: 在 03-16 12:27 后，原规则从 (23.02,113.55) 接 cargo97891 并卸到 (22.94,114.48)。v83 home-boundary exact-tail probe 发现 cargo398828 虽耗时略长，但 gross 更高、回家空驶更短，偏好罚分仍为 900，D009 净收益从 19725.44 提升到 19851.46，完整月总分 +126.02 到 314846.83。
+```
+
+这个动作被实现为受控 Agent teacher，而不是自由硬切：必须在 D009 第 110 步附近、3月16日中午、当前位置接近 `(23.02,113.55)`，并且候选集合同时出现 winner `398828` 和 loser `97891` 才触发。它体现的是“当前单 + 完成后位置 + 回家成本 + 后继链”的 route-plan 选择。
 
 v77 相比 v76 的新增有效动作：
 

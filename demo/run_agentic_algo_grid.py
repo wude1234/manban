@@ -3245,6 +3245,133 @@ def _v43_state_value_gate_env(
     return env
 
 
+def _v77_d004_triple_env() -> dict[str, str]:
+    return _v60_d004_step7_env(
+        dg=True,
+        step41_fs=True,
+        d007_step114_475223=True,
+        d009_step180_181577=True,
+        d010_step123_484817=True,
+        d005_step49_wait120=True,
+        d004_step11_235854=True,
+        d001_step48_wait30=True,
+        d004_seq49_56=True,
+        d010_step23_330064=True,
+        d010_step82_repos_dg=True,
+        d010_step103_196038=True,
+        d010_step106_205150=True,
+        d004_step93_469204=True,
+        d004_step94_299927=True,
+        d004_step96_303849=True,
+    )
+
+
+def _v84_d009_step110_env() -> dict[str, str]:
+    env = _v77_d004_triple_env()
+    env.update(
+        {
+            "AGENT_AP_ENABLE_DISTILLED_D009_STEP110": "1",
+            "AGENT_AP_D009_STEP110_WINNER_ID": "398828",
+            "AGENT_AP_D009_STEP110_LOSER_IDS": "97891",
+            "AGENT_AP_D009_STEP110_MIN_MINUTE": str(12 * 60),
+            "AGENT_AP_D009_STEP110_MAX_MINUTE": str(13 * 60),
+            "AGENT_AP_D009_STEP110_LOCATION_RADIUS_KM": "8",
+            "AGENT_AP_D009_STEP110_WINNER_MIN_NET": "300",
+        }
+    )
+    return env
+
+
+def _v82_v77_layered_env(
+    *,
+    route_weight: str = "0.010",
+    risk_weight: str = "0.020",
+    cap: str = "12",
+) -> dict[str, str]:
+    env = _v77_d004_triple_env()
+    env.update(
+        {
+            "AGENT_AP_ENABLE_LAYERED_AGENT_SCORER": "1",
+            "AGENT_AP_LAYER_ROUTE_WEIGHT": route_weight,
+            "AGENT_AP_LAYER_RISK_WEIGHT": risk_weight,
+            "AGENT_AP_LAYER_BONUS_CAP": cap,
+        }
+    )
+    return env
+
+
+def _v82_v77_unit_time_env(
+    *,
+    drivers: str,
+    weight: str = "0.006",
+    successor_weight: str = "0.16",
+    density_weight: str = "1.5",
+    cap: str = "10",
+) -> dict[str, str]:
+    env = _v77_d004_triple_env()
+    env.update(
+        {
+            "AGENT_AP_ENABLE_UNIT_TIME_SCORER": "1",
+            "AGENT_AP_UNIT_TIME_DRIVERS": drivers,
+            "AGENT_AP_UNIT_TIME_WEIGHT": weight,
+            "AGENT_AP_UNIT_TIME_SUCCESSOR_WEIGHT": successor_weight,
+            "AGENT_AP_UNIT_TIME_DENSITY_WEIGHT": density_weight,
+            "AGENT_AP_LAYER_BONUS_CAP": cap,
+        }
+    )
+    return env
+
+
+def _v82_v77_latent_market_env(
+    *,
+    drivers: str,
+    market_weight: str = "0.003",
+    isolation_weight: str = "0.003",
+    cap: str = "10",
+) -> dict[str, str]:
+    env = _v77_d004_triple_env()
+    env.update(
+        {
+            "AGENT_AP_ENABLE_LATENT_MARKET_SCORER": "1",
+            "AGENT_AP_LATENT_MARKET_DRIVERS": drivers,
+            "AGENT_AP_LATENT_MARKET_WEIGHT": market_weight,
+            "AGENT_AP_LATENT_ISOLATION_WEIGHT": isolation_weight,
+            "AGENT_AP_LAYER_BONUS_CAP": cap,
+        }
+    )
+    return env
+
+
+def _v82_v77_state_value_gate_env(
+    *,
+    drivers: str,
+    weight: str = "0.04",
+    max_gap: str = "0.5",
+    conflict_gap: str = "3.0",
+    visible_gap: str = "45",
+    state_gap: str = "24",
+    top_k: str = "6",
+    score_drop_cost: str = "0.20",
+    cap: str = "8",
+) -> dict[str, str]:
+    env = _v77_d004_triple_env()
+    env.update(
+        {
+            "AGENT_AP_ENABLE_STATE_VALUE_GATE": "1",
+            "AGENT_AP_STATE_VALUE_DRIVERS": drivers,
+            "AGENT_AP_STATE_VALUE_WEIGHT": weight,
+            "AGENT_AP_STATE_VALUE_MAX_GAP": max_gap,
+            "AGENT_AP_STATE_VALUE_CONFLICT_MAX_GAP": conflict_gap,
+            "AGENT_AP_STATE_VALUE_VISIBLE_GAP": visible_gap,
+            "AGENT_AP_STATE_VALUE_STATE_GAP": state_gap,
+            "AGENT_AP_STATE_VALUE_TOP_K": top_k,
+            "AGENT_AP_STATE_VALUE_SCORE_DROP_COST": score_drop_cost,
+            "AGENT_AP_STATE_VALUE_BONUS_CAP": cap,
+        }
+    )
+    return env
+
+
 def _v44_distilled_d008_step62_env(*, stack: str = "") -> dict[str, str]:
     if stack == "unit":
         env = _v41_unit_time_env(drivers="D008", weight="0.010", successor_weight="0.20", cap="16")
@@ -4666,23 +4793,57 @@ PRESETS.update(
             d004_step93_469204=True,
             d004_step94_183976=True,
         ),
-        "hot_v77_d004_triple_469204_299927_303849": _v60_d004_step7_env(
-            dg=True,
-            step41_fs=True,
-            d007_step114_475223=True,
-            d009_step180_181577=True,
-            d010_step123_484817=True,
-            d005_step49_wait120=True,
-            d004_step11_235854=True,
-            d001_step48_wait30=True,
-            d004_seq49_56=True,
-            d010_step23_330064=True,
-            d010_step82_repos_dg=True,
-            d010_step103_196038=True,
-            d010_step106_205150=True,
-            d004_step93_469204=True,
-            d004_step94_299927=True,
-            d004_step96_303849=True,
+        "hot_v77_d004_triple_469204_299927_303849": _v77_d004_triple_env(),
+        "hot_v84_v77_d009_step110_398828": _v84_d009_step110_env(),
+        # v82: re-test true agentic state-value modules on the v77 best route.
+        # These presets add no new fixed teacher labels; they only change the
+        # online scoring layer, so gains here are algorithmic rather than trace
+        # memorization.
+        "hot_v82_v77_layered_tiny": _v82_v77_layered_env(route_weight="0.006", risk_weight="0.014", cap="8"),
+        "hot_v82_v77_layered_light": _v82_v77_layered_env(route_weight="0.010", risk_weight="0.020", cap="12"),
+        "hot_v82_v77_unit_d004_d008": _v82_v77_unit_time_env(drivers="D004,D008", weight="0.006", successor_weight="0.16", cap="10"),
+        "hot_v82_v77_unit_core": _v82_v77_unit_time_env(
+            drivers="D003,D004,D005,D007,D008,D010",
+            weight="0.004",
+            successor_weight="0.12",
+            density_weight="1.2",
+            cap="8",
+        ),
+        "hot_v82_v77_latent_d004_d008": _v82_v77_latent_market_env(
+            drivers="D004,D008",
+            market_weight="0.003",
+            isolation_weight="0.003",
+            cap="10",
+        ),
+        "hot_v82_v77_latent_core": _v82_v77_latent_market_env(
+            drivers="D003,D004,D005,D007,D008,D010",
+            market_weight="0.002",
+            isolation_weight="0.002",
+            cap="8",
+        ),
+        "hot_v82_v77_state_d004": _v82_v77_state_value_gate_env(
+            drivers="D004",
+            weight="0.04",
+            max_gap="0.8",
+            visible_gap="35",
+            state_gap="20",
+            cap="8",
+        ),
+        "hot_v82_v77_state_d008": _v82_v77_state_value_gate_env(
+            drivers="D008",
+            weight="0.04",
+            max_gap="0.8",
+            visible_gap="35",
+            state_gap="20",
+            cap="8",
+        ),
+        "hot_v82_v77_state_d004_d008": _v82_v77_state_value_gate_env(
+            drivers="D004,D008",
+            weight="0.035",
+            max_gap="1.0",
+            visible_gap="30",
+            state_gap="18",
+            cap="8",
         ),
         "hot_v72_d00148_d010s2": _v60_d004_step7_env(
             dg=True,
