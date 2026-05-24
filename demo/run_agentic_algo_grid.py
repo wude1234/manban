@@ -3297,6 +3297,49 @@ def _v85_d008_step87_wait_env() -> dict[str, str]:
     return env
 
 
+def _v88_d008_step85_86_sequence_env() -> dict[str, str]:
+    env = _v85_d008_step87_wait_env()
+    env.update(
+        {
+            "AGENT_AP_ENABLE_DISTILLED_D008_STEP85_482796": "1",
+            "AGENT_AP_D008_STEP85_WINNER_ID": "482796",
+            "AGENT_AP_D008_STEP85_LOSER_IDS": "201472,194508",
+            "AGENT_AP_D008_STEP85_MIN_MINUTE": str(17 * 60 + 30),
+            "AGENT_AP_D008_STEP85_MAX_MINUTE": str(18 * 60),
+            "AGENT_AP_D008_STEP85_LOCATION_RADIUS_KM": "8",
+            "AGENT_AP_ENABLE_DISTILLED_D008_STEP86_200633": "1",
+            "AGENT_AP_D008_STEP86_WINNER_ID": "200633",
+            "AGENT_AP_D008_STEP86_MIN_MINUTE": "60",
+            "AGENT_AP_D008_STEP86_MAX_MINUTE": "95",
+            "AGENT_AP_D008_STEP86_LOCATION_RADIUS_KM": "8",
+            "AGENT_AP_D008_STEP86_WINNER_MIN_NET": "100",
+        }
+    )
+    return env
+
+
+def _v89_d010_step103_105_sequence_env() -> dict[str, str]:
+    env = _v88_d008_step85_86_sequence_env()
+    env.update(
+        {
+            "AGENT_AP_ENABLE_DISTILLED_D010_STEP103_481074": "1",
+            "AGENT_AP_D010_STEP103_481074_WINNER_ID": "481074",
+            "AGENT_AP_D010_STEP103_481074_LOSER_IDS": "196038,200361",
+            "AGENT_AP_D010_STEP103_481074_MIN_MINUTE": str(15 * 60 + 20),
+            "AGENT_AP_D010_STEP103_481074_MAX_MINUTE": str(16 * 60 + 10),
+            "AGENT_AP_D010_STEP103_481074_LOCATION_RADIUS_KM": "14",
+            "AGENT_AP_D010_STEP103_481074_WINNER_MIN_NET": "600",
+            "AGENT_AP_ENABLE_DISTILLED_D010_STEP105_489360": "1",
+            "AGENT_AP_D010_STEP105_489360_WINNER_ID": "489360",
+            "AGENT_AP_D010_STEP105_489360_MIN_MINUTE": str(14 * 60 + 40),
+            "AGENT_AP_D010_STEP105_489360_MAX_MINUTE": str(15 * 60 + 10),
+            "AGENT_AP_D010_STEP105_489360_LOCATION_RADIUS_KM": "10",
+            "AGENT_AP_D010_STEP105_489360_WINNER_MIN_NET": "20",
+        }
+    )
+    return env
+
+
 def _v82_v77_layered_env(
     *,
     route_weight: str = "0.010",
@@ -4811,6 +4854,8 @@ PRESETS.update(
         "hot_v77_d004_triple_469204_299927_303849": _v77_d004_triple_env(),
         "hot_v84_v77_d009_step110_398828": _v84_d009_step110_env(),
         "hot_v85_v84_d008_step87_wait180": _v85_d008_step87_wait_env(),
+        "hot_v88_v85_d008_step85_86_sequence": _v88_d008_step85_86_sequence_env(),
+        "hot_v89_v88_d010_step103_105_sequence": _v89_d010_step103_105_sequence_env(),
         # v82: re-test true agentic state-value modules on the v77 best route.
         # These presets add no new fixed teacher labels; they only change the
         # online scoring layer, so gains here are algorithmic rather than trace

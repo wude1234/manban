@@ -14,13 +14,13 @@
 ## Current Best
 
 ```text
-version = v85 grid-validated submission candidate
-preset = hot_v85_v84_d008_step87_wait180
-score = 314921.03
-penalty = 12565
-run_dir = demo/results/grid_agentic_algo/20260524_114122_autonight_v85_d008_step87_wait_grid/01_hot_v85_v84_d008_step87_wait180
-default_run = demo/results/actions_202603_D001-D010_20260524_115814.jsonl + demo/results/monthly_income_202603.json
-last_commit = pending v85 commit
+version = v89 grid-validated submission candidate
+preset = hot_v89_v88_d010_step103_105_sequence
+score = 315031.96
+penalty = 12865
+run_dir = demo/results/grid_agentic_algo/20260524_131327_autonight_v89_d010_sequence_timefix/01_hot_v89_v88_d010_step103_105_sequence
+default_run = demo/results/actions_202603_D001-D010_20260524_131923.jsonl + demo/results/monthly_income_202603.json
+last_commit = pending v89 commit
 ```
 
 核心发现：
@@ -52,6 +52,23 @@ v82 shows global layered/unit/latent/state-value scoring is not automatically us
 v83 shows D006 rest repair and D003 deadhead repair are not profitable; their remaining penalties are often rationally paid because gross-chain opportunity dominates saved preference/distance cost.
 v84 finds the first new exact-tail positive after the v77 plateau: D009 step110 cargo398828 improves D009 by +126.02 with unchanged 900 penalty. The pattern is route-plan value around home-return cost, not a generic hard-home rule.
 v85 adds a D008 month-end wait teacher: step87 wait180 avoids cargo203004, then enters cargo486259 -> cargo210728, lifting D008 by +74.20 with unchanged 800 penalty. This confirms wait is an active route-plan action, not just no-cargo fallback.
+v86 one-step wide probes across D003/D004/D008/D010/D005 found no positive single-step repairs. This is a local saturation signal for cargo/wait/reposition one-step regret.
+v87/v88/v89 show the next gain requires two-step Route Plan distillation: D008 step85 cargo482796 + step86 cargo200633 adds +47.99, and D010 step103 cargo481074 + step105 cargo489360 adds +62.94. Single-step scoring would reject these or mis-rank them.
+```
+
+### v89 result
+
+```text
+grid = results/grid_agentic_algo/20260524_131327_autonight_v89_d010_sequence_timefix
+best = hot_v89_v88_d010_step103_105_sequence
+score = 315031.96
+penalty = 12865
+promoted =
+  v85 full stack
+  D008 step85 cargo482796 + step86 cargo200633
+  D010 step103 cargo481074 + step105 cargo489360
+finding = one-step wide regret is saturated, but exact two-step sequence probing still finds positive route plans. D008 step85 is negative alone but positive with step86; D010 accepts +300 rest penalty because gross and shorter distance improve total net. Phase guards must use query-after decision time; the first D010 implementation missed step105 because the window was written for the wrong time.
+default_validation = results/actions_202603_D*_20260524_131923.jsonl, score 315031.96, penalty 12865, failed_driver_count 0
 ```
 
 ### v85 result

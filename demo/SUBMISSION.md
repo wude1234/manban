@@ -2,13 +2,13 @@
 
 ## 当前提交版本
 
-提交 profile：`v85_d008_wait_route_teacher_314921`
+提交 profile：`v89_sequence_route_teacher_315031`
 
 本地 0509 数据当前最好复现结果：
 
 ```text
-score = 314921.03
-total_preference_penalty = 12565.0
+score = 315031.96
+total_preference_penalty = 12865.0
 failed_driver_count = 0
 tokens = 0
 ```
@@ -16,11 +16,21 @@ tokens = 0
 对应实验：
 
 ```text
-demo/results/grid_agentic_algo/20260524_114122_autonight_v85_d008_step87_wait_grid/01_hot_v85_v84_d008_step87_wait180
-preset = hot_v85_v84_d008_step87_wait180
-default step files = demo/results/actions_202603_D001-D010_20260524_115814.jsonl
+demo/results/grid_agentic_algo/20260524_131327_autonight_v89_d010_sequence_timefix/01_hot_v89_v88_d010_step103_105_sequence
+preset = hot_v89_v88_d010_step103_105_sequence
+default step files = demo/results/actions_202603_D001-D010_20260524_131923.jsonl
 summary = demo/results/monthly_income_202603.json
 ```
+
+v89 相比 v85 的新增有效动作：
+
+```text
+D008 step85/86 二步 Route Plan：step85 从 cargo201472 改为 cargo482796，把卸货状态从 (23.20,112.90) 调整到 (23.08,113.50)；step86 接 cargo200633。单独改 step85 是负收益，但二步组合后 D008 净收益从 36003.87 提升到 36051.86，完整月 +47.99。
+
+D010 step103/105 二步 Route Plan：step103 从 cargo196038 改为 cargo481074，step104 由原 agent 自然接 cargo202277，step105 受控改接 cargo489360。该链路增加 300 休息罚分，但 gross 和距离收益覆盖罚分，D010 净收益从 33500.63 提升到 33563.57，完整月 +62.94。
+```
+
+这两个动作证明当前主要增益来自短视野序列规划，而不是单步贪心调权。v86 的 one-step wide probe 在 D003/D004/D008/D010 上无正收益，但 v87 的 two-step sequence probe 找到 D008/D010 两个正样本；因此提交 Agent 的核心应解释为 `route-plan memory + exact-tail distillation + safety gate`。
 
 v85 相比 v84 的新增有效动作：
 
