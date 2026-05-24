@@ -5,10 +5,10 @@
 当前最好可复现分数：
 
 ```text
-score = 314846.83
-preset = hot_v84_v77_d009_step110_398828
+score = 314921.03
+preset = hot_v85_v84_d008_step87_wait180
 penalty = 12565.0
-result_dir = results/grid_agentic_algo/20260524_110711_autonight_v84_d009_step110_grid/01_hot_v84_v77_d009_step110_398828
+result_dir = results/grid_agentic_algo/20260524_114122_autonight_v85_d008_step87_wait_grid/01_hot_v85_v84_d008_step87_wait180
 ```
 
 这套分数不是靠单点阈值堆出来的，核心是把司机拆成不同画像后做收益-扣分权衡，并在关键决策步使用反事实回放验证“换一个候选货源是否让整个月更优”：
@@ -89,6 +89,8 @@ v32-v57: 对关键步骤做 candidate/action-level counterfactual rollout，验�
 32. v80-v83 证明“未来价值”不能粗暴做全局加分。D004 step58 的 `cargo93738` 能少 200 罚分、少 129km，但 gross 损失更大，二步 rebase 后仍低 `7.32`；D006 强行补休、D003 降 deadhead、D009 提前回家/等待大多为负。v82 的 layered/latent market scorer 也显著退化，说明区域强弱、单位时间、偏好风险只能作为候选生成和 near-tie 解释，最终必须靠 exact-tail teacher 验证。
 
 33. v84 从 v83 的 D009 home-boundary probe 中挖出新的正样本：step110 从 `cargo97891` 改接 `cargo398828`。该动作不降低 900 回家罚分，但 gross 更高、后续返家空驶更短，D009 净收益 `19725.44 -> 19851.46`，完整月总分到 `314846.83`。启发是：偏好相关司机并不是简单硬回家，而是要比较“当前单收益 + 完单后回家成本 + 后继链”。实现上要求 winner/loser 同时可见、时间位置匹配，保持受控 Agent teacher。
+
+34. v85 从 D008 wide route-value probe 中挖出新的 action-level 正样本：step87 不接原规则 `cargo203004`，而是在 03-30 早晨 `(23.20,112.90)` 原地 `wait180`。后续链从 `203004 -> 489410` 切换为 `486259 -> 210728`，罚分仍为 `800`，gross `+27.36`、距离 `-31.23km`，D008 净收益 `35929.67 -> 36003.87`，完整月总分到 `314921.03`。启发是：等待动作应该作为主动 Route Plan 分支参与规划，特别是月末低价值候选窗口；它不是“没货兜底”，而是为了释放更好的后继链。
 
 28. v62/v63 证明 v61 后单步 regret mining 已经饱和。对 D001/D002/D004/D005/D006/D007/D008/D009 共 75 个关键 step 做 take/wait/reposition full-tail 单步替换，没有正收益动作。结论是：高空驶、高等待、高罚分只是探测信号，不是策略规则；下一步必须做序列级 rebase 或状态价值学习。
 

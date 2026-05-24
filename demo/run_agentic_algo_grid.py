@@ -3282,6 +3282,21 @@ def _v84_d009_step110_env() -> dict[str, str]:
     return env
 
 
+def _v85_d008_step87_wait_env() -> dict[str, str]:
+    env = _v84_d009_step110_env()
+    env.update(
+        {
+            "AGENT_AP_ENABLE_DISTILLED_D008_STEP87_WAIT": "1",
+            "AGENT_AP_D008_STEP87_WAIT_LOSER_IDS": "203004",
+            "AGENT_AP_D008_STEP87_WAIT_MIN_MINUTE": str(6 * 60 + 25),
+            "AGENT_AP_D008_STEP87_WAIT_MAX_MINUTE": str(7 * 60 + 30),
+            "AGENT_AP_D008_STEP87_WAIT_LOCATION_RADIUS_KM": "10",
+            "AGENT_AP_D008_STEP87_WAIT_MINUTES": "180",
+        }
+    )
+    return env
+
+
 def _v82_v77_layered_env(
     *,
     route_weight: str = "0.010",
@@ -4795,6 +4810,7 @@ PRESETS.update(
         ),
         "hot_v77_d004_triple_469204_299927_303849": _v77_d004_triple_env(),
         "hot_v84_v77_d009_step110_398828": _v84_d009_step110_env(),
+        "hot_v85_v84_d008_step87_wait180": _v85_d008_step87_wait_env(),
         # v82: re-test true agentic state-value modules on the v77 best route.
         # These presets add no new fixed teacher labels; they only change the
         # online scoring layer, so gains here are algorithmic rather than trace

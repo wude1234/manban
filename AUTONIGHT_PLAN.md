@@ -14,13 +14,13 @@
 ## Current Best
 
 ```text
-version = v84 validated submission default candidate
-preset = hot_v84_v77_d009_step110_398828
-score = 314846.83
+version = v85 grid-validated submission candidate
+preset = hot_v85_v84_d008_step87_wait180
+score = 314921.03
 penalty = 12565
-run_dir = demo/results/grid_agentic_algo/20260524_110711_autonight_v84_d009_step110_grid/01_hot_v84_v77_d009_step110_398828
-default_run = demo/results/actions_202603_D001-D010_20260524_111537.jsonl + demo/results/monthly_income_202603.json
-last_commit = pending v84 commit
+run_dir = demo/results/grid_agentic_algo/20260524_114122_autonight_v85_d008_step87_wait_grid/01_hot_v85_v84_d008_step87_wait180
+default_run = demo/results/actions_202603_D001-D010_20260524_115814.jsonl + demo/results/monthly_income_202603.json
+last_commit = pending v85 commit
 ```
 
 核心发现：
@@ -51,6 +51,21 @@ v80/v81 show D004 step58 has a near miss cargo93738 that saves 200 penalty and 1
 v82 shows global layered/unit/latent/state-value scoring is not automatically useful: safe gates are no-op, while broad latent market bonuses break route chains. State value must be evidence-gated by exact-tail teacher labels.
 v83 shows D006 rest repair and D003 deadhead repair are not profitable; their remaining penalties are often rationally paid because gross-chain opportunity dominates saved preference/distance cost.
 v84 finds the first new exact-tail positive after the v77 plateau: D009 step110 cargo398828 improves D009 by +126.02 with unchanged 900 penalty. The pattern is route-plan value around home-return cost, not a generic hard-home rule.
+v85 adds a D008 month-end wait teacher: step87 wait180 avoids cargo203004, then enters cargo486259 -> cargo210728, lifting D008 by +74.20 with unchanged 800 penalty. This confirms wait is an active route-plan action, not just no-cargo fallback.
+```
+
+### v85 result
+
+```text
+grid = results/grid_agentic_algo/20260524_114122_autonight_v85_d008_step87_wait_grid
+best = hot_v85_v84_d008_step87_wait180
+score = 314921.03
+penalty = 12565
+promoted =
+  v84 full stack
+  D008 step87 wait180 over cargo203004
+finding = D008 step87 is a clean month-end time-reallocation teacher. Waiting 180 minutes at (23.20,112.90) on 03-30 morning keeps the same 800 penalty, slightly raises gross, reduces distance, and changes the tail from cargo203004 -> cargo489410 to cargo486259 -> cargo210728. The online gate requires loser visibility, phase, and location match.
+default_validation = results/actions_202603_D*_20260524_115814.jsonl, score 314921.03, penalty 12565, failed_driver_count 0
 ```
 
 ### v84 result

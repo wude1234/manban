@@ -733,6 +733,8 @@ def _distilled_counterfactual_action(status: dict[str, Any], viable: list[dict[s
         return _d005_step128_repos_fs_distilled_action(status, viable)
     if driver_id == "D008" and step == 80 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D008_STEP80_WAIT", False):
         return _d008_step80_wait_distilled_action(status, viable)
+    if driver_id == "D008" and step == 87 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D008_STEP87_WAIT", False):
+        return _d008_step87_wait_distilled_action(status, viable)
     if driver_id == "D008" and step == 87 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D008_STEP87", False):
         return _d008_step87_distilled_action(status, viable)
     if driver_id == "D008" and step == 88 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D008_STEP88_WAIT", False):
@@ -2204,6 +2206,28 @@ def _d008_step87_distilled_action(status: dict[str, Any], viable: list[dict[str,
     ):
         return None
     return {"action": "take_order", "params": {"cargo_id": winner_id}}
+
+
+def _d008_step87_wait_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:
+    if _env_bool("AGENT_AP_D008_STEP87_WAIT_REQUIRE_VISIBLE_LOSER", True) and not _has_visible_cargo(
+        viable, "AGENT_AP_D008_STEP87_WAIT_LOSER_IDS", "203004"
+    ):
+        return None
+    if not _phase_guard(
+        status,
+        day_env="AGENT_AP_D008_STEP87_WAIT_DAY",
+        default_day=29,
+        min_env="AGENT_AP_D008_STEP87_WAIT_MIN_MINUTE",
+        default_minute=6 * 60 + 25,
+        max_env="AGENT_AP_D008_STEP87_WAIT_MAX_MINUTE",
+        default_max_minute=7 * 60 + 30,
+        center_lat=23.20,
+        center_lng=112.90,
+        radius_env="AGENT_AP_D008_STEP87_WAIT_LOCATION_RADIUS_KM",
+        default_radius_km=10.0,
+    ):
+        return None
+    return {"action": "wait", "params": {"duration_minutes": _env_int("AGENT_AP_D008_STEP87_WAIT_MINUTES", 180)}}
 
 
 def _d008_step88_wait_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:

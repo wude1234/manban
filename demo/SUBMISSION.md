@@ -2,12 +2,12 @@
 
 ## 当前提交版本
 
-提交 profile：`v84_d009_step110_route_teacher_314846`
+提交 profile：`v85_d008_wait_route_teacher_314921`
 
 本地 0509 数据当前最好复现结果：
 
 ```text
-score = 314846.83
+score = 314921.03
 total_preference_penalty = 12565.0
 failed_driver_count = 0
 tokens = 0
@@ -16,11 +16,19 @@ tokens = 0
 对应实验：
 
 ```text
-demo/results/grid_agentic_algo/20260524_110711_autonight_v84_d009_step110_grid/01_hot_v84_v77_d009_step110_398828
-preset = hot_v84_v77_d009_step110_398828
-default step files = demo/results/actions_202603_D001-D010_20260524_111537.jsonl
+demo/results/grid_agentic_algo/20260524_114122_autonight_v85_d008_step87_wait_grid/01_hot_v85_v84_d008_step87_wait180
+preset = hot_v85_v84_d008_step87_wait180
+default step files = demo/results/actions_202603_D001-D010_20260524_115814.jsonl
 summary = demo/results/monthly_income_202603.json
 ```
+
+v85 相比 v84 的新增有效动作：
+
+```text
+D008 step87 wait180: 在 03-30 06:33 到达 (23.20,112.90) 后，原规则在 query 后直接接 cargo203004 并卸到 (22.62,114.42)。exact-tail probe 发现原地等待 180 分钟后接 cargo486259 -> cargo210728，罚分仍为 800，gross +27.36、距离 -31.23km，D008 净收益从 35929.67 提升到 36003.87，完整月总分 +74.20 到 314921.03。
+```
+
+这个动作说明 `wait` 不是兜底动作，而是 Route Plan 里的主动时间重排：当月末当前位置和候选集合进入低价值窗口时，短等可以避开会锁死后续链路的当前单。实现上要求 D008 第 87 步附近、3月30日早晨、当前位置接近 `(23.20,112.90)`，且原规则候选 `203004` 可见才触发。
 
 v84 相比 v77 的新增有效动作：
 
