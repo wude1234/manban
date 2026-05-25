@@ -15,13 +15,13 @@
 ## Current Best
 
 ```text
-version = v125 tail-prefix oracle trajectory high-score result
-preset = v124 + D006 fixed-prefix18 semisoft tail route
-score = 370755.73
-penalty = 59315
-latest_verified_run = demo/results/hybrid_submission/v125_v124_plus_d006_tail_p18_semisoft
-latest_verified_steps = demo/results/hybrid_submission/v125_v124_plus_d006_tail_p18_semisoft/actions_202603_D*.jsonl
-latest_verified_summary = demo/results/hybrid_submission/v125_v124_plus_d006_tail_p18_semisoft/monthly_income_202603.json
+version = v127 tail-release oracle trajectory high-score result
+preset = v125 + v126 prefix12/14 tail routes for D002/D003/D004/D005/D008
+score = 372634.47
+penalty = 59015
+latest_verified_run = demo/results/hybrid_submission/v127_v126_tail_release_plus_v125_best
+latest_verified_steps = demo/results/hybrid_submission/v127_v126_tail_release_plus_v125_best/actions_202603_D*.jsonl
+latest_verified_summary = demo/results/hybrid_submission/v127_v126_tail_release_plus_v125_best/monthly_income_202603.json
 score_profile = score_v105_d005_step7_8_teacher
 clean_profile = official_clean_agentic_planner
 commit_check = git log -1 --oneline
@@ -30,7 +30,7 @@ commit_check = git log -1 --oneline
 Boundary:
 
 ```text
-v125 is the current highest local score artifact. It keeps the v116 D001 route, v124 tail-mined D002/D003/D004/D005/D008, and replaces D006 with a fixed-prefix18 semisoft tail-mined route.
+v127 is the current highest local score artifact. It keeps the v116 D001 route, v125 D006 prefix18 route, and replaces D002/D005 with prefix12 tail routes plus D003/D004/D008 with prefix14 tail routes.
 v105 remains the latest online agent/profile score: 316546.84, penalty 13465, result demo/results/grid_agentic_algo/20260526_040701_v105_d005_step7_8_timefix/02_submission_score_v105.
 Use v115 for high-score trajectory/teacher exploration; use v105/official_clean for online-agent compliance work.
 ```
@@ -135,6 +135,14 @@ v125 added D006 fixed-prefix18 semisoft tail mining:
   D006 37060.89 -> 37251.63, +190.74
   gross 56396.21 -> 67307.35, penalty 5200 -> 8200
   full hybrid score = 370755.73, penalty 59315
+v127 moved release points earlier for D002/D003/D004/D005/D008:
+  D002 prefix12 38602.12 -> 39036.56, +434.44
+  D003 prefix14 41598.44 -> 41880.67, +282.23
+  D004 prefix14 45206.17 -> 45488.41, +282.24
+  D005 prefix12 39324.40 -> 39658.84, +334.44
+  D008 prefix14 38246.47 -> 38791.86, +545.39
+  D006 prefix16 was negative, so keep D006 prefix18.
+  full hybrid score = 372634.47, penalty 59015
 ```
 
 当前搜索范式要切换：
@@ -143,7 +151,7 @@ v125 added D006 fixed-prefix18 semisoft tail mining:
 不要只围绕 wait step 本身做修补。
 长等待往往是结果，不是原因；要追溯 root_order / root_route，把 after_state 的未来价值纳入接单评分。
 当前冲分第一目标不是泛化，而是继续沿 v105 底座找百元级 early/mid route-chain positives。v104 证明 D010 并非单步 step43 饱和，而是 step39-43 的前置链路可重构；v105 证明 D005 step7 单独改动会崩盘，但 step7+step8 完整链为正。
-v113-v118 证明高收益搜索的核心不是泛化区域规则，而是“路线毛利链是否足以覆盖真实偏好罚分”。D001/D002/D003/D004/D005/D008 都存在 31-33 单高毛利路线族；D006/D007/D009/D010 会被罚分打穿，不能照搬。v120 证明全月重搜会破坏前半月强链；v121/v124 证明固定前缀后的尾段重规划更有效；v125 证明 D006 也能在保留前 18 单后通过尾段高毛利覆盖新增罚分。下一步围绕 D001-D005/D008 测 prefix 12/14/18，D006 测 prefix 14/16/20/22 和 semisoft 权重，D009/D010 只做偏好约束路线。
+v113-v118 证明高收益搜索的核心不是泛化区域规则，而是“路线毛利链是否足以覆盖真实偏好罚分”。D001/D002/D003/D004/D005/D008 都存在 31-33 单高毛利路线族；D006/D007/D009/D010 会被罚分打穿，不能照搬。v120 证明全月重搜会破坏前半月强链；v121/v124 证明固定前缀后的尾段重规划更有效；v125 证明 D006 也能在保留前 18 单后通过尾段高毛利覆盖新增罚分；v127 证明 release point 前移到 prefix12/14 可以降距离和罚分。下一步围绕 D001/D002/D005/D008 测 prefix10/11/13，D003/D004 测 prefix13/15，D006 测 prefix18 附近和 semisoft 权重。
 ```
 
 ## Profile Boundary

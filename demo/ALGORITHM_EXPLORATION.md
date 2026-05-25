@@ -5,11 +5,29 @@
 当前最好可复现分数：
 
 ```text
-score = 370755.73
-preset = v125_v124_plus_d006_tail_p18_semisoft
-penalty = 59315.0
-result_dir = results/hybrid_submission/v125_v124_plus_d006_tail_p18_semisoft
+score = 372634.47
+preset = v127_v126_tail_release_plus_v125_best
+penalty = 59015.0
+result_dir = results/hybrid_submission/v127_v126_tail_release_plus_v125_best
 ```
+
+## v127 新发现：释放点继续前移到 prefix12/14，收益来自降距离而非单纯加 gross
+
+v127 在 v125 基础上替换 D002/D003/D004/D005/D008 的 v126 tail-release 结果。相比 v124/v125 的 prefix16，D002/D005 用 prefix12 更优，D003/D004/D008 用 prefix14 更优：
+
+```text
+D002 38602.12 -> 39036.56, +434.44, gross 73644.86, distance 16038.87, penalty 10550
+D003 41598.44 -> 41880.67, +282.23, gross 74410.48, distance 16486.54, penalty 7800
+D004 45206.17 -> 45488.41, +282.24, gross 74410.48, distance 16548.05, penalty 4100
+D005 39324.40 -> 39658.84, +334.44, gross 73644.86, distance 16057.35, penalty 9900
+D008 38246.47 -> 38791.86, +545.39, gross 73644.86, distance 16102.00, penalty 10700
+
+full hybrid:
+  score 370755.73 -> 372634.47
+  total_preference_penalty 59315 -> 59015
+```
+
+关键启发：更早释放并没有带来更多订单，仍是 33 单主链，但它把后半月路线换成更短距离、罚分不升甚至下降的版本。当前最有价值的搜索维度是 prefix release point，而不是继续全局调 NPH/future。D006 prefix16 是负方向，说明 D006 的安全释放点目前更接近 prefix18。
 
 ## v125 新发现：D006 不能全月放开，但保留前 18 单后尾段冲单为正
 
