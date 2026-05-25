@@ -3385,6 +3385,41 @@ def _v94_d001_step103_202502_env() -> dict[str, str]:
     return env
 
 
+def _v98_root_idle_trap_env() -> dict[str, str]:
+    env = _v94_d001_step103_202502_env()
+    env.update(
+        {
+            "AGENT_AP_ENABLE_DISTILLED_D001_STEP106_WAIT180": "1",
+            "AGENT_AP_D001_STEP106_REQUIRE_VISIBLE_LOSER": "1",
+            "AGENT_AP_D001_STEP106_LOSER_IDS": "208674",
+            "AGENT_AP_D001_STEP106_DAY": "29",
+            "AGENT_AP_D001_STEP106_MIN_MINUTE": str(14 * 60 + 20),
+            "AGENT_AP_D001_STEP106_MAX_MINUTE": str(15 * 60 + 25),
+            "AGENT_AP_D001_STEP106_LOCATION_RADIUS_KM": "8",
+            "AGENT_AP_D001_STEP106_WAIT_MINUTES": "180",
+            "AGENT_AP_ENABLE_DISTILLED_D009_STEP190_192513": "1",
+            "AGENT_AP_D009_STEP190_WINNER_ID": "192513",
+            "AGENT_AP_D009_STEP190_REQUIRE_VISIBLE_LOSER": "1",
+            "AGENT_AP_D009_STEP190_LOSER_IDS": "475223",
+            "AGENT_AP_D009_STEP190_DAY": "28",
+            "AGENT_AP_D009_STEP190_MIN_MINUTE": str(8 * 60 - 20),
+            "AGENT_AP_D009_STEP190_MAX_MINUTE": str(8 * 60 + 35),
+            "AGENT_AP_D009_STEP190_LOCATION_RADIUS_KM": "10",
+            "AGENT_AP_D009_STEP190_WINNER_MIN_NET": "0",
+            "AGENT_AP_ENABLE_DISTILLED_D010_STEP43_352638": "1",
+            "AGENT_AP_D010_STEP43_WINNER_ID": "352638",
+            "AGENT_AP_D010_STEP43_REQUIRE_VISIBLE_LOSER": "1",
+            "AGENT_AP_D010_STEP43_LOSER_IDS": "50832",
+            "AGENT_AP_D010_STEP43_DAY": "8",
+            "AGENT_AP_D010_STEP43_MIN_MINUTE": str(16 * 60 + 30),
+            "AGENT_AP_D010_STEP43_MAX_MINUTE": str(17 * 60 + 15),
+            "AGENT_AP_D010_STEP43_LOCATION_RADIUS_KM": "10",
+            "AGENT_AP_D010_STEP43_WINNER_MIN_NET": "0",
+        }
+    )
+    return env
+
+
 def _submission_profile_env(profile: str) -> dict[str, str]:
     return {
         "AGENT_DISABLE_SUBMISSION_DEFAULTS": "0",
@@ -4911,8 +4946,10 @@ PRESETS.update(
         "hot_v89_v88_d010_step103_105_sequence": _v89_d010_step103_105_sequence_env(),
         "hot_v92_v89_dynamic_repos_d001_d007": _v92_dynamic_repos_teachers_env(),
         "hot_v94_v92_d001_step103_202502": _v94_d001_step103_202502_env(),
+        "hot_v98_root_idle_trap_teacher": _v98_root_idle_trap_env(),
         "submission_score_v92": _submission_profile_env("score_v92"),
         "submission_score_v94": _submission_profile_env("score_v94"),
+        "submission_score_v98": _submission_profile_env("score_v98"),
         "submission_official_clean": _submission_profile_env("official_clean"),
         # v82: re-test true agentic state-value modules on the v77 best route.
         # These presets add no new fixed teacher labels; they only change the

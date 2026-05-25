@@ -258,6 +258,7 @@ def _decide(
     feature_settings: FeatureSettings,
     *,
     strategy: Any | None = None,
+    disable_pre_query: bool = False,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     api = BeamSimulationApi(
         state.repo,
@@ -267,8 +268,25 @@ def _decide(
         nearest_cargo_limit_by_driver=_driver_limit_env(),
         cargo_view_batch_size=max(1, _env_int("AGENT_CARGO_VIEW_BATCH_SIZE", 10)),
     )
-    engine = FeatureDecisionEngine(api, strategy or _load_base_strategy(), feature_settings)
+    strategy_obj = strategy or _load_base_strategy()
+    if disable_pre_query:
+        strategy_obj = _NoPreQueryStrategy(strategy_obj)
+    engine = FeatureDecisionEngine(api, strategy_obj, feature_settings)
     return engine.decide(driver_id)
+
+
+class _NoPreQueryStrategy:
+    """Delegate to a strategy but force it to observe cargo before deciding."""
+
+    def __init__(self, base: Any) -> None:
+        self._base = base
+        self.name = f"{getattr(base, 'name', 'strategy')}_no_pre_query"
+
+    def pre_query_action(self, status: dict[str, Any], settings: FeatureSettings) -> dict[str, Any] | None:
+        return None
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._base, name)
 
 
 def _apply_recorded_action(
@@ -462,6 +480,7 @@ def _write_run(out_dir: Path, driver_id: str, state: SimState, settings: Any, *,
 
 
 def _score_run(run_dir: Path) -> dict[str, Any] | None:
+    run_dir = run_dir.resolve()
     cmd = [
         sys.executable,
         str(DEMO_ROOT / "calc_monthly_income.py"),

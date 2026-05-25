@@ -5,18 +5,96 @@
 当前最好可复现分数：
 
 ```text
-score = 315167.70
-preset = submission_score_v94
-penalty = 13165.0
-result_dir = results/grid_agentic_algo/20260525_213043_v94_submission_profile_check/01_submission_score_v94
+score = 315688.45
+preset = submission_score_v98
+penalty = 12865.0
+result_dir = results/grid_agentic_algo/20260526_001234_v98_submission_profile_check/01_submission_score_v98
+```
+
+## v98 新发现：修 long-idle 要追溯 root-order，而不是修 wait 本身
+
+v95-v97 证明 D001/D005/D009 的尾部长等待点已经局部饱和；强制 query、单步替换、两步 sequence 都没有正收益。v98 新增 `analyze_idle_traps.py`，把长等待追溯到进入陷阱前的真实订单：
+
+```text
+wait_step -> previous_action -> root_order_step/root_order_cargo -> root_trap_score
+```
+
+这次找到三个可叠加正样本，并通过 `submission_score_v98` 验证：
+
+| driver | root step | original | better action | delta | finding |
+| --- | ---: | --- | --- | ---: | --- |
+| D001 | 106 | cargo208674 | wait180 | +146.10 | 月末低价值尾单应主动跳过，等待能同时降罚 |
+| D009 | 190 | cargo475223 | cargo192513 | +200.31 | 回家链之前的订单选择比强制回家/等货更关键 |
+| D010 | 43 | cargo50832 | cargo352638 | +174.34 | 早期前置订单决定第 10 天长等待后的后继状态 |
+
+组合后：
+
+```text
+score = 315688.45
+penalty = 12865
+run = results/grid_agentic_algo/20260526_001234_v98_submission_profile_check/01_submission_score_v98
+```
+
+算法启发：
+
+```text
+score(action) =
+  current_net
+  + V(after_unload_state)
+  - idle_trap_risk(after_unload_state, driver_profile, month_phase)
+  - preference_risk_delta
+```
+
+也就是说，区域强弱不是核心规则；核心是当前动作把司机送进哪条未来可执行链。下一步要把 v98 的 root-order teacher 转成更泛化的状态模式，而不是继续只加 step/cargo 标签。
+
+## v95-v97 新发现：局部尾部修补已饱和
+
+新增 `build_value_dataset.py` 和 `analyze_value_dataset.py` 后，历史 full-tail 反事实样本被整理成可复盘的 regret/value dataset：
+
+```text
+rows = 10919
+positive_rows = 28
+above_current_v94_driver_score = 0
+```
+
+这说明当前 v94 已经吸收历史所有正样本，没有任何旧分支能超过当前单司机净收益。为了验证“是不是 pre-query 规则挡住了市场”，又做了 `--force-query-on-target` 探索：
+
+```text
+D001 dynamic/sequence force-query: best delta 0.00
+D005 dynamic/sequence force-query: best delta 0.00
+D009 dynamic/sequence force-query: best delta 0.00
+```
+
+结论：D001/D005/D009 的低收益并不是尾部某一步没查询货源，而是更早动作已经把司机带入低价值状态。下一步不能继续在长等待点本身做短等、空驶、top-k 换单；要学习“接完当前单后会不会进入等待坑”的状态价值函数。
+
+新的算法重点：
+
+```text
+score(action) =
+  current_net
+  + V(after_unload_time, after_unload_location, driver_profile, rest_debt, month_phase)
+  - preference_risk_delta
+  - idle_trap_risk
+```
+
+其中 `V(after_state)` 不用全局未来数据在线计算，而是由本地 exact-tail 反事实样本蒸馏出状态规则，例如：
+
+```text
+同一司机在某类时间窗/区域/剩余月份下，
+接到某种低 haul、高 pickup、卸货到弱后继区域的订单，
+后续是否高概率进入长等待或低 gross 链。
 ```
 
 ## 两套提交/研究 Profile
 
 ```text
-score_v94_d001_step103_teacher_315167
-  本地冲分和离线研究版本。
+score_v98_root_idle_trap_teacher_315688
+  当前本地冲分和离线研究版本。
   使用 full-tail 反事实回放蒸馏出的 fixed step/cargo/action teacher。
+  当前复现 score=315688.45, penalty=12865。
+
+score_v94_d001_step103_teacher_315167
+  历史稳定基线和消融对照。
   当前复现 score=315167.70, penalty=13165。
 
 official_clean_agentic_planner

@@ -2,12 +2,16 @@
 
 ## 当前提交版本
 
-当前保留两套 profile：
+当前保留三套 profile：
 
 ```text
+score_v98_root_idle_trap_teacher_315688
+用途：当前默认本地冲分、离线研究和榜单复现实验。
+特点：保留 counterfactual/distilled teacher，并加入 root-order idle-trap distillation，复现 315688.45。
+
 score_v94_d001_step103_teacher_315167
-用途：本地冲分、离线研究和榜单复现实验。
-特点：保留 counterfactual/distilled teacher，复现 315167.70。
+用途：历史稳定基线和消融对照。
+特点：保留 v94 之前的 counterfactual/distilled teacher，复现 315167.70。
 
 official_clean_agentic_planner
 用途：官方强调不得使用已知全局视角时的合规 Agent 版本。
@@ -17,8 +21,8 @@ official_clean_agentic_planner
 本地 0509 数据当前最好复现结果为 score profile：
 
 ```text
-score = 315167.70
-total_preference_penalty = 13165.0
+score = 315688.45
+total_preference_penalty = 12865.0
 failed_driver_count = 0
 tokens = 0
 ```
@@ -36,11 +40,23 @@ result_dir = demo/results/grid_agentic_algo/20260525_185542_two_profiles_check_f
 对应实验：
 
 ```text
-demo/results/grid_agentic_algo/20260525_213043_v94_submission_profile_check/01_submission_score_v94
-preset = submission_score_v94
-step files = demo/results/grid_agentic_algo/20260525_213043_v94_submission_profile_check/01_submission_score_v94/actions_202603_D001_20260525_213249.jsonl ... actions_202603_D010_20260525_213249.jsonl
-summary = demo/results/grid_agentic_algo/20260525_213043_v94_submission_profile_check/01_submission_score_v94/monthly_income_202603.json
+demo/results/grid_agentic_algo/20260526_001234_v98_submission_profile_check/01_submission_score_v98
+preset = submission_score_v98
+step files = demo/results/grid_agentic_algo/20260526_001234_v98_submission_profile_check/01_submission_score_v98/actions_202603_D001_*.jsonl ... actions_202603_D010_*.jsonl
+summary = demo/results/grid_agentic_algo/20260526_001234_v98_submission_profile_check/01_submission_score_v98/monthly_income_202603.json
 ```
+
+v98 相比 v94 的新增有效动作：
+
+```text
+D001 step106 wait180: idle-trap root-order probe 发现原路径在 03-30 下午接 cargo208674 后进入月末长等尾链。改为原地等待 180 分钟，D001 净收益从 18586.68 提升到 18732.78，同时休息罚分从 1200 降到 900，完整月 +146.10。
+
+D009 step190 cargo192513: D009 尾部多次 home/reposition 后长等，但真正的可修点不是回家动作，而是回家链之前的订单选择。step190 从 cargo475223 改接 cargo192513，罚分仍为 900，D009 净收益从 19851.46 提升到 20051.77，完整月 +200.31。
+
+D010 step43 cargo352638: D010 第 10 天长等待由 step43 前置订单触发。把 cargo50832 换成 cargo352638，罚分仍为 1565，D010 净收益从 33563.57 提升到 33737.91，完整月 +174.34。
+```
+
+v98 的核心启发是：长等待点本身往往已经无可救药，真正要修的是把司机送入等待坑之前的 root-order。实现上仍然不是自由预录轨迹，而是受控 Agent teacher：必须匹配司机、step、时间窗、当前位置、winner/loser 可见货源 marker，最后由安全执行层输出合法动作。
 
 v94 相比 v92 的新增有效动作：
 

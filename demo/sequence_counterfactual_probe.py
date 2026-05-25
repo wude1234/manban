@@ -84,6 +84,11 @@ def main() -> int:
     parser.add_argument("--max-second-branches", type=int, default=5)
     parser.add_argument("--tail-max-steps", type=int, default=500)
     parser.add_argument("--horizon-minutes", type=int, default=30 * 1440)
+    parser.add_argument(
+        "--force-query-on-target",
+        action="store_true",
+        help="Disable pre-query wait/reposition only at probed first/second decisions.",
+    )
     parser.add_argument("--first-extra-waits", default="")
     parser.add_argument("--second-extra-waits", default="")
     parser.add_argument(
@@ -140,7 +145,13 @@ def main() -> int:
             prefix_cache[first_step] = prefix
 
         first_step_start = prefix.progress()
-        first_rule, first_diag = _decide(prefix, driver_id, settings, feature_settings)
+        first_rule, first_diag = _decide(
+            prefix,
+            driver_id,
+            settings,
+            feature_settings,
+            disable_pre_query=bool(args.force_query_on_target),
+        )
         first_candidates = _sequence_branch_candidates(
             first_rule,
             first_diag,
@@ -202,7 +213,13 @@ def main() -> int:
                 continue
 
             second_step_start = rebased.progress()
-            second_rule, second_diag = _decide(rebased, driver_id, settings, feature_settings)
+            second_rule, second_diag = _decide(
+                rebased,
+                driver_id,
+                settings,
+                feature_settings,
+                disable_pre_query=bool(args.force_query_on_target),
+            )
             second_candidates = _sequence_branch_candidates(
                 second_rule,
                 second_diag,

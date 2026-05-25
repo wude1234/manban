@@ -12,7 +12,8 @@ from __future__ import annotations
 import os
 
 
-SCORE_PROFILE = "score_v94_d001_step103_teacher_315167"
+SCORE_PROFILE = "score_v98_root_idle_trap_teacher_315688"
+LEGACY_SCORE_PROFILE = "score_v94_d001_step103_teacher_315167"
 OFFICIAL_CLEAN_PROFILE = "official_clean_agentic_planner"
 SUBMISSION_PROFILE = os.getenv("AGENT_SUBMISSION_PROFILE", SCORE_PROFILE).strip() or SCORE_PROFILE
 
@@ -303,10 +304,43 @@ _SCORE_TEACHER_DEFAULTS: dict[str, str] = {
 }
 
 
+_SCORE_V98_TEACHER_DEFAULTS: dict[str, str] = {
+    **_SCORE_TEACHER_DEFAULTS,
+    "AGENT_AP_ENABLE_DISTILLED_D001_STEP106_WAIT180": "1",
+    "AGENT_AP_D001_STEP106_REQUIRE_VISIBLE_LOSER": "1",
+    "AGENT_AP_D001_STEP106_LOSER_IDS": "208674",
+    "AGENT_AP_D001_STEP106_DAY": "29",
+    "AGENT_AP_D001_STEP106_MIN_MINUTE": str(14 * 60 + 20),
+    "AGENT_AP_D001_STEP106_MAX_MINUTE": str(15 * 60 + 25),
+    "AGENT_AP_D001_STEP106_LOCATION_RADIUS_KM": "8",
+    "AGENT_AP_D001_STEP106_WAIT_MINUTES": "180",
+    "AGENT_AP_ENABLE_DISTILLED_D009_STEP190_192513": "1",
+    "AGENT_AP_D009_STEP190_WINNER_ID": "192513",
+    "AGENT_AP_D009_STEP190_REQUIRE_VISIBLE_LOSER": "1",
+    "AGENT_AP_D009_STEP190_LOSER_IDS": "475223",
+    "AGENT_AP_D009_STEP190_DAY": "28",
+    "AGENT_AP_D009_STEP190_MIN_MINUTE": str(8 * 60 - 20),
+    "AGENT_AP_D009_STEP190_MAX_MINUTE": str(8 * 60 + 35),
+    "AGENT_AP_D009_STEP190_LOCATION_RADIUS_KM": "10",
+    "AGENT_AP_D009_STEP190_WINNER_MIN_NET": "0",
+    "AGENT_AP_ENABLE_DISTILLED_D010_STEP43_352638": "1",
+    "AGENT_AP_D010_STEP43_WINNER_ID": "352638",
+    "AGENT_AP_D010_STEP43_REQUIRE_VISIBLE_LOSER": "1",
+    "AGENT_AP_D010_STEP43_LOSER_IDS": "50832",
+    "AGENT_AP_D010_STEP43_DAY": "8",
+    "AGENT_AP_D010_STEP43_MIN_MINUTE": str(16 * 60 + 30),
+    "AGENT_AP_D010_STEP43_MAX_MINUTE": str(17 * 60 + 15),
+    "AGENT_AP_D010_STEP43_LOCATION_RADIUS_KM": "10",
+    "AGENT_AP_D010_STEP43_WINNER_MIN_NET": "0",
+}
+
+
 def _profile_defaults(profile: str) -> dict[str, str]:
     normalized = profile.strip().lower()
     defaults = dict(_BASE_DEFAULTS)
-    if normalized in {"score", "score_v94", "score_v92", SCORE_PROFILE.lower(), "v94", "v92", "local_score"}:
+    if normalized in {"score", "score_v98", SCORE_PROFILE.lower(), "v98", "local_score"}:
+        defaults.update(_SCORE_V98_TEACHER_DEFAULTS)
+    elif normalized in {"score_v94", "score_v92", LEGACY_SCORE_PROFILE.lower(), "v94", "v92"}:
         defaults.update(_SCORE_TEACHER_DEFAULTS)
     elif normalized in {"official", "official_clean", "clean", OFFICIAL_CLEAN_PROFILE.lower()}:
         defaults["AGENT_SUBMISSION_PROFILE"] = OFFICIAL_CLEAN_PROFILE

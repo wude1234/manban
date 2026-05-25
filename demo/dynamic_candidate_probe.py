@@ -67,6 +67,11 @@ def main() -> int:
     parser.add_argument("--tail-max-steps", type=int, default=500)
     parser.add_argument("--horizon-minutes", type=int, default=30 * 1440)
     parser.add_argument("--baseline-score", type=float, default=None)
+    parser.add_argument(
+        "--force-query-on-target",
+        action="store_true",
+        help="Disable strategy pre-query actions only at target steps so wait/reposition guards cannot hide market alternatives.",
+    )
     parser.add_argument("--out-dir", default="")
     args = parser.parse_args()
 
@@ -103,7 +108,13 @@ def main() -> int:
             prefix_cache[target_step] = prefix
 
         step_start = prefix.progress()
-        rule_action, diagnostics = _decide(prefix, driver_id, settings, feature_settings)
+        rule_action, diagnostics = _decide(
+            prefix,
+            driver_id,
+            settings,
+            feature_settings,
+            disable_pre_query=bool(args.force_query_on_target),
+        )
         after_query_progress = prefix.progress()
         candidates = _dynamic_branch_candidates(
             rule_action,

@@ -4,6 +4,82 @@
 目录体积大且被 `.gitignore` 忽略，因此这里提交可复盘的轻量摘要；本机仍可按文中
 路径查看完整 step/summary 文件。
 
+## 2026-05-26 Snapshot
+
+当前在 0509 数据上的最好 score profile 已更新为 v98：
+
+```text
+score_result_root = demo/results/grid_agentic_algo/20260526_001234_v98_submission_profile_check
+score_profile = score_v98_root_idle_trap_teacher_315688
+preset = submission_score_v98
+```
+
+| profile | 用途 | score | penalty | tokens | failed |
+| --- | --- | ---: | ---: | ---: | ---: |
+| `score_v98_root_idle_trap_teacher_315688` | 当前本地冲分/teacher 研究 | 315688.45 | 12865 | 0 | 0 |
+| `score_v94_d001_step103_teacher_315167` | 历史稳定基线 | 315167.70 | 13165 | 0 | 0 |
+| `official_clean_agentic_planner` | 官方合规方向 | 275973.46 | 17565 | 0 | 0 |
+
+v98 单司机净收益：
+
+| driver | net | penalty |
+| --- | ---: | ---: |
+| D001 | 18732.78 | 900 |
+| D002 | 34189.64 | 0 |
+| D003 | 35363.97 | 2000 |
+| D004 | 39516.78 | 1500 |
+| D005 | 28505.81 | 0 |
+| D006 | 37010.05 | 5200 |
+| D007 | 32527.88 | 0 |
+| D008 | 36051.86 | 800 |
+| D009 | 20051.77 | 900 |
+| D010 | 33737.91 | 1565 |
+
+## v98 Root-Order Idle Trap Distillation
+
+v95-v97 证明了长等待 step 本身局部饱和：强制 query、单步替换、两步 sequence 在 D001/D005/D009 都没有正收益。v98 改成追溯“进入等待坑之前的真实订单”，新增 `analyze_idle_traps.py` 来生成：
+
+```text
+wait_step
+previous_action
+root_order_step
+root_order_cargo
+pickup/haul ratio
+wait_minutes
+root_trap_score
+```
+
+这次验证的关键发现：
+
+| driver | root step | original | winner | delta | penalty change | finding |
+| --- | ---: | --- | --- | ---: | ---: | --- |
+| D001 | 106 | cargo208674 | wait180 | +146.10 | -300 | 月末低价值尾单不接，主动等 180 分钟换更好的收益/休息结构 |
+| D009 | 190 | cargo475223 | cargo192513 | +200.31 | 0 | home/reposition 长等不是修 wait，而是修回家链之前的订单 |
+| D010 | 43 | cargo50832 | cargo352638 | +174.34 | 0 | 第 10 天超长等待来自前置订单的后继状态价值差 |
+| D005 | 107/116/120/125 | rule | rule | 0.00 | 0 | D005 尾部看似低效，但当前链路在可见候选中仍局部最优 |
+
+组合验证：
+
+```text
+grid = hot_v98_root_idle_trap_teacher
+score = 315688.45
+penalty = 12865
+result_dir = demo/results/grid_agentic_algo/20260526_000807_v98_root_idle_trap_combo/01_hot_v98_root_idle_trap_teacher
+submission_profile_check = demo/results/grid_agentic_algo/20260526_001234_v98_submission_profile_check/01_submission_score_v98
+```
+
+算法启发：
+
+```text
+long_idle_step 本身常常已经是局部最优或无货可选。
+真正的决策价值在 root_order 的 after_state：
+  接完这单后，司机会不会被送进低机会时间窗/低后继区域/偏好返家链？
+
+下一版 clean/agentic 算法应学习：
+  V(after_unload_state) - idle_trap_risk
+而不是把“弱区域/强区域”当主规则。
+```
+
 ## 2026-05-25 Snapshot
 
 当前在 0509 数据上的两套 profile 已做复现：
@@ -39,6 +115,70 @@ route-plan scorer、偏好保护和在线动态空驶候选，是后续“不能
 | D008 | 36051.86 | 800 |
 | D009 | 19851.46 | 900 |
 | D010 | 33563.57 | 1565 |
+
+## v95-v97 Value Dataset And Saturation Probe
+
+本轮新增两个离线分析工具：
+
+```text
+demo/build_value_dataset.py
+demo/analyze_value_dataset.py
+```
+
+它们把历史 `dynamic_summary.json`、`sequence_summary.json`、`beam_summary.json` 汇总成
+`demo/results/value_dataset/value_dataset.jsonl` 和 `value_analysis.md`。当前已汇总：
+
+```text
+total_rows = 10919
+labeled_dynamic_sequence_rows = 10804
+positive_rows = 28
+neutral_rows = 688
+negative_rows = 10088
+above_current_v94_driver_score = 0
+```
+
+核心发现：
+
+1. 历史所有正样本都已经被当前 v94 吸收，没有任何分支超过当前对应司机净收益。继续在旧正样本附近加 teacher 已无边际收益。
+2. 正样本极稀疏：D005/D009/D002/D003/D006 目前全是 `0` 个正样本；D001/D007/D010 的正样本也主要是已经提交的旧 teacher。
+3. `dynamic_reposition` 的正样本率最高，但也只有约 `1.4%`，说明主动空驶只能作为候选生成器，不能作为泛化策略直接打开。
+4. beam proxy 对 D009/D010/D006/D008/D001 严重高估，继续加宽 beam 不会自动冲高分，必须先修 preference/rest/fragmentation/value proxy。
+
+为了验证“是不是 pre-query 休息/回家规则挡住了市场信息”，新增了 `--force-query-on-target`：
+
+```text
+dynamic_candidate_probe.py --force-query-on-target
+sequence_counterfactual_probe.py --force-query-on-target
+```
+
+它只在被 probe 的目标 step 关闭 pre-query wait/reposition，强制先 `query_cargo`，prefix 和 tail 仍使用原策略。v96/v97 对 D001/D005/D009 的长等待/低效率热点测试结果：
+
+| driver | probe | steps/pairs | best delta | finding |
+| --- | --- | --- | ---: | --- |
+| D001 | dynamic force-query | 95,100 | 0.00 | 月末长休息链已经最优，短等/空驶/top cargo 全负 |
+| D001 | sequence force-query | 81:87,87:95,95:100 | 0.00 | 两步重排仍不超过 v94 |
+| D005 | dynamic force-query | 92,107 | 0.00 | 当前低效率订单局部仍最优 |
+| D005 | sequence force-query | 92:107,107:120,120:126 | 0.00 | 中后段路径重排无正收益 |
+| D009 | dynamic force-query | 186,189 | 0.00 | 尾部夜间/回家规则附近是等价或负收益 |
+| D009 | sequence force-query | 23:51,164:169,177:184,186:189 | 0.00 | 长等待节奏不能通过局部两步修复 |
+
+这轮启发很重要：当前问题不是“某个等待点没看货”，而是司机已经被更早动作送入了低价值状态。
+下一步高收益方向应从“修尾部动作”切到“修进入等待坑之前的动作”：
+
+```text
+state before long idle
++ previous cargo destination
++ next visible market after arrival
++ rest/preference debt
++ remaining month phase
+=> value(after_state)
+```
+
+也就是学习 `V(after_state)`，再在接单时比较：
+
+```text
+current_net + V(after_unload_state) - preference_risk_delta - idle_trap_risk
+```
 
 `official_clean_agentic_planner` 的主要短板：
 

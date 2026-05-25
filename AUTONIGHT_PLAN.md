@@ -15,23 +15,56 @@
 ## Current Best
 
 ```text
-version = v94 grid-validated submission candidate
-preset = submission_score_v94 / hot_v94_v92_d001_step103_202502
-score = 315167.70
-penalty = 13165
-latest_verified_run = demo/results/grid_agentic_algo/20260525_213043_v94_submission_profile_check/01_submission_score_v94
-latest_verified_steps = demo/results/grid_agentic_algo/20260525_213043_v94_submission_profile_check/01_submission_score_v94/actions_202603_D001_20260525_213249.jsonl ... actions_202603_D010_20260525_213249.jsonl
-latest_verified_summary = demo/results/grid_agentic_algo/20260525_213043_v94_submission_profile_check/01_submission_score_v94/monthly_income_202603.json
-score_profile = score_v94_d001_step103_teacher_315167
+version = v98 grid-validated submission candidate
+preset = submission_score_v98 / hot_v98_root_idle_trap_teacher
+score = 315688.45
+penalty = 12865
+latest_verified_run = demo/results/grid_agentic_algo/20260526_001234_v98_submission_profile_check/01_submission_score_v98
+latest_verified_steps = demo/results/grid_agentic_algo/20260526_001234_v98_submission_profile_check/01_submission_score_v98/actions_202603_D001_*.jsonl ... actions_202603_D010_*.jsonl
+latest_verified_summary = demo/results/grid_agentic_algo/20260526_001234_v98_submission_profile_check/01_submission_score_v98/monthly_income_202603.json
+score_profile = score_v98_root_idle_trap_teacher_315688
 clean_profile = official_clean_agentic_planner
 commit_check = git log -1 --oneline
+```
+
+## Latest Exploration State
+
+```text
+latest_exploration = v98 root-order idle-trap distillation
+value_dataset = demo/results/value_dataset/value_dataset_summary.md
+value_analysis = demo/results/value_dataset/value_analysis.md
+new_tools =
+  demo/build_value_dataset.py
+  demo/analyze_value_dataset.py
+  demo/analyze_idle_traps.py
+new_probe_flag =
+  --force-query-on-target for dynamic_candidate_probe.py and sequence_counterfactual_probe.py
+```
+
+最新结论：
+
+```text
+v95-v97 proved tail wait-step repair saturated.
+v98 traced long idle to root_order and found three stackable exact-tail positives:
+  D001 step106 wait180 = +146.10, penalty -300
+  D009 step190 cargo192513 = +200.31, penalty unchanged
+  D010 step43 cargo352638 = +174.34, penalty unchanged
+submission_score_v98 = 315688.45, penalty 12865
+```
+
+当前搜索范式要切换：
+
+```text
+不要只围绕 wait step 本身做修补。
+长等待往往是结果，不是原因；要追溯 root_order / root_route，把 after_state 的未来价值纳入接单评分。
+下一步应从 v98 的 root-order labels 蒸馏 idle_trap_risk 和 V(after_state)，并继续找 D002/D003/D004/D006/D008 的 root-route 隐性陷阱。
 ```
 
 ## Profile Boundary
 
 ```text
-score_profile = score_v94_d001_step103_teacher_315167
-score_profile_result = 315167.70, penalty 13165
+score_profile = score_v98_root_idle_trap_teacher_315688
+score_profile_result = 315688.45, penalty 12865
 score_profile_use = local leaderboard/research; includes counterfactual/distilled teachers.
 
 clean_profile = official_clean_agentic_planner
