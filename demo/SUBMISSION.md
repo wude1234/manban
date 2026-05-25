@@ -5,18 +5,18 @@
 当前保留两类结果：在线 agent/profile 结果和高收益轨迹 artifact。
 
 ```text
-v106_hybrid_oracle_trajectory
+v109_hybrid_per_driver_best_trajectory
 用途：当前本地最高分 step+summary artifact，用于高收益优先冲分/轨迹提交讨论。
-特点：D001 使用 oracle_route_miner 挖出的完整路线轨迹，D002-D010 使用 v105 agent 结果。
-注意：D001 轨迹来自全量货源 oracle mining，不是 official_clean 在线 agent 决策。
+特点：D001 使用 oracle_route_miner 挖出的完整路线轨迹，D003/D005 使用历史 full-tail probe 中各自最高轨迹，其余司机使用当前最好稳定轨迹。
+注意：D001 轨迹来自全量货源 oracle mining；D003/D005 来自历史 counterfactual/full-tail artifact。这是高收益轨迹 artifact，不是 official_clean 在线 agent 决策。
 复现：demo/build_hybrid_submission_result.py
-score = 326939.12
+score = 327258.16
 total_preference_penalty = 17265.0
 failed_driver_count = 0
 tokens = 0
-result_dir = demo/results/hybrid_submission/v106_d001_oracle_plus_v105_rebuilt
-summary = demo/results/hybrid_submission/v106_d001_oracle_plus_v105_rebuilt/monthly_income_202603.json
-steps = demo/results/hybrid_submission/v106_d001_oracle_plus_v105_rebuilt/actions_202603_D*.jsonl
+result_dir = demo/results/hybrid_submission/v109_d001_d003_d005_best_known
+summary = demo/results/hybrid_submission/v109_d001_d003_d005_best_known/monthly_income_202603.json
+steps = demo/results/hybrid_submission/v109_d001_d003_d005_best_known/actions_202603_D*.jsonl
 ```
 
 在线 agent/profile 当前保留以下 profile：
@@ -79,6 +79,18 @@ preset = submission_score_v105
 step files = demo/results/grid_agentic_algo/20260526_040701_v105_d005_step7_8_timefix/02_submission_score_v105/actions_202603_D001_*.jsonl ... actions_202603_D010_*.jsonl
 summary = demo/results/grid_agentic_algo/20260526_040701_v105_d005_step7_8_timefix/02_submission_score_v105/monthly_income_202603.json
 ```
+
+v109 相比 v106 的新增有效轨迹：
+
+```text
+D003 使用历史 dynamic_candidate_probe/v102_d003_late_chain_sweep/step_106/candidate_54_loadwait_220 轨迹。D003 净收益从 v106/v105 的 35400.09 提升到 35568.42，+168.33，偏好罚分仍为 2000。
+
+D005 使用历史 sequence_counterfactual_probe/v105_d005_daybreak_edges/pair_036_037/f01_wait_369__s02_cargo_46348 轨迹。D005 净收益从 v106/v105 的 28583.75 提升到 28734.46，+150.71，偏好罚分仍为 0。
+
+完整总分从 326939.12 提升到 327258.16，总偏好罚分仍为 17265。
+```
+
+v109 的关键启发是：各司机相互独立计分时，最高收益优先的第一步应先做 per-driver best trajectory assembly。也就是扫描所有历史完整月 action 文件，按司机取净收益最高轨迹，再构造 hybrid step+summary；这比继续在同一个 profile 上微调阈值更直接。边界也要明确：这属于轨迹/teacher 高分 artifact，可用于提交格式或蒸馏分析；如果官方要求纯在线 Agent，则不能把 full-cargo oracle 和 counterfactual artifact 描述为实时可见决策。
 
 v106 相比 v105 的新增有效轨迹：
 

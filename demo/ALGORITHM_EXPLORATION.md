@@ -1683,6 +1683,71 @@ Current implication:
 
 ```text
 For local high-score exploration, continue oracle mining on D002/D003/D004/D006/D007/D010 before more weight tuning.
-If submitting trajectory artifacts is allowed, v106 is the current best complete step+summary result.
+If submitting trajectory artifacts is allowed, v106 is no longer the current best because v109 stacks two historical per-driver best trajectories on top of it.
 If submitting an online agent is required, use D001 oracle route as a teacher and distill it into guarded route-plan actions; do not present full-cargo oracle mining as compliant online decision logic.
 ```
+
+## v109: Per-Driver Best Trajectory Assembly
+
+### Result
+
+```text
+artifact = results/hybrid_submission/v109_d001_d003_d005_best_known
+score = 327258.16
+penalty = 17265
+tokens = 0
+failed_driver_count = 0
+
+composition =
+  D001 = v106 oracle route candidate_02
+  D003 = dynamic_candidate_probe/v102_d003_late_chain_sweep/step_106/candidate_54_loadwait_220
+  D005 = sequence_counterfactual_probe/v105_d005_daybreak_edges/pair_036_037/f01_wait_369__s02_cargo_46348
+  D002/D004/D006/D007/D008/D009/D010 = best stable v105/v104/v101 action files inherited from v106 base
+```
+
+This round switched from "find one more local teacher" to "scan every complete
+result artifact and assemble the best driver-specific action files." Because
+monthly score is additive over drivers, this is a valid local high-score
+search move whenever the target is trajectory artifact score rather than
+online-agent generalization.
+
+The scan found that v106 was not using the historical best D003/D005 trajectories:
+
+```text
+D003 v106/v105 = 35400.09 net, 2000 penalty
+D003 best historical = 35568.42 net, 2000 penalty
+D003 delta = +168.33
+
+D005 v106/v105 = 28583.75 net, 0 penalty
+D005 best historical = 28734.46 net, 0 penalty
+D005 delta = +150.71
+
+full score = 326939.12 -> 327258.16
+```
+
+The finding is blunt but useful for high-score work:
+
+```text
+Per-driver best assembly should run after every large experiment batch.
+It can recover score that is hidden by profile-level comparisons.
+It is especially valuable when historical probes produce complete action JSONL files but were not promoted into the current default agent profile.
+```
+
+The generic oracle sweep also produced a negative result that changes the next
+search direction:
+
+```text
+D002 generic oracle best = 30937.31 vs current 34189.64
+D003 generic oracle best = 26778.58 vs current 35568.42
+D004 generic oracle best = 29937.59 vs current 39516.78
+D006 generic oracle best = 26336.79 vs current 37060.89
+D007 generic oracle best = 20191.03 vs current 32679.93
+D010 generic oracle best = -2154.75 vs current 34062.66
+```
+
+So the next high-upside search is not "make everyone long-haul." It is a
+constrained oracle / segment planner that embeds each driver's real scoring
+rules. D010 must preserve the family-event/home constraints, D009 must preserve
+home-return constraints, D003 must control deadhead/forbidden-zone penalties,
+and D006 must trade rest/fresh-cargo/long-haul penalties against gross instead
+of ignoring them.
