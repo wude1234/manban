@@ -5,11 +5,45 @@
 当前最好可复现分数：
 
 ```text
-score = 315688.45
-preset = submission_score_v98
-penalty = 12865.0
-result_dir = results/grid_agentic_algo/20260526_001234_v98_submission_profile_check/01_submission_score_v98
+score = 341766.32
+preset = v116_hybrid_oracle_trajectory
+penalty = 17265.0
+result_dir = results/hybrid_submission/v116_d001_wide460_candidate01_plus_v115_best
 ```
+
+## v116 新发现：高收益优先时，先接受封顶罚分，再最大化路线毛利链
+
+v116 把 D001 的 `d001_capsoft` 搜索进一步放宽：`future_weight=0.02`、`max_pickup_km=460`、`min_net=-2000`、宽 beam/branch。官方精确评分后，`candidate_01` 达到：
+
+```text
+D001_net = 43713.77
+D001_gross = 73657.00
+D001_distance = 16628.82
+D001_penalty = 5000.00
+orders = 33
+full_score = 341766.32
+```
+
+相对 v115：
+
+```text
+D001 40501.13 -> 43713.77, +3212.64
+full score 338553.68 -> 341766.32, +3212.64
+```
+
+这次不是小阈值收益，而是搜索范式收益。D001 的每日休息罚分 cap=3000、深圳范围罚分 cap=2000，长链中已经变成固定成本；继续在线性 proxy 里惩罚每个休息/深圳违规，会把高 gross 路线提前剪掉。正确的高分搜索目标是：
+
+```text
+score_D001(action_chain) =
+  gross_chain
+  - distance_cost
+  - non_capped_forbidden_category_risk
+  - fixed_capped_penalty
+```
+
+同期 D009 daily-home constrained planner 是强负例：硬要求每天 23 点前回家且夜间静止，只跑出 `-8231.50`，罚分 `12700`。启发是：偏好不能统一硬满足，必须先分析该司机的罚分几何；封顶且已饱和的偏好可以当固定成本，无封顶或高额事件型偏好必须保守。
+
+下一步高收益优先不是泛化，而是把这种 `cap-aware / ignore-pref oracle mining -> official exact scoring -> hybrid assembly` 扩到其他司机，找是否存在类似 D001 的未挖高毛利路线族。
 
 ## v98 新发现：修 long-idle 要追溯 root-order，而不是修 wait 本身
 

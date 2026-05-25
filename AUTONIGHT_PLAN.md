@@ -15,13 +15,13 @@
 ## Current Best
 
 ```text
-version = v115 hybrid/oracle trajectory high-score result
-preset = D001 capsoft nph280/future012 candidate_04 + best-known D003/D005 trajectories + v105/v104/v101 other drivers
-score = 338553.68
+version = v116 hybrid/oracle trajectory high-score result
+preset = D001 capsoft nph235/future002/wide460 candidate_01 + best-known D003/D005 trajectories + v105/v104/v101 other drivers
+score = 341766.32
 penalty = 17265
-latest_verified_run = demo/results/hybrid_submission/v115_d001_capsoft_candidate04_plus_v114_best
-latest_verified_steps = demo/results/hybrid_submission/v115_d001_capsoft_candidate04_plus_v114_best/actions_202603_D*.jsonl
-latest_verified_summary = demo/results/hybrid_submission/v115_d001_capsoft_candidate04_plus_v114_best/monthly_income_202603.json
+latest_verified_run = demo/results/hybrid_submission/v116_d001_wide460_candidate01_plus_v115_best
+latest_verified_steps = demo/results/hybrid_submission/v116_d001_wide460_candidate01_plus_v115_best/actions_202603_D*.jsonl
+latest_verified_summary = demo/results/hybrid_submission/v116_d001_wide460_candidate01_plus_v115_best/monthly_income_202603.json
 score_profile = score_v105_d005_step7_8_teacher
 clean_profile = official_clean_agentic_planner
 commit_check = git log -1 --oneline
@@ -30,7 +30,7 @@ commit_check = git log -1 --oneline
 Boundary:
 
 ```text
-v115 is the current highest local score artifact. It combines a D001 capsoft oracle route with best-known historical D003 and D005 trajectory artifacts.
+v116 is the current highest local score artifact. It combines a more aggressive D001 capsoft oracle route with best-known historical D003 and D005 trajectory artifacts.
 v105 remains the latest online agent/profile score: 316546.84, penalty 13465, result demo/results/grid_agentic_algo/20260526_040701_v105_d005_step7_8_timefix/02_submission_score_v105.
 Use v115 for high-score trajectory/teacher exploration; use v105/official_clean for online-agent compliance work.
 ```
@@ -46,6 +46,7 @@ new_tools =
   demo/analyze_value_dataset.py
   demo/analyze_idle_traps.py
   demo/oracle_route_miner.py
+  demo/d009_daily_home_oracle.py
   demo/build_hybrid_submission_result.py
 new_probe_flag =
   --force-query-on-target for dynamic_candidate_probe.py and sequence_counterfactual_probe.py
@@ -104,6 +105,12 @@ v114/v115 changed D001 preference proxy to cap-aware search:
   v115 d001_capsoft found D001 40501.13, gross 68477.75, distance 15317.75, penalty still capped at 5000
   full hybrid score = 338553.68, penalty 17265
   gap_to_340000 = 1446.32
+v116 widened D001 capsoft route mining and nearly removed future pressure:
+  D001 v115 net 40501.13 -> 43713.77, +3212.64, penalty still capped at 5000
+  D001 gross 73657.00, distance 16628.82, orders 33
+  full hybrid score = 341766.32, penalty 17265
+  above_340000 = 1766.32
+  D009 daily-home constrained smoke test was a strong negative control: hard daily home produced -8231.50 net and 12700 penalty, so D009 must not be treated as a hard-home shortest-path problem.
 ```
 
 当前搜索范式要切换：
@@ -112,7 +119,7 @@ v114/v115 changed D001 preference proxy to cap-aware search:
 不要只围绕 wait step 本身做修补。
 长等待往往是结果，不是原因；要追溯 root_order / root_route，把 after_state 的未来价值纳入接单评分。
 当前冲分第一目标不是泛化，而是继续沿 v105 底座找百元级 early/mid route-chain positives。v104 证明 D010 并非单步 step43 饱和，而是 step39-43 的前置链路可重构；v105 证明 D005 step7 单独改动会崩盘，但 step7+step8 完整链为正。
-v113/v115 证明 D001 的高收益搜索还没有完全收敛：NPH 型宽搜索先打开 30 单链，但继续降低 future 权重、放宽 pickup/min-net，并把已封顶的休息/深圳罚分当固定成本后，29 单更高 gross 路线反而更优。future125、longlook、future055 deeper 的 proxy 都会误导；必须以 monthly_income 精确评分为准。下一步高收益优先：继续 D001 capsoft/ignore-pref 宽搜，同时对 D009 做硬每日回家的日内闭环规划。
+v113-v116 证明 D001 的高收益搜索还没有完全收敛：NPH 型宽搜索先打开 30 单链，但继续降低 future 权重、放宽 pickup/min-net，并把已封顶的休息/深圳罚分当固定成本后，33 单更高 gross 路线反而更优。future125、longlook、future055 deeper 的 proxy 都会误导；必须以 monthly_income 精确评分为准。下一步高收益优先：把 cap-aware/ignore-pref oracle mining 扩展到其他司机，先看真实罚分是否封顶，再由官方评分决定是否值得支付罚分。
 ```
 
 ## Profile Boundary

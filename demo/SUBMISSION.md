@@ -5,18 +5,18 @@
 当前保留两类结果：在线 agent/profile 结果和高收益轨迹 artifact。
 
 ```text
-v115_hybrid_oracle_trajectory
+v116_hybrid_oracle_trajectory
 用途：当前本地最高分 step+summary artifact，用于高收益优先冲分/轨迹提交讨论。
-特点：D001 使用 v115 d001_capsoft oracle_route_miner 挖出的更强完整路线轨迹，D003/D005 使用历史 full-tail probe 中各自最高轨迹，其余司机使用当前最好稳定轨迹。
+特点：D001 使用 v116 d001_capsoft oracle_route_miner 挖出的 33 单高毛利完整路线轨迹，D003/D005 使用历史 full-tail probe 中各自最高轨迹，其余司机使用当前最好稳定轨迹。
 注意：D001 轨迹来自全量货源 oracle mining；D003/D005 来自历史 counterfactual/full-tail artifact。这是高收益轨迹 artifact，不是 official_clean 在线 agent 决策。
 复现：demo/build_hybrid_submission_result.py
-score = 338553.68
+score = 341766.32
 total_preference_penalty = 17265.0
 failed_driver_count = 0
 tokens = 0
-result_dir = demo/results/hybrid_submission/v115_d001_capsoft_candidate04_plus_v114_best
-summary = demo/results/hybrid_submission/v115_d001_capsoft_candidate04_plus_v114_best/monthly_income_202603.json
-steps = demo/results/hybrid_submission/v115_d001_capsoft_candidate04_plus_v114_best/actions_202603_D*.jsonl
+result_dir = demo/results/hybrid_submission/v116_d001_wide460_candidate01_plus_v115_best
+summary = demo/results/hybrid_submission/v116_d001_wide460_candidate01_plus_v115_best/monthly_income_202603.json
+steps = demo/results/hybrid_submission/v116_d001_wide460_candidate01_plus_v115_best/actions_202603_D*.jsonl
 ```
 
 在线 agent/profile 当前保留以下 profile：
@@ -79,6 +79,16 @@ preset = submission_score_v105
 step files = demo/results/grid_agentic_algo/20260526_040701_v105_d005_step7_8_timefix/02_submission_score_v105/actions_202603_D001_*.jsonl ... actions_202603_D010_*.jsonl
 summary = demo/results/grid_agentic_algo/20260526_040701_v105_d005_step7_8_timefix/02_submission_score_v105/monthly_income_202603.json
 ```
+
+v116 相比 v115 的新增有效轨迹：
+
+```text
+D001 使用 results/oracle_route_miner/v116_d001_capsoft_nph235_future002_wide460/candidate_01 轨迹。D001 净收益从 v115 的 40501.13 提升到 43713.77，+3212.64；gross 73657.00，distance 16628.82，偏好罚分仍为封顶 5000，订单数 33。
+
+完整总分从 v115 的 338553.68 提升到 341766.32，总偏好罚分仍为 17265，已经超过 340000。
+```
+
+v116 的关键启发是：D001 的 cap-aware 搜索仍未收敛，而且“future value”过强会误导。最优方向不是保护休息/深圳偏好，也不是泛化区域强弱，而是在接受封顶 5000 固定罚分后，用更宽 pickup、更低 future 权重、更低 min-net 打开高毛利长链，再交给官方 monthly_income 精确评分筛选。D009 daily-home hard constraint 同期验证为强负例，说明不能把偏好硬满足当作默认优化目标。
 
 v115 相比 v113/v114 的新增有效轨迹：
 
