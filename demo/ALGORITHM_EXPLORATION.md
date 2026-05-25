@@ -5,11 +5,69 @@
 当前最好可复现分数：
 
 ```text
-score = 341766.32
-preset = v116_hybrid_oracle_trajectory
-penalty = 17265.0
-result_dir = results/hybrid_submission/v116_d001_wide460_candidate01_plus_v115_best
+score = 367316.31
+preset = v118_hybrid_oracle_trajectory
+penalty = 55615.0
+result_dir = results/hybrid_submission/v118_d004_d005_ignore_oracle_plus_v117_best
 ```
+
+## v118 新发现：D004/D005 也能靠高毛利链覆盖偏好罚分
+
+v118 把 v117 的 D001/D002/D003/D008 高毛利路线作为底座，继续并入 D004/D005 的 ignore-pref oracle exact 结果：
+
+```text
+D004 39516.78 -> 44659.52, +5142.74, penalty 4100
+D005 28734.46 -> 38677.74, +9943.28, penalty 10100
+
+full hybrid:
+  score 352230.29 -> 367316.31
+  total_preference_penalty 42915 -> 55615
+```
+
+最重要的新启发：D005 之前的 0 罚分轨迹看起来“稳”，但高收益目标下它实际上损失接近一万分。当前数据里，能进入同一类 31-33 单高毛利路线族的司机是：
+
+```text
+positive_long_chain = D001, D002, D003, D004, D005, D008
+negative_long_chain = D006, D007, D009, D010
+```
+
+这不是泛化规则，而是高收益搜索的司机级分类：正类司机的偏好罚分边际可被毛利链覆盖，负类司机的真实偏好罚分会把同样的路线打穿。D009/D010 的 ignore-pref exact 结果尤其说明，低当前净收益不代表应该直接放开偏好；它们需要偏好约束路线搜索，而不是跟随 D001-D005/D008 的长链模板。
+
+下一步高收益优先：
+
+```text
+1. 对 D001-D005/D008 做更宽、更深、更低 future 权重的路线族重搜。
+2. 对 D009/D010 单独做偏好约束 planner，不再主力尝试 ignore-pref。
+3. 组合验证只接受 official monthly_income exact 分数，不信 proxy。
+```
+
+## v117 新发现：多司机存在“付高罚分换高毛利链”的大空间
+
+v117 把 v116 的 D001 cap-aware oracle 路线作为底座，对 D002/D003/D006/D007/D008 做 ignore-pref oracle mining，再由官方 `monthly_income` 精确评分筛选。结果不是全员有效，而是明显分化：
+
+```text
+positive:
+  D002 34189.64 -> 37692.29, +3502.65, penalty 10350
+  D003 35568.42 -> 41051.78, +5483.36, penalty 7800
+  D008 36169.63 -> 37647.59, +1477.96, penalty 10300
+
+negative controls:
+  D006 37060.89 -> 36530.22, -530.67, penalty 12200
+  D007 32679.93 -> 30849.93, -1830.00, penalty 17980
+
+full hybrid:
+  score 341766.32 -> 352230.29
+  total_preference_penalty 17265 -> 42915
+```
+
+核心启发：当前高收益路线不是“少罚分最优”，而是：
+
+```text
+accept_route_if:
+  gross_chain_gain - distance_cost_gain > preference_penalty_delta
+```
+
+D002/D003/D008 的 31-33 单高毛利路线即使带来 7k-10k 偏好罚分，仍然显著高于原有保守轨迹；D006/D007 则被罚分和距离成本打穿。这说明每个司机要先做真实罚分几何分类，再用 exact scoring 选路线族。v118 已补完 D004/D005/D009/D010：D004/D005 为强正，D009/D010 为强负。
 
 ## v116 新发现：高收益优先时，先接受封顶罚分，再最大化路线毛利链
 
