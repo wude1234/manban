@@ -14,13 +14,13 @@
 ## Current Best
 
 ```text
-version = v89 grid-validated submission candidate
-preset = hot_v89_v88_d010_step103_105_sequence
-score = 315031.96
+version = v92 grid-validated submission candidate
+preset = hot_v92_v89_dynamic_repos_d001_d007
+score = 315085.75
 penalty = 12865
-run_dir = demo/results/grid_agentic_algo/20260524_131327_autonight_v89_d010_sequence_timefix/01_hot_v89_v88_d010_step103_105_sequence
-default_run = demo/results/actions_202603_D001-D010_20260524_131923.jsonl + demo/results/monthly_income_202603.json
-last_commit = pending v89 commit
+run_dir = demo/results/grid_agentic_algo/20260525_153955_v92_dynamic_repos_teachers/01_hot_v92_v89_dynamic_repos_d001_d007
+default_run = demo/results/actions_202603_D001-D010_20260525_154904.jsonl + demo/results/monthly_income_202603.json
+last_commit = pending v92 dynamic reposition teachers score 315085
 ```
 
 核心发现：
@@ -54,6 +54,22 @@ v84 finds the first new exact-tail positive after the v77 plateau: D009 step110 
 v85 adds a D008 month-end wait teacher: step87 wait180 avoids cargo203004, then enters cargo486259 -> cargo210728, lifting D008 by +74.20 with unchanged 800 penalty. This confirms wait is an active route-plan action, not just no-cargo fallback.
 v86 one-step wide probes across D003/D004/D008/D010/D005 found no positive single-step repairs. This is a local saturation signal for cargo/wait/reposition one-step regret.
 v87/v88/v89 show the next gain requires two-step Route Plan distillation: D008 step85 cargo482796 + step86 cargo200633 adds +47.99, and D010 step103 cargo481074 + step105 cargo489360 adds +62.94. Single-step scoring would reject these or mis-rank them.
+v90/v91 show top-k sequence and triple probing is saturated on the current visible candidate set: 3340 ok rows, no positive candidates. v92 switches search paradigm by generating new actions from the observed market itself: deep non-top cargo, event waits, and dynamic reposition points from visible cargo pickup/end/centroid clusters. This found D001 step99 Shenzhen micro-reposition (+47.88) and D007 step114 southwest dynamic reposition (+5.91), lifting the full submission score to 315085.75 with the same 12865 penalty.
+```
+
+### v92 result
+
+```text
+grid = results/grid_agentic_algo/20260525_153955_v92_dynamic_repos_teachers
+best = hot_v92_v89_dynamic_repos_d001_d007
+score = 315085.75
+penalty = 12865
+promoted =
+  v89 full stack
+  D001 step99 dynamic reposition to (22.81,114.21)
+  D007 step114 dynamic reposition to (22.61,112.78)
+finding = top-k cargo and fixed reposition probes were saturated, but dynamic candidate generation still found positive route repairs. D001 improves by replacing a long Shenzhen wait with a tiny active reposition that unlocks a better local chain; D007 improves by moving to a visible-market-derived pickup cluster before taking the next order. Both keep preference penalties unchanged.
+default_validation = results/actions_202603_D*_20260525_154904.jsonl, score 315085.75, penalty 12865, failed_driver_count 0
 ```
 
 ### v89 result

@@ -3340,6 +3340,33 @@ def _v89_d010_step103_105_sequence_env() -> dict[str, str]:
     return env
 
 
+def _v92_dynamic_repos_teachers_env() -> dict[str, str]:
+    env = _v89_d010_step103_105_sequence_env()
+    env.update(
+        {
+            "AGENT_AP_ENABLE_DISTILLED_D001_STEP99_REPOS_DYNAMIC": "1",
+            "AGENT_AP_D001_STEP99_DYNAMIC_REQUIRE_VISIBLE_MARKER": "1",
+            "AGENT_AP_D001_STEP99_DYNAMIC_MARKER_IDS": "187911,198353,197952",
+            "AGENT_AP_D001_STEP99_DYNAMIC_DAY": "28",
+            "AGENT_AP_D001_STEP99_DYNAMIC_MIN_MINUTE": str(3 * 60 + 30),
+            "AGENT_AP_D001_STEP99_DYNAMIC_MAX_MINUTE": str(4 * 60 + 40),
+            "AGENT_AP_D001_STEP99_DYNAMIC_LOCATION_RADIUS_KM": "8",
+            "AGENT_AP_D001_STEP99_DYNAMIC_REPOS_LAT": "22.81",
+            "AGENT_AP_D001_STEP99_DYNAMIC_REPOS_LNG": "114.21",
+            "AGENT_AP_ENABLE_DISTILLED_D007_STEP114_REPOS_DYNAMIC": "1",
+            "AGENT_AP_D007_STEP114_DYNAMIC_REQUIRE_VISIBLE_MARKER": "1",
+            "AGENT_AP_D007_STEP114_DYNAMIC_MARKER_IDS": "479951,479939,475223",
+            "AGENT_AP_D007_STEP114_DYNAMIC_DAY": "28",
+            "AGENT_AP_D007_STEP114_DYNAMIC_MIN_MINUTE": str(4 * 60),
+            "AGENT_AP_D007_STEP114_DYNAMIC_MAX_MINUTE": str(6 * 60 + 30),
+            "AGENT_AP_D007_STEP114_DYNAMIC_LOCATION_RADIUS_KM": "20",
+            "AGENT_AP_D007_STEP114_DYNAMIC_REPOS_LAT": "22.61",
+            "AGENT_AP_D007_STEP114_DYNAMIC_REPOS_LNG": "112.78",
+        }
+    )
+    return env
+
+
 def _v82_v77_layered_env(
     *,
     route_weight: str = "0.010",
@@ -4856,6 +4883,7 @@ PRESETS.update(
         "hot_v85_v84_d008_step87_wait180": _v85_d008_step87_wait_env(),
         "hot_v88_v85_d008_step85_86_sequence": _v88_d008_step85_86_sequence_env(),
         "hot_v89_v88_d010_step103_105_sequence": _v89_d010_step103_105_sequence_env(),
+        "hot_v92_v89_dynamic_repos_d001_d007": _v92_dynamic_repos_teachers_env(),
         # v82: re-test true agentic state-value modules on the v77 best route.
         # These presets add no new fixed teacher labels; they only change the
         # online scoring layer, so gains here are algorithmic rather than trace

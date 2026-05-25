@@ -2,12 +2,12 @@
 
 ## 当前提交版本
 
-提交 profile：`v89_sequence_route_teacher_315031`
+提交 profile：`v92_dynamic_reposition_teacher_315085`
 
 本地 0509 数据当前最好复现结果：
 
 ```text
-score = 315031.96
+score = 315085.75
 total_preference_penalty = 12865.0
 failed_driver_count = 0
 tokens = 0
@@ -16,11 +16,21 @@ tokens = 0
 对应实验：
 
 ```text
-demo/results/grid_agentic_algo/20260524_131327_autonight_v89_d010_sequence_timefix/01_hot_v89_v88_d010_step103_105_sequence
-preset = hot_v89_v88_d010_step103_105_sequence
-default step files = demo/results/actions_202603_D001-D010_20260524_131923.jsonl
+demo/results/grid_agentic_algo/20260525_153955_v92_dynamic_repos_teachers/01_hot_v92_v89_dynamic_repos_d001_d007
+preset = hot_v92_v89_dynamic_repos_d001_d007
+default step files = demo/results/actions_202603_D001-D010_20260525_154904.jsonl
 summary = demo/results/monthly_income_202603.json
 ```
+
+v92 相比 v89 的新增有效动作：
+
+```text
+D001 step99 dynamic reposition: 原路径在 03-29 凌晨深圳内长等，动态候选生成器从可见货源 pickup/end/centroid 中生成短空驶点 `(22.81,114.21)`。完整尾部回放后进入 cargo198353 -> cargo202812 -> cargo203175 -> cargo491392，比原路径 D001 净收益 +47.88，罚分仍为 900。
+
+D007 step114 dynamic reposition: 原路径接 cargo475223，动态候选生成器发现空驶到 `(22.61,112.78)` 后可以接入 cargo479939 -> cargo200448。该分支 D007 净收益 +5.91，罚分仍为 0。
+```
+
+这次提升的核心不是继续调排序权重，而是更换搜索范式：当 top-k cargo / value cargo / two-step sequence 都局部饱和后，候选生成必须把 `take_order`、`wait` 和由当前可见市场诱导出的 `dynamic reposition` 放到同一个 full-tail exact scoring 里比较。v92 已把两个正样本蒸馏为带司机、step、时间、位置和可见货源 marker 的安全 Agent teacher。
 
 v89 相比 v85 的新增有效动作：
 

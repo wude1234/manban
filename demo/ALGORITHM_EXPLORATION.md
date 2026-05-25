@@ -5,10 +5,10 @@
 当前最好可复现分数：
 
 ```text
-score = 315031.96
-preset = hot_v89_v88_d010_step103_105_sequence
+score = 315085.75
+preset = hot_v92_v89_dynamic_repos_d001_d007
 penalty = 12865.0
-result_dir = results/grid_agentic_algo/20260524_131327_autonight_v89_d010_sequence_timefix/01_hot_v89_v88_d010_step103_105_sequence
+result_dir = results/grid_agentic_algo/20260525_153955_v92_dynamic_repos_teachers/01_hot_v92_v89_dynamic_repos_d001_d007
 ```
 
 这套分数不是靠单点阈值堆出来的，核心是把司机拆成不同画像后做收益-扣分权衡，并在关键决策步使用反事实回放验证“换一个候选货源是否让整个月更优”：
@@ -93,6 +93,8 @@ v32-v57: 对关键步骤做 candidate/action-level counterfactual rollout，验�
 34. v85 从 D008 wide route-value probe 中挖出新的 action-level 正样本：step87 不接原规则 `cargo203004`，而是在 03-30 早晨 `(23.20,112.90)` 原地 `wait180`。后续链从 `203004 -> 489410` 切换为 `486259 -> 210728`，罚分仍为 `800`，gross `+27.36`、距离 `-31.23km`，D008 净收益 `35929.67 -> 36003.87`，完整月总分到 `314921.03`。启发是：等待动作应该作为主动 Route Plan 分支参与规划，特别是月末低价值候选窗口；它不是“没货兜底”，而是为了释放更好的后继链。
 
 35. v86-v89 证明当前平台不是“没有空间”，而是单步 regret 已经收敛，必须使用二步 Route Plan。v86 对 D003/D004/D008/D010/D005 的 one-step wide probe 全部无正收益；v87 sequence probe 反而找到 D008 `step85 cargo482796 + step86 cargo200633`（D008 `36003.87 -> 36051.86`，+47.99）和 D010 `step103 cargo481074 + step105 cargo489360`（D010 `33500.63 -> 33563.57`，+62.94）。D008 的 step85 单独是负收益，但和 step86 组合为正，说明候选排序必须看后继链。D010 增加 300 罚分仍然净赚，说明偏好罚分要作为边际风险成本，不是硬约束。
+
+36. v90-v92 证明继续在已有 top-k/value/sequence 候选里排列组合已经饱和，但“候选生成”本身还能产生收益。v90/v91 对 D001/D002/D006/D007/D009 以及 D008/D010 后段做 two-step / triple probe，共 3340 个 ok 分支，没有正收益。v92 新增 `dynamic_candidate_probe.py`，从当前可见货源的 pickup、destination、centroid 生成动态空驶点，并把 `take_order / wait / reposition` 同级交给 full-tail exact scoring。结果找到 D001 step99 深圳内微空驶 `(22.81,114.21)`，D001 `18456.85 -> 18504.73`，+47.88；D007 step114 动态空驶到 `(22.61,112.78)`，D007 `32521.97 -> 32527.88`，+5.91。完整月达到 `315085.75`，罚分仍为 `12865`。启发是：区域强弱不是核心规则，但可见市场可以用来生成更好的候选动作；最终仍必须用官方 exact-tail 回放判定。
 
 28. v62/v63 证明 v61 后单步 regret mining 已经饱和。对 D001/D002/D004/D005/D006/D007/D008/D009 共 75 个关键 step 做 take/wait/reposition full-tail 单步替换，没有正收益动作。结论是：高空驶、高等待、高罚分只是探测信号，不是策略规则；下一步必须做序列级 rebase 或状态价值学习。
 

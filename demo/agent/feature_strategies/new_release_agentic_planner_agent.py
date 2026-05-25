@@ -707,6 +707,8 @@ def _distilled_counterfactual_action(status: dict[str, Any], viable: list[dict[s
         return _d001_step93_wait_distilled_action(status, viable)
     if driver_id == "D001" and step == 98 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D001_STEP98_REPOS_SZ", False):
         return _d001_step98_repos_sz_distilled_action(status, viable)
+    if driver_id == "D001" and step == 99 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D001_STEP99_REPOS_DYNAMIC", False):
+        return _d001_step99_dynamic_repos_distilled_action(status, viable)
     if driver_id == "D001" and step == 102 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D001_STEP102_WAIT", False):
         return _d001_step102_wait_distilled_action(status, viable)
     if driver_id == "D003" and step == 107 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D003_STEP107_WAIT", False):
@@ -719,6 +721,8 @@ def _distilled_counterfactual_action(status: dict[str, Any], viable: list[dict[s
         return _d010_step122_wait_distilled_action(status, viable)
     if driver_id == "D010" and step == 123 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D010_STEP123", False):
         return _d010_step123_distilled_action(status, viable)
+    if driver_id == "D007" and step == 114 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D007_STEP114_REPOS_DYNAMIC", False):
+        return _d007_step114_dynamic_repos_distilled_action(status, viable)
     if driver_id == "D007" and step == 114 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D007_STEP114", False):
         return _d007_step114_distilled_action(status, viable)
     if driver_id == "D007" and step == 119 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D007_STEP119_WAIT", False):
@@ -1852,6 +1856,34 @@ def _d001_step98_repos_sz_distilled_action(status: dict[str, Any], viable: list[
     }
 
 
+def _d001_step99_dynamic_repos_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:
+    if _env_bool("AGENT_AP_D001_STEP99_DYNAMIC_REQUIRE_VISIBLE_MARKER", True) and not _has_visible_cargo(
+        viable, "AGENT_AP_D001_STEP99_DYNAMIC_MARKER_IDS", "187911,198353,197952"
+    ):
+        return None
+    if not _phase_guard(
+        status,
+        day_env="AGENT_AP_D001_STEP99_DYNAMIC_DAY",
+        default_day=28,
+        min_env="AGENT_AP_D001_STEP99_DYNAMIC_MIN_MINUTE",
+        default_minute=3 * 60 + 30,
+        max_env="AGENT_AP_D001_STEP99_DYNAMIC_MAX_MINUTE",
+        default_max_minute=4 * 60 + 40,
+        center_lat=22.89,
+        center_lng=114.16,
+        radius_env="AGENT_AP_D001_STEP99_DYNAMIC_LOCATION_RADIUS_KM",
+        default_radius_km=8.0,
+    ):
+        return None
+    return {
+        "action": "reposition",
+        "params": {
+            "latitude": _env_float("AGENT_AP_D001_STEP99_DYNAMIC_REPOS_LAT", 22.81),
+            "longitude": _env_float("AGENT_AP_D001_STEP99_DYNAMIC_REPOS_LNG", 114.21),
+        },
+    }
+
+
 def _d001_step102_wait_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:
     if not _has_visible_cargo(viable, "AGENT_AP_D001_STEP102_LOSER_IDS", "484350"):
         return None
@@ -1986,6 +2018,34 @@ def _d007_step114_distilled_action(status: dict[str, Any], viable: list[dict[str
     ):
         return None
     return {"action": "take_order", "params": {"cargo_id": winner_id}}
+
+
+def _d007_step114_dynamic_repos_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:
+    if _env_bool("AGENT_AP_D007_STEP114_DYNAMIC_REQUIRE_VISIBLE_MARKER", True) and not _has_visible_cargo(
+        viable, "AGENT_AP_D007_STEP114_DYNAMIC_MARKER_IDS", "479951,479939,475223"
+    ):
+        return None
+    if not _phase_guard(
+        status,
+        day_env="AGENT_AP_D007_STEP114_DYNAMIC_DAY",
+        default_day=28,
+        min_env="AGENT_AP_D007_STEP114_DYNAMIC_MIN_MINUTE",
+        default_minute=4 * 60,
+        max_env="AGENT_AP_D007_STEP114_DYNAMIC_MAX_MINUTE",
+        default_max_minute=6 * 60 + 30,
+        center_lat=22.21,
+        center_lng=113.40,
+        radius_env="AGENT_AP_D007_STEP114_DYNAMIC_LOCATION_RADIUS_KM",
+        default_radius_km=20.0,
+    ):
+        return None
+    return {
+        "action": "reposition",
+        "params": {
+            "latitude": _env_float("AGENT_AP_D007_STEP114_DYNAMIC_REPOS_LAT", 22.61),
+            "longitude": _env_float("AGENT_AP_D007_STEP114_DYNAMIC_REPOS_LNG", 112.78),
+        },
+    }
 
 
 def _d007_step119_wait_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:
