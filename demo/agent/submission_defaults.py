@@ -12,7 +12,8 @@ from __future__ import annotations
 import os
 
 
-SCORE_PROFILE = "score_v101_high_yield_teacher_316057"
+SCORE_PROFILE = "score_v103_tail_reposition_teacher_316144"
+LEGACY_V101_SCORE_PROFILE = "score_v101_high_yield_teacher_316057"
 LEGACY_V98_SCORE_PROFILE = "score_v98_root_idle_trap_teacher_315688"
 LEGACY_SCORE_PROFILE = "score_v94_d001_step103_teacher_315167"
 OFFICIAL_CLEAN_PROFILE = "official_clean_agentic_planner"
@@ -377,10 +378,33 @@ _SCORE_V101_TEACHER_DEFAULTS: dict[str, str] = {
 }
 
 
+_SCORE_V103_TEACHER_DEFAULTS: dict[str, str] = {
+    **_SCORE_V101_TEACHER_DEFAULTS,
+    "AGENT_AP_ENABLE_DISTILLED_D003_STEP110_REPOS_DYNAMIC": "1",
+    "AGENT_AP_D003_STEP110_REPOS_REQUIRE_VISIBLE_MARKER": "1",
+    "AGENT_AP_D003_STEP110_REPOS_MARKER_IDS": "203410,203874,203681,201876",
+    "AGENT_AP_D003_STEP110_REPOS_DAY": "29",
+    "AGENT_AP_D003_STEP110_REPOS_MIN_MINUTE": str(5 * 60),
+    "AGENT_AP_D003_STEP110_REPOS_MAX_MINUTE": str(5 * 60 + 35),
+    "AGENT_AP_D003_STEP110_REPOS_LOCATION_RADIUS_KM": "8",
+    "AGENT_AP_D003_STEP110_REPOS_LAT": "22.97",
+    "AGENT_AP_D003_STEP110_REPOS_LNG": "113.61",
+    "AGENT_AP_ENABLE_DISTILLED_D006_STEP99_208042": "1",
+    "AGENT_AP_D006_STEP99_WINNER_ID": "208042",
+    "AGENT_AP_D006_STEP99_LOSER_IDS": "208263",
+    "AGENT_AP_D006_STEP99_DAY": "29",
+    "AGENT_AP_D006_STEP99_MIN_MINUTE": str(13 * 60),
+    "AGENT_AP_D006_STEP99_MAX_MINUTE": str(15 * 60),
+    "AGENT_AP_D006_STEP99_LOCATION_RADIUS_KM": "20",
+}
+
+
 def _profile_defaults(profile: str) -> dict[str, str]:
     normalized = profile.strip().lower()
     defaults = dict(_BASE_DEFAULTS)
-    if normalized in {"score", "score_v101", SCORE_PROFILE.lower(), "v101", "local_score"}:
+    if normalized in {"score", "score_v103", SCORE_PROFILE.lower(), "v103", "local_score"}:
+        defaults.update(_SCORE_V103_TEACHER_DEFAULTS)
+    elif normalized in {"score_v101", LEGACY_V101_SCORE_PROFILE.lower(), "v101"}:
         defaults.update(_SCORE_V101_TEACHER_DEFAULTS)
     elif normalized in {"score_v98", LEGACY_V98_SCORE_PROFILE.lower(), "v98"}:
         defaults.update(_SCORE_V98_TEACHER_DEFAULTS)

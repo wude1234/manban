@@ -829,6 +829,8 @@ def _distilled_counterfactual_action(status: dict[str, Any], viable: list[dict[s
         return _d006_step97_wait_distilled_action(status, viable)
     if driver_id == "D006" and step == 98 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D006_STEP98", False):
         return _d006_step98_distilled_action(status, viable)
+    if driver_id == "D006" and step == 99 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D006_STEP99_208042", False):
+        return _d006_step99_208042_distilled_action(status, viable)
     if driver_id == "D006" and step == 99 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D006_STEP99_REPOS_GZ", False):
         return _d006_step99_repos_gz_distilled_action(status, viable)
     if driver_id == "D006" and step == 100 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D006_STEP100_WAIT", False):
@@ -859,6 +861,8 @@ def _distilled_counterfactual_action(status: dict[str, Any], viable: list[dict[s
         return _d001_step106_wait180_distilled_action(status, viable)
     if driver_id == "D003" and step == 107 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D003_STEP107_WAIT", False):
         return _d003_step107_wait_distilled_action(status, viable)
+    if driver_id == "D003" and step == 110 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D003_STEP110_REPOS_DYNAMIC", False):
+        return _d003_step110_dynamic_repos_distilled_action(status, viable)
     if driver_id == "D003" and step == 110 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D003_STEP110", False):
         return _d003_step110_distilled_action(status, viable)
     if driver_id == "D010" and step == 121 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D010_STEP121_WAIT", False):
@@ -905,8 +909,6 @@ def _distilled_counterfactual_action(status: dict[str, Any], viable: list[dict[s
         return _d008_step87_distilled_action(status, viable)
     if driver_id == "D008" and step == 88 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D008_STEP88_WAIT", False):
         return _d008_step88_wait_distilled_action(status, viable)
-    if driver_id == "D006" and step == 99 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D006_STEP99_208042", False):
-        return _d006_step99_208042_distilled_action(status, viable)
     if driver_id == "D010" and step == 43 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D010_STEP43_352638", False):
         return _d010_step43_352638_distilled_action(status, viable)
     if driver_id == "D001" and step == 105 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D001_STEP105_485682", False):
@@ -2317,6 +2319,36 @@ def _d003_step110_distilled_action(status: dict[str, Any], viable: list[dict[str
     ):
         return None
     return {"action": "take_order", "params": {"cargo_id": winner_id}}
+
+
+def _d003_step110_dynamic_repos_distilled_action(
+    status: dict[str, Any], viable: list[dict[str, Any]]
+) -> dict[str, Any] | None:
+    if _env_bool("AGENT_AP_D003_STEP110_REPOS_REQUIRE_VISIBLE_MARKER", True) and not _has_visible_cargo(
+        viable, "AGENT_AP_D003_STEP110_REPOS_MARKER_IDS", "203410,203874,203681,201876"
+    ):
+        return None
+    if not _phase_guard(
+        status,
+        day_env="AGENT_AP_D003_STEP110_REPOS_DAY",
+        default_day=29,
+        min_env="AGENT_AP_D003_STEP110_REPOS_MIN_MINUTE",
+        default_minute=5 * 60,
+        max_env="AGENT_AP_D003_STEP110_REPOS_MAX_MINUTE",
+        default_max_minute=5 * 60 + 35,
+        center_lat=22.90,
+        center_lng=113.76,
+        radius_env="AGENT_AP_D003_STEP110_REPOS_LOCATION_RADIUS_KM",
+        default_radius_km=8.0,
+    ):
+        return None
+    return {
+        "action": "reposition",
+        "params": {
+            "latitude": _env_float("AGENT_AP_D003_STEP110_REPOS_LAT", 22.97),
+            "longitude": _env_float("AGENT_AP_D003_STEP110_REPOS_LNG", 113.61),
+        },
+    }
 
 
 def _d010_step121_wait_distilled_action(status: dict[str, Any]) -> dict[str, Any] | None:

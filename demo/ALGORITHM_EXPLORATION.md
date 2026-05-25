@@ -1516,3 +1516,43 @@ Force query on target steps so existing wait/reposition teachers do not hide alt
 Treat take_order, wait and dynamic reposition as equal candidate actions, then score by full monthly tail.
 Promote only additive positives into score_v101; keep failed generalized gates disabled by default.
 ```
+
+## v103: Tail Reposition Teacher Stack
+
+### Result
+
+```text
+preset = submission_score_v103 / hot_v103_v101_plus_d003110_d00699
+score = 316144.15
+penalty = 13165
+result = results/grid_agentic_algo/20260526_022516_v103_submission_profile_check/01_submission_score_v103
+```
+
+After v101, broad one-step tail probes showed mostly saturation:
+
+```text
+D010 step43/49 root area: no positive; current cargo352638 remains best.
+D005 late idle sweep: only +4.37 from a tiny reposition, not worth promoting.
+D002 tail fast sweep: no positive.
+D003 tail fast sweep: one positive dynamic reposition at step110, +36.12.
+D006 penalty tail sweep: one positive cargo switch at step99, +50.84.
+```
+
+Promoted positives:
+
+```text
+D006 step99 cargo208042 = +50.84
+D003 step110 reposition to (22.97,113.61) = +36.12
+total v101 -> v103 = +86.96
+```
+
+The important harness lesson is that teacher guards must be calibrated on the action-start state, not the action-completion state. D006 initially failed to trigger in the full combination because the environment used a 19:00-22:00 window copied from the completion time. The correct decision window was around 13:00-15:00 at `(23.14,113.41)`.
+
+Current implication:
+
+```text
+Single-step tail probing is now giving sparse, small gains.
+D005/D010/D002 look saturated under one-step exact-tail search.
+Next high-yield search should move to three-step/beam route repair from earlier route branches.
+Keep v99 idle-trap generalization disabled; use it only as a suspicious-step selector.
+```

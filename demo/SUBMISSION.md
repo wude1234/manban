@@ -6,8 +6,12 @@
 
 ```text
 score_v101_high_yield_teacher_316057
-用途：当前默认本地冲分、离线研究和榜单复现实验。
+用途：历史稳定基线和消融对照。
 特点：在 v98 root-order idle-trap 底座上叠加 D001/D007/D008/D009 四个完整尾部验证过的高收益 teacher，复现 316057.19。
+
+score_v103_tail_reposition_teacher_316144
+用途：当前默认本地冲分、离线研究和榜单复现实验。
+特点：在 v101 底座上叠加 D003/D006 两个完整尾部验证过的尾段路线修复 teacher，复现 316144.15。
 
 score_v98_root_idle_trap_teacher_315688
 用途：历史稳定基线和消融对照。
@@ -25,7 +29,7 @@ official_clean_agentic_planner
 本地 0509 数据当前最好复现结果为 score profile：
 
 ```text
-score = 316057.19
+score = 316144.15
 total_preference_penalty = 13165.0
 failed_driver_count = 0
 tokens = 0
@@ -44,11 +48,21 @@ result_dir = demo/results/grid_agentic_algo/20260525_185542_two_profiles_check_f
 对应实验：
 
 ```text
-demo/results/grid_agentic_algo/20260526_015234_v101_submission_profile_check/01_submission_score_v101
-preset = submission_score_v101
-step files = demo/results/grid_agentic_algo/20260526_015234_v101_submission_profile_check/01_submission_score_v101/actions_202603_D001_*.jsonl ... actions_202603_D010_*.jsonl
-summary = demo/results/grid_agentic_algo/20260526_015234_v101_submission_profile_check/01_submission_score_v101/monthly_income_202603.json
+demo/results/grid_agentic_algo/20260526_022516_v103_submission_profile_check/01_submission_score_v103
+preset = submission_score_v103
+step files = demo/results/grid_agentic_algo/20260526_022516_v103_submission_profile_check/01_submission_score_v103/actions_202603_D001_*.jsonl ... actions_202603_D010_*.jsonl
+summary = demo/results/grid_agentic_algo/20260526_022516_v103_submission_profile_check/01_submission_score_v103/monthly_income_202603.json
 ```
+
+v103 相比 v101 的新增有效动作：
+
+```text
+D006 step99 cargo208042: v101 原路径接 cargo208263，完整尾部探针发现 cargo208042 虽然 gross 少 43.07，但距离少 62.60km、罚分不变，D006 净收益从 37010.05 提升到 37060.89，完整月 +50.84。
+
+D003 step110 dynamic reposition: v101 原路径直接接 cargo203410。动态候选发现先短空驶到 `(22.97,113.61)`，再自然接入 cargo201171 尾链，罚分仍为 2000，D003 净收益从 35363.97 提升到 35400.09，完整月 +36.12。
+```
+
+v103 的工程启发：蒸馏 teacher 时必须使用动作开始状态做时间/位置 guard，而不是使用订单完成后的 `simulation_end_time`。D006 step99 第一次组合验证未触发，正是因为误把完成后 18:20/20:51 作为时间窗；修正到决策前 13:00-15:00 后才成功叠加。
 
 v101 相比 v98 的新增有效动作：
 

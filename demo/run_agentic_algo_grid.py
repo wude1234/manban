@@ -3472,8 +3472,10 @@ def _v99_idle_trap_gate_env(*, clean: bool = False, wait_gate: bool = False, str
 def _v100_high_yield_probe_env(
     *,
     d001: bool = True,
+    d003: bool = False,
     d007: bool = True,
     d008: bool = False,
+    d006: bool = False,
     d009: bool = True,
 ) -> dict[str, str]:
     env = _v98_root_idle_trap_env()
@@ -3489,6 +3491,20 @@ def _v100_high_yield_probe_env(
                 "AGENT_AP_D001_STEP105_MAX_MINUTE": str(11 * 60 + 10),
                 "AGENT_AP_D001_STEP105_LOCATION_RADIUS_KM": "10",
                 "AGENT_AP_D001_STEP105_WINNER_MIN_NET": "0",
+            }
+        )
+    if d003:
+        env.update(
+            {
+                "AGENT_AP_ENABLE_DISTILLED_D003_STEP110_REPOS_DYNAMIC": "1",
+                "AGENT_AP_D003_STEP110_REPOS_REQUIRE_VISIBLE_MARKER": "1",
+                "AGENT_AP_D003_STEP110_REPOS_MARKER_IDS": "203410,203874,203681,201876",
+                "AGENT_AP_D003_STEP110_REPOS_DAY": "29",
+                "AGENT_AP_D003_STEP110_REPOS_MIN_MINUTE": str(5 * 60),
+                "AGENT_AP_D003_STEP110_REPOS_MAX_MINUTE": str(5 * 60 + 35),
+                "AGENT_AP_D003_STEP110_REPOS_LOCATION_RADIUS_KM": "8",
+                "AGENT_AP_D003_STEP110_REPOS_LAT": "22.97",
+                "AGENT_AP_D003_STEP110_REPOS_LNG": "113.61",
             }
         )
     if d007:
@@ -3517,6 +3533,18 @@ def _v100_high_yield_probe_env(
                 "AGENT_AP_D008_STEP80_175421_MAX_MINUTE": str(12 * 60 + 5),
                 "AGENT_AP_D008_STEP80_175421_LOCATION_RADIUS_KM": "10",
                 "AGENT_AP_D008_STEP80_175421_WINNER_MIN_NET": "0",
+            }
+        )
+    if d006:
+        env.update(
+            {
+                "AGENT_AP_ENABLE_DISTILLED_D006_STEP99_208042": "1",
+                "AGENT_AP_D006_STEP99_WINNER_ID": "208042",
+                "AGENT_AP_D006_STEP99_LOSER_IDS": "208263",
+                "AGENT_AP_D006_STEP99_DAY": "29",
+                "AGENT_AP_D006_STEP99_MIN_MINUTE": str(13 * 60),
+                "AGENT_AP_D006_STEP99_MAX_MINUTE": str(15 * 60),
+                "AGENT_AP_D006_STEP99_LOCATION_RADIUS_KM": "20",
             }
         )
     if d009:
@@ -5075,10 +5103,15 @@ PRESETS.update(
         "hot_v100_v98_plus_d001_d007": _v100_high_yield_probe_env(d001=True, d007=True, d009=False),
         "hot_v100_v98_plus_d001_d007_d009": _v100_high_yield_probe_env(d001=True, d007=True, d009=True),
         "hot_v101_v100_plus_d00880": _v100_high_yield_probe_env(d001=True, d007=True, d008=True, d009=True),
+        "hot_v102_v101_plus_d00699": _v100_high_yield_probe_env(d001=True, d007=True, d008=True, d006=True, d009=True),
+        "hot_v103_v101_plus_d003110_d00699": _v100_high_yield_probe_env(
+            d001=True, d003=True, d007=True, d008=True, d006=True, d009=True
+        ),
         "submission_score_v92": _submission_profile_env("score_v92"),
         "submission_score_v94": _submission_profile_env("score_v94"),
         "submission_score_v98": _submission_profile_env("score_v98"),
         "submission_score_v101": _submission_profile_env("score_v101"),
+        "submission_score_v103": _submission_profile_env("score_v103"),
         "submission_official_clean": _submission_profile_env("official_clean"),
         # v82: re-test true agentic state-value modules on the v77 best route.
         # These presets add no new fixed teacher labels; they only change the
