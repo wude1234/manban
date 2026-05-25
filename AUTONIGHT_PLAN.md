@@ -15,14 +15,14 @@
 ## Current Best
 
 ```text
-version = v104 grid-validated submission candidate
-preset = submission_score_v104 / hot_v104_v103_plus_d010_prehome_chain
-score = 316468.90
+version = v105 grid-validated submission candidate
+preset = submission_score_v105 / hot_v105_v104_plus_d005_step7_8
+score = 316546.84
 penalty = 13465
-latest_verified_run = demo/results/grid_agentic_algo/20260526_033936_v104_submission_profile_check/01_submission_score_v104
-latest_verified_steps = demo/results/grid_agentic_algo/20260526_033936_v104_submission_profile_check/01_submission_score_v104/actions_202603_D001_*.jsonl ... actions_202603_D010_*.jsonl
-latest_verified_summary = demo/results/grid_agentic_algo/20260526_033936_v104_submission_profile_check/01_submission_score_v104/monthly_income_202603.json
-score_profile = score_v104_d010_prehome_chain_teacher
+latest_verified_run = demo/results/grid_agentic_algo/20260526_040701_v105_d005_step7_8_timefix/02_submission_score_v105
+latest_verified_steps = demo/results/grid_agentic_algo/20260526_040701_v105_d005_step7_8_timefix/02_submission_score_v105/actions_202603_D001_*.jsonl ... actions_202603_D010_*.jsonl
+latest_verified_summary = demo/results/grid_agentic_algo/20260526_040701_v105_d005_step7_8_timefix/02_submission_score_v105/monthly_income_202603.json
+score_profile = score_v105_d005_step7_8_teacher
 clean_profile = official_clean_agentic_planner
 commit_check = git log -1 --oneline
 ```
@@ -30,7 +30,7 @@ commit_check = git log -1 --oneline
 ## Latest Exploration State
 
 ```text
-latest_exploration = v104 D010 pre-home route-chain teacher
+latest_exploration = v105 D005 step7/8 two-step route-chain teacher
 value_dataset = demo/results/value_dataset/value_dataset_summary.md
 value_analysis = demo/results/value_dataset/value_analysis.md
 new_tools =
@@ -63,6 +63,10 @@ v104 changed search paradigm to three-step route repair and found a high-yield D
   D010 step39 wait60 -> step40 cargo348146 -> natural cargo349700/cargo277746 -> step43 cargo279517
   D010 net 33737.91 -> 34062.66, +324.75 despite +300 rest penalty
 submission_score_v104 = 316468.90, penalty 13465
+v105 continued early/mid sequence repair and found a D005 two-step chain:
+  D005 step7 cargo225518 -> step8 cargo226122
+  D005 net 28505.81 -> 28583.75, +77.94 with unchanged 0 penalty
+submission_score_v105 = 316546.84, penalty 13465
 ```
 
 当前搜索范式要切换：
@@ -70,14 +74,14 @@ submission_score_v104 = 316468.90, penalty 13465
 ```text
 不要只围绕 wait step 本身做修补。
 长等待往往是结果，不是原因；要追溯 root_order / root_route，把 after_state 的未来价值纳入接单评分。
-当前冲分第一目标不是泛化，而是继续沿 v104 底座找百元级 early/mid route-chain positives。v104 证明 D010 并非单步 step43 饱和，而是 step39-43 的前置链路可重构。
+当前冲分第一目标不是泛化，而是继续沿 v105 底座找百元级 early/mid route-chain positives。v104 证明 D010 并非单步 step43 饱和，而是 step39-43 的前置链路可重构；v105 证明 D005 step7 单独改动会崩盘，但 step7+step8 完整链为正。
 ```
 
 ## Profile Boundary
 
 ```text
-score_profile = score_v104_d010_prehome_chain_teacher
-score_profile_result = 316468.90, penalty 13465
+score_profile = score_v105_d005_step7_8_teacher
+score_profile_result = 316546.84, penalty 13465
 score_profile_use = local leaderboard/research; includes counterfactual/distilled teachers.
 
 clean_profile = official_clean_agentic_planner
@@ -121,6 +125,7 @@ v85 adds a D008 month-end wait teacher: step87 wait180 avoids cargo203004, then 
 v86 one-step wide probes across D003/D004/D008/D010/D005 found no positive single-step repairs. This is a local saturation signal for cargo/wait/reposition one-step regret.
 v87/v88/v89 show the next gain requires two-step Route Plan distillation: D008 step85 cargo482796 + step86 cargo200633 adds +47.99, and D010 step103 cargo481074 + step105 cargo489360 adds +62.94. Single-step scoring would reject these or mis-rank them.
 v90/v91 show top-k sequence and triple probing is saturated on the current visible candidate set: 3340 ok rows, no positive candidates. v92 switches search paradigm by generating new actions from the observed market itself: deep non-top cargo, event waits, and dynamic reposition points from visible cargo pickup/end/centroid clusters. This found D001 step99 Shenzhen micro-reposition (+47.88) and D007 step114 southwest dynamic reposition (+5.91), lifting the full submission score to 315085.75 with the same 12865 penalty.
+v105 shows that route repair must be promoted as a complete linked plan: D005 step7 cargo225518 alone drops D005 to 26836.42, but step7 cargo225518 plus step8 cargo226122 raises D005 to 28583.75. Guard windows must be calibrated on query-after decision time, not trace action-start or completion time.
 ```
 
 ### v92 result

@@ -3478,6 +3478,7 @@ def _v100_high_yield_probe_env(
     d006: bool = False,
     d009: bool = True,
     d010_prehome: bool = False,
+    d005_step7_8: bool = False,
 ) -> dict[str, str]:
     env = _v98_root_idle_trap_env()
     if d001:
@@ -3591,6 +3592,29 @@ def _v100_high_yield_probe_env(
                 "AGENT_AP_D010_STEP43_279517_MAX_MINUTE": str(16 * 60 + 15),
                 "AGENT_AP_D010_STEP43_279517_LOCATION_RADIUS_KM": "10",
                 "AGENT_AP_D010_STEP43_279517_WINNER_MIN_NET": "0",
+            }
+        )
+    if d005_step7_8:
+        env.update(
+            {
+                "AGENT_AP_ENABLE_DISTILLED_D005_STEP7_225518": "1",
+                "AGENT_AP_D005_STEP7_WINNER_ID": "225518",
+                "AGENT_AP_D005_STEP7_REQUIRE_VISIBLE_MARKER": "1",
+                "AGENT_AP_D005_STEP7_MARKER_IDS": "225518,226509,311919,226122",
+                "AGENT_AP_D005_STEP7_DAY": "1",
+                "AGENT_AP_D005_STEP7_MIN_MINUTE": str(6 * 60),
+                "AGENT_AP_D005_STEP7_MAX_MINUTE": str(6 * 60 + 50),
+                "AGENT_AP_D005_STEP7_LOCATION_RADIUS_KM": "8",
+                "AGENT_AP_D005_STEP7_WINNER_MIN_NET": "0",
+                "AGENT_AP_ENABLE_DISTILLED_D005_STEP8_226122": "1",
+                "AGENT_AP_D005_STEP8_WINNER_ID": "226122",
+                "AGENT_AP_D005_STEP8_REQUIRE_VISIBLE_MARKER": "1",
+                "AGENT_AP_D005_STEP8_MARKER_IDS": "226122,225518,311919,226509",
+                "AGENT_AP_D005_STEP8_DAY": "1",
+                "AGENT_AP_D005_STEP8_MIN_MINUTE": str(9 * 60),
+                "AGENT_AP_D005_STEP8_MAX_MINUTE": str(10 * 60 + 40),
+                "AGENT_AP_D005_STEP8_LOCATION_RADIUS_KM": "8",
+                "AGENT_AP_D005_STEP8_WINNER_MIN_NET": "0",
             }
         )
     return env
@@ -5142,12 +5166,23 @@ PRESETS.update(
         "hot_v104_v103_plus_d010_prehome_chain": _v100_high_yield_probe_env(
             d001=True, d003=True, d007=True, d008=True, d006=True, d009=True, d010_prehome=True
         ),
+        "hot_v105_v104_plus_d005_step7_8": _v100_high_yield_probe_env(
+            d001=True,
+            d003=True,
+            d007=True,
+            d008=True,
+            d006=True,
+            d009=True,
+            d010_prehome=True,
+            d005_step7_8=True,
+        ),
         "submission_score_v92": _submission_profile_env("score_v92"),
         "submission_score_v94": _submission_profile_env("score_v94"),
         "submission_score_v98": _submission_profile_env("score_v98"),
         "submission_score_v101": _submission_profile_env("score_v101"),
         "submission_score_v103": _submission_profile_env("score_v103"),
         "submission_score_v104": _submission_profile_env("score_v104"),
+        "submission_score_v105": _submission_profile_env("score_v105"),
         "submission_official_clean": _submission_profile_env("official_clean"),
         # v82: re-test true agentic state-value modules on the v77 best route.
         # These presets add no new fixed teacher labels; they only change the

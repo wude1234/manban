@@ -5,8 +5,12 @@
 当前保留四套 profile：
 
 ```text
-score_v104_d010_prehome_chain_teacher
+score_v105_d005_step7_8_teacher
 用途：当前默认本地冲分、离线研究和榜单复现实验。
+特点：在 v104 底座上叠加 D005 step7/8 两步 route-chain teacher，复现 316546.84。
+
+score_v104_d010_prehome_chain_teacher
+用途：历史稳定基线和消融对照。
 特点：在 v103 底座上叠加 D010 pre-home 三步 route-chain teacher，复现 316468.90。
 
 score_v101_high_yield_teacher_316057
@@ -33,7 +37,7 @@ official_clean_agentic_planner
 本地 0509 数据当前最好复现结果为 score profile：
 
 ```text
-score = 316468.90
+score = 316546.84
 total_preference_penalty = 13465.0
 failed_driver_count = 0
 tokens = 0
@@ -53,10 +57,19 @@ result_dir = demo/results/grid_agentic_algo/20260525_185542_two_profiles_check_f
 
 ```text
 demo/results/grid_agentic_algo/20260526_033936_v104_submission_profile_check/01_submission_score_v104
-preset = submission_score_v104
-step files = demo/results/grid_agentic_algo/20260526_033936_v104_submission_profile_check/01_submission_score_v104/actions_202603_D001_*.jsonl ... actions_202603_D010_*.jsonl
-summary = demo/results/grid_agentic_algo/20260526_033936_v104_submission_profile_check/01_submission_score_v104/monthly_income_202603.json
+demo/results/grid_agentic_algo/20260526_040701_v105_d005_step7_8_timefix/02_submission_score_v105
+preset = submission_score_v105
+step files = demo/results/grid_agentic_algo/20260526_040701_v105_d005_step7_8_timefix/02_submission_score_v105/actions_202603_D001_*.jsonl ... actions_202603_D010_*.jsonl
+summary = demo/results/grid_agentic_algo/20260526_040701_v105_d005_step7_8_timefix/02_submission_score_v105/monthly_income_202603.json
 ```
+
+v105 相比 v104 的新增有效动作：
+
+```text
+D005 step7 cargo225518 -> step8 cargo226122：原 v104 路径在 3月2日 06:00 后接 cargo226509，再接 cargo311919。两步 sequence probe 发现先接较短的 cargo225518，再接 cargo226122，会把 D005 当日晚间休息位置和 3月3日后继链整体改好。D005 gross 从 37493.99 提升到 37711.58，distance 从 5992.12 增到 6085.22，偏好罚分仍为 0，D005 净收益从 28505.81 提升到 28583.75，完整月 +77.94。
+```
+
+v105 的关键启发是：同司机的 route repair 必须作为完整链验证。只触发 D005 step7 而不触发 step8 时，D005 会掉到 26836.42，说明单个“看起来更好”的订单可能破坏后续链。工程上，phase guard 必须按 query-after 决策时间设置；本次 step8 第一次实现用动作开始时间 09:25 写窗，线上查询后状态变成约 10:15，导致 teacher 未触发并严重降分。
 
 v104 相比 v103 的新增有效动作：
 

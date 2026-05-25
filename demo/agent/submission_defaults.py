@@ -12,7 +12,8 @@ from __future__ import annotations
 import os
 
 
-SCORE_PROFILE = "score_v104_d010_prehome_chain_teacher"
+SCORE_PROFILE = "score_v105_d005_step7_8_teacher"
+LEGACY_V104_SCORE_PROFILE = "score_v104_d010_prehome_chain_teacher"
 LEGACY_V103_SCORE_PROFILE = "score_v103_tail_reposition_teacher_316144"
 LEGACY_V101_SCORE_PROFILE = "score_v101_high_yield_teacher_316057"
 LEGACY_V98_SCORE_PROFILE = "score_v98_root_idle_trap_teacher_315688"
@@ -431,10 +432,35 @@ _SCORE_V104_TEACHER_DEFAULTS: dict[str, str] = {
 }
 
 
+_SCORE_V105_TEACHER_DEFAULTS: dict[str, str] = {
+    **_SCORE_V104_TEACHER_DEFAULTS,
+    "AGENT_AP_ENABLE_DISTILLED_D005_STEP7_225518": "1",
+    "AGENT_AP_D005_STEP7_WINNER_ID": "225518",
+    "AGENT_AP_D005_STEP7_REQUIRE_VISIBLE_MARKER": "1",
+    "AGENT_AP_D005_STEP7_MARKER_IDS": "225518,226509,311919,226122",
+    "AGENT_AP_D005_STEP7_DAY": "1",
+    "AGENT_AP_D005_STEP7_MIN_MINUTE": str(6 * 60),
+    "AGENT_AP_D005_STEP7_MAX_MINUTE": str(6 * 60 + 50),
+    "AGENT_AP_D005_STEP7_LOCATION_RADIUS_KM": "8",
+    "AGENT_AP_D005_STEP7_WINNER_MIN_NET": "0",
+    "AGENT_AP_ENABLE_DISTILLED_D005_STEP8_226122": "1",
+    "AGENT_AP_D005_STEP8_WINNER_ID": "226122",
+    "AGENT_AP_D005_STEP8_REQUIRE_VISIBLE_MARKER": "1",
+    "AGENT_AP_D005_STEP8_MARKER_IDS": "226122,225518,311919,226509",
+    "AGENT_AP_D005_STEP8_DAY": "1",
+    "AGENT_AP_D005_STEP8_MIN_MINUTE": str(9 * 60),
+    "AGENT_AP_D005_STEP8_MAX_MINUTE": str(10 * 60 + 40),
+    "AGENT_AP_D005_STEP8_LOCATION_RADIUS_KM": "8",
+    "AGENT_AP_D005_STEP8_WINNER_MIN_NET": "0",
+}
+
+
 def _profile_defaults(profile: str) -> dict[str, str]:
     normalized = profile.strip().lower()
     defaults = dict(_BASE_DEFAULTS)
-    if normalized in {"score", "score_v104", SCORE_PROFILE.lower(), "v104", "local_score"}:
+    if normalized in {"score", "score_v105", SCORE_PROFILE.lower(), "v105", "local_score"}:
+        defaults.update(_SCORE_V105_TEACHER_DEFAULTS)
+    elif normalized in {"score_v104", LEGACY_V104_SCORE_PROFILE.lower(), "v104"}:
         defaults.update(_SCORE_V104_TEACHER_DEFAULTS)
     elif normalized in {"score_v103", LEGACY_V103_SCORE_PROFILE.lower(), "v103"}:
         defaults.update(_SCORE_V103_TEACHER_DEFAULTS)

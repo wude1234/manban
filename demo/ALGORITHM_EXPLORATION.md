@@ -1595,3 +1595,37 @@ Do not require cargo marker visibility for proactive wait teachers; use phase/lo
 Accepting controlled preference penalty can be optimal when it unlocks a higher gross route chain.
 Next search should focus on early/mid route-chain roots for D001/D005/D009/D010 rather than late single-step tails.
 ```
+
+## v105: D005 Early Two-Step Route Chain
+
+### Result
+
+```text
+preset = submission_score_v105 / hot_v105_v104_plus_d005_step7_8
+score = 316546.84
+penalty = 13465
+result = results/grid_agentic_algo/20260526_040701_v105_d005_step7_8_timefix/02_submission_score_v105
+```
+
+Focused early/mid sequence probes on top of v104 found one new positive, while D001 and D010 sampled early chains stayed flat:
+
+```text
+D001 early/mid wait-edge sequence probe: best equals v104 baseline, no positive.
+D010 early long-chain sequence probe: best equals v104 baseline, no positive; cargo21 remains a strong month-start route anchor.
+D005 pair_007_008:
+  old = cargo226509 -> cargo311919
+  new = cargo225518 -> cargo226122
+  D005 net 28505.81 -> 28583.75
+  delta = +77.94, penalty unchanged at 0
+```
+
+This is a useful high-score lesson despite the modest gain. The first implementation triggered only step7 and missed step8, dropping D005 to 26836.42 and the full score to 314799.51. After widening step8's guard to the query-after decision window, the complete two-step chain reproduced the probe score.
+
+Current implication:
+
+```text
+Promote linked route plans, not isolated actions.
+For cargo teachers, require visible winners/markers; for timing, calibrate on query-after decision state.
+If a sequence probe says step A + step B is positive, validate that both guards trigger together before changing the default profile.
+D005 still has some route-chain headroom, but single-step or half-chain promotion is dangerous.
+```
