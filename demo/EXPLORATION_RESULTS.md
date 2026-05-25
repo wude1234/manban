@@ -175,3 +175,48 @@ clean line:
 3. 对 D007/D008 月末尾部做 online dynamic reposition + gated rollout，而不是固定坐标。
 4. 对 D010 早期 route repair 做 two-step branch selector，避免和已有路径互斥。
 5. 记录每次正负样本的 `winner/loser/delta/penalty_delta/destination_value`，逐步形成 regret table。
+
+## v93 Clean-Env Dynamic Probe
+
+本轮先修复了一个重要 harness 问题：`counterfactual_rollout_probe.py` 原先总会把
+`BASE_ENV` 混入 preset，而且直接加载 strategy 时不会触发 `agent.submission_defaults`。
+这会导致 `submission_score_v92` 在 probe 里没有真正展开 v92 teacher，表现为 rule branch
+无法复现 driver baseline。修复后，smoke check：
+
+```text
+D003 step100 rule branch = 35363.97
+delta_vs_baseline = 0.0
+```
+
+因此后续 v93 结果口径有效。
+
+本轮有效探索：
+
+```text
+profile = submission_score_v92
+method = dynamic candidate generation from visible market
+branches = top cargo + deep cargo + event waits + pickup/end/centroid reposition
+drivers = D003,D004,D005,D008,D010
+```
+
+结果汇总：
+
+| driver | steps | ok branches | best delta | positive branches | result |
+| --- | --- | ---: | ---: | ---: | --- |
+| D003 | 100,87,111 | 37 | 0.00 | 0 | `demo/results/autonight_v93_cleanenv_D003_dynamic/dynamic_summary.md` |
+| D004 | 99,59,58 | 69 | 0.00 | 0 | `demo/results/autonight_v93_cleanenv_D004_dynamic/dynamic_summary.md` |
+| D005 | 92,120,107 | 53 | 0.00 | 0 | `demo/results/autonight_v93_cleanenv_D005_dynamic/dynamic_summary.md` |
+| D008 | 82,81,76 | 72 | 0.00 | 0 | `demo/results/autonight_v93_cleanenv_D008_dynamic/dynamic_summary.md` |
+| D010 | 2,103,53 | 72 | 0.00 | 0 | `demo/results/autonight_v93_cleanenv_D010_dynamic/dynamic_summary.md` |
+
+启发：
+
+1. v92 后的高疑点局部状态已经很稳。对这些 step 增加深层 cargo、短等待、visible-market
+   reposition 都没有超过当前 rule/teacher 分支。
+2. D010 step103 再次证明“少罚分不等于高收益”。`cargo196038/200361` 罚分更低，但完整
+   月度收益低于 v92 的 `cargo481074`，说明当前路径主动支付 300 罚分换更高 gross/路线价值是合理的。
+3. D008 step81/82、D004 step99 的动态空驶大多只是增加距离或破坏月末链路，不能把
+   “可见市场 cluster” 直接当作强区域规则。
+4. 下一步不应继续在同一批 top suspicious steps 上扩分支。更高价值方向是：
+   clean profile 蒸馏、同司机更深 sequence rebase、以及从 score/clean 差异最大司机 D001/D004
+   提取状态规则。
