@@ -5,12 +5,16 @@
 当前保留四套 profile：
 
 ```text
+score_v104_d010_prehome_chain_teacher
+用途：当前默认本地冲分、离线研究和榜单复现实验。
+特点：在 v103 底座上叠加 D010 pre-home 三步 route-chain teacher，复现 316468.90。
+
 score_v101_high_yield_teacher_316057
 用途：历史稳定基线和消融对照。
 特点：在 v98 root-order idle-trap 底座上叠加 D001/D007/D008/D009 四个完整尾部验证过的高收益 teacher，复现 316057.19。
 
 score_v103_tail_reposition_teacher_316144
-用途：当前默认本地冲分、离线研究和榜单复现实验。
+用途：历史稳定基线和消融对照。
 特点：在 v101 底座上叠加 D003/D006 两个完整尾部验证过的尾段路线修复 teacher，复现 316144.15。
 
 score_v98_root_idle_trap_teacher_315688
@@ -29,8 +33,8 @@ official_clean_agentic_planner
 本地 0509 数据当前最好复现结果为 score profile：
 
 ```text
-score = 316144.15
-total_preference_penalty = 13165.0
+score = 316468.90
+total_preference_penalty = 13465.0
 failed_driver_count = 0
 tokens = 0
 ```
@@ -48,11 +52,19 @@ result_dir = demo/results/grid_agentic_algo/20260525_185542_two_profiles_check_f
 对应实验：
 
 ```text
-demo/results/grid_agentic_algo/20260526_022516_v103_submission_profile_check/01_submission_score_v103
-preset = submission_score_v103
-step files = demo/results/grid_agentic_algo/20260526_022516_v103_submission_profile_check/01_submission_score_v103/actions_202603_D001_*.jsonl ... actions_202603_D010_*.jsonl
-summary = demo/results/grid_agentic_algo/20260526_022516_v103_submission_profile_check/01_submission_score_v103/monthly_income_202603.json
+demo/results/grid_agentic_algo/20260526_033936_v104_submission_profile_check/01_submission_score_v104
+preset = submission_score_v104
+step files = demo/results/grid_agentic_algo/20260526_033936_v104_submission_profile_check/01_submission_score_v104/actions_202603_D001_*.jsonl ... actions_202603_D010_*.jsonl
+summary = demo/results/grid_agentic_algo/20260526_033936_v104_submission_profile_check/01_submission_score_v104/monthly_income_202603.json
 ```
+
+v104 相比 v103 的新增有效动作：
+
+```text
+D010 step39 wait60 -> step40 cargo348146 -> natural cargo349700/cargo277746 -> step43 cargo279517：原 v103 路径在 step39 接 cargo349421、step43 接 cargo352638。三步 route repair 发现先等 60 分钟会错开原低效链，随后接入更高毛收入链。D010 gross 从 51001.53 提升到 51686.42，distance 从 10465.75 增到 10505.84，休息罚分从 1565 增到 1865，但净收益仍从 33737.91 提升到 34062.66，完整月 +324.75。
+```
+
+v104 的核心启发是：高分不一定来自减少扣分，很多时候应该接受可控罚分换更高收益链。实现上还发现 `wait` teacher 不能强依赖可见货源 marker，因为等待分支本身是主动时间重排；安全性应由司机、step、时间窗、位置 guard 约束，后续 `take_order` 再要求 winner 可见。时间窗必须按 query-after 决策状态设置，不能直接用 trace 的动作完成时间。
 
 v103 相比 v101 的新增有效动作：
 

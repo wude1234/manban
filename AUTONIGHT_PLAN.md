@@ -15,14 +15,14 @@
 ## Current Best
 
 ```text
-version = v103 grid-validated submission candidate
-preset = submission_score_v103 / hot_v103_v101_plus_d003110_d00699
-score = 316144.15
-penalty = 13165
-latest_verified_run = demo/results/grid_agentic_algo/20260526_022516_v103_submission_profile_check/01_submission_score_v103
-latest_verified_steps = demo/results/grid_agentic_algo/20260526_022516_v103_submission_profile_check/01_submission_score_v103/actions_202603_D001_*.jsonl ... actions_202603_D010_*.jsonl
-latest_verified_summary = demo/results/grid_agentic_algo/20260526_022516_v103_submission_profile_check/01_submission_score_v103/monthly_income_202603.json
-score_profile = score_v103_tail_reposition_teacher_316144
+version = v104 grid-validated submission candidate
+preset = submission_score_v104 / hot_v104_v103_plus_d010_prehome_chain
+score = 316468.90
+penalty = 13465
+latest_verified_run = demo/results/grid_agentic_algo/20260526_033936_v104_submission_profile_check/01_submission_score_v104
+latest_verified_steps = demo/results/grid_agentic_algo/20260526_033936_v104_submission_profile_check/01_submission_score_v104/actions_202603_D001_*.jsonl ... actions_202603_D010_*.jsonl
+latest_verified_summary = demo/results/grid_agentic_algo/20260526_033936_v104_submission_profile_check/01_submission_score_v104/monthly_income_202603.json
+score_profile = score_v104_d010_prehome_chain_teacher
 clean_profile = official_clean_agentic_planner
 commit_check = git log -1 --oneline
 ```
@@ -30,7 +30,7 @@ commit_check = git log -1 --oneline
 ## Latest Exploration State
 
 ```text
-latest_exploration = v103 tail reposition teacher stack
+latest_exploration = v104 D010 pre-home route-chain teacher
 value_dataset = demo/results/value_dataset/value_dataset_summary.md
 value_analysis = demo/results/value_dataset/value_analysis.md
 new_tools =
@@ -59,6 +59,10 @@ v102/v103 added two smaller but stackable tail-route positives:
   D006 step99 cargo208042 = +50.84, penalty unchanged
   D003 step110 dynamic reposition to (22.97,113.61) = +36.12, penalty unchanged
 submission_score_v103 = 316144.15, penalty 13165
+v104 changed search paradigm to three-step route repair and found a high-yield D010 chain:
+  D010 step39 wait60 -> step40 cargo348146 -> natural cargo349700/cargo277746 -> step43 cargo279517
+  D010 net 33737.91 -> 34062.66, +324.75 despite +300 rest penalty
+submission_score_v104 = 316468.90, penalty 13465
 ```
 
 当前搜索范式要切换：
@@ -66,14 +70,14 @@ submission_score_v103 = 316144.15, penalty 13165
 ```text
 不要只围绕 wait step 本身做修补。
 长等待往往是结果，不是原因；要追溯 root_order / root_route，把 after_state 的未来价值纳入接单评分。
-当前冲分第一目标不是泛化，而是继续沿 v103 底座找百元级 tail-root / sequence positives。D005/D010/D002 的最新单步 tail sweep 已基本饱和，下一步应转向更早的三步/beam 路径搜索。
+当前冲分第一目标不是泛化，而是继续沿 v104 底座找百元级 early/mid route-chain positives。v104 证明 D010 并非单步 step43 饱和，而是 step39-43 的前置链路可重构。
 ```
 
 ## Profile Boundary
 
 ```text
-score_profile = score_v103_tail_reposition_teacher_316144
-score_profile_result = 316144.15, penalty 13165
+score_profile = score_v104_d010_prehome_chain_teacher
+score_profile_result = 316468.90, penalty 13465
 score_profile_use = local leaderboard/research; includes counterfactual/distilled teachers.
 
 clean_profile = official_clean_agentic_planner

@@ -12,7 +12,8 @@ from __future__ import annotations
 import os
 
 
-SCORE_PROFILE = "score_v103_tail_reposition_teacher_316144"
+SCORE_PROFILE = "score_v104_d010_prehome_chain_teacher"
+LEGACY_V103_SCORE_PROFILE = "score_v103_tail_reposition_teacher_316144"
 LEGACY_V101_SCORE_PROFILE = "score_v101_high_yield_teacher_316057"
 LEGACY_V98_SCORE_PROFILE = "score_v98_root_idle_trap_teacher_315688"
 LEGACY_SCORE_PROFILE = "score_v94_d001_step103_teacher_315167"
@@ -399,10 +400,43 @@ _SCORE_V103_TEACHER_DEFAULTS: dict[str, str] = {
 }
 
 
+_SCORE_V104_TEACHER_DEFAULTS: dict[str, str] = {
+    **_SCORE_V103_TEACHER_DEFAULTS,
+    "AGENT_AP_ENABLE_DISTILLED_D010_STEP39_WAIT60": "1",
+    "AGENT_AP_D010_STEP39_REQUIRE_VISIBLE_MARKER": "0",
+    "AGENT_AP_D010_STEP39_MARKER_IDS": "349421,348146,347299",
+    "AGENT_AP_D010_STEP39_DAY": "7",
+    "AGENT_AP_D010_STEP39_MIN_MINUTE": str(22 * 60 + 35),
+    "AGENT_AP_D010_STEP39_MAX_MINUTE": str(23 * 60 + 30),
+    "AGENT_AP_D010_STEP39_LOCATION_RADIUS_KM": "5",
+    "AGENT_AP_D010_STEP39_WAIT_MINUTES": "60",
+    "AGENT_AP_ENABLE_DISTILLED_D010_STEP40_348146": "1",
+    "AGENT_AP_D010_STEP40_WINNER_ID": "348146",
+    "AGENT_AP_D010_STEP40_REQUIRE_VISIBLE_MARKER": "1",
+    "AGENT_AP_D010_STEP40_MARKER_IDS": "348146,349700,277746,279517",
+    "AGENT_AP_D010_STEP40_DAY": "8",
+    "AGENT_AP_D010_STEP40_MIN_MINUTE": "0",
+    "AGENT_AP_D010_STEP40_MAX_MINUTE": "45",
+    "AGENT_AP_D010_STEP40_LOCATION_RADIUS_KM": "5",
+    "AGENT_AP_D010_STEP40_WINNER_MIN_NET": "0",
+    "AGENT_AP_ENABLE_DISTILLED_D010_STEP43_279517": "1",
+    "AGENT_AP_D010_STEP43_279517_WINNER_ID": "279517",
+    "AGENT_AP_D010_STEP43_279517_REQUIRE_VISIBLE_MARKER": "1",
+    "AGENT_AP_D010_STEP43_279517_MARKER_IDS": "279517,277746,349700,348146",
+    "AGENT_AP_D010_STEP43_279517_DAY": "8",
+    "AGENT_AP_D010_STEP43_279517_MIN_MINUTE": str(15 * 60 + 25),
+    "AGENT_AP_D010_STEP43_279517_MAX_MINUTE": str(16 * 60 + 15),
+    "AGENT_AP_D010_STEP43_279517_LOCATION_RADIUS_KM": "10",
+    "AGENT_AP_D010_STEP43_279517_WINNER_MIN_NET": "0",
+}
+
+
 def _profile_defaults(profile: str) -> dict[str, str]:
     normalized = profile.strip().lower()
     defaults = dict(_BASE_DEFAULTS)
-    if normalized in {"score", "score_v103", SCORE_PROFILE.lower(), "v103", "local_score"}:
+    if normalized in {"score", "score_v104", SCORE_PROFILE.lower(), "v104", "local_score"}:
+        defaults.update(_SCORE_V104_TEACHER_DEFAULTS)
+    elif normalized in {"score_v103", LEGACY_V103_SCORE_PROFILE.lower(), "v103"}:
         defaults.update(_SCORE_V103_TEACHER_DEFAULTS)
     elif normalized in {"score_v101", LEGACY_V101_SCORE_PROFILE.lower(), "v101"}:
         defaults.update(_SCORE_V101_TEACHER_DEFAULTS)

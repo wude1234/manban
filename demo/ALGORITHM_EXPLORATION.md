@@ -1556,3 +1556,42 @@ D005/D010/D002 look saturated under one-step exact-tail search.
 Next high-yield search should move to three-step/beam route repair from earlier route branches.
 Keep v99 idle-trap generalization disabled; use it only as a suspicious-step selector.
 ```
+
+## v104: D010 Pre-Home Route Chain
+
+### Result
+
+```text
+preset = submission_score_v104 / hot_v104_v103_plus_d010_prehome_chain
+score = 316468.90
+penalty = 13465
+result = results/grid_agentic_algo/20260526_033936_v104_submission_profile_check/01_submission_score_v104
+```
+
+This is the first clear payoff from switching away from isolated one-step tail fixes into earlier three-step route repair. Broad three-step probes on D001/D005/D009 were flat or negative in the sampled windows, but D010 step39/40/43 produced a high-yield chain:
+
+```text
+v103 D010 = 33737.91 net, 1565 penalty
+v104 D010 = 34062.66 net, 1865 penalty
+delta = +324.75 net with +300 rest penalty
+
+new chain:
+  step39 wait60
+  step40 cargo348146
+  natural cargo349700
+  natural cargo277746
+  step43 cargo279517
+```
+
+The important business lesson is that penalty minimization is not the right objective. The winning D010 path accepts one extra daily rest violation because the gross-chain value is larger than the added penalty plus distance cost. This is exactly the kind of sequence decision that a single-step NPH scorer misses.
+
+The implementation lesson was also important. The first v104 implementation failed and scored only 315969.81 because step39 did not trigger: the guard was written too tightly and treated trace `simulation_end_time` as the decision time. After widening the guard to the query-after decision window and removing visible-cargo marker requirements from the proactive wait action, the route reproduced the probe score. Cargo actions still require visible winners; the wait action is guarded by driver, step, time and location.
+
+Current implication:
+
+```text
+Three-step route repair is now the active high-yield search mode.
+Do not require cargo marker visibility for proactive wait teachers; use phase/location guards and let later cargo teachers enforce visibility.
+Accepting controlled preference penalty can be optimal when it unlocks a higher gross route chain.
+Next search should focus on early/mid route-chain roots for D001/D005/D009/D010 rather than late single-step tails.
+```
