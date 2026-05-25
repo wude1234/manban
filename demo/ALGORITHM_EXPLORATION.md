@@ -5,19 +5,19 @@
 当前最好可复现分数：
 
 ```text
-score = 315085.75
-preset = hot_v92_v89_dynamic_repos_d001_d007
-penalty = 12865.0
-result_dir = results/grid_agentic_algo/20260525_153955_v92_dynamic_repos_teachers/01_hot_v92_v89_dynamic_repos_d001_d007
+score = 315167.70
+preset = submission_score_v94
+penalty = 13165.0
+result_dir = results/grid_agentic_algo/20260525_213043_v94_submission_profile_check/01_submission_score_v94
 ```
 
 ## 两套提交/研究 Profile
 
 ```text
-score_v92_dynamic_reposition_teacher_315085
+score_v94_d001_step103_teacher_315167
   本地冲分和离线研究版本。
   使用 full-tail 反事实回放蒸馏出的 fixed step/cargo/action teacher。
-  当前复现 score=315085.75, penalty=12865。
+  当前复现 score=315167.70, penalty=13165。
 
 official_clean_agentic_planner
   官方合规版本。
@@ -112,6 +112,8 @@ v32-v57: 对关键步骤做 candidate/action-level counterfactual rollout，验�
 35. v86-v89 证明当前平台不是“没有空间”，而是单步 regret 已经收敛，必须使用二步 Route Plan。v86 对 D003/D004/D008/D010/D005 的 one-step wide probe 全部无正收益；v87 sequence probe 反而找到 D008 `step85 cargo482796 + step86 cargo200633`（D008 `36003.87 -> 36051.86`，+47.99）和 D010 `step103 cargo481074 + step105 cargo489360`（D010 `33500.63 -> 33563.57`，+62.94）。D008 的 step85 单独是负收益，但和 step86 组合为正，说明候选排序必须看后继链。D010 增加 300 罚分仍然净赚，说明偏好罚分要作为边际风险成本，不是硬约束。
 
 36. v90-v92 证明继续在已有 top-k/value/sequence 候选里排列组合已经饱和，但“候选生成”本身还能产生收益。v90/v91 对 D001/D002/D006/D007/D009 以及 D008/D010 后段做 two-step / triple probe，共 3340 个 ok 分支，没有正收益。v92 新增 `dynamic_candidate_probe.py`，从当前可见货源的 pickup、destination、centroid 生成动态空驶点，并把 `take_order / wait / reposition` 同级交给 full-tail exact scoring。结果找到 D001 step99 深圳内微空驶 `(22.81,114.21)`，D001 `18456.85 -> 18504.73`，+47.88；D007 step114 动态空驶到 `(22.61,112.78)`，D007 `32521.97 -> 32527.88`，+5.91。完整月达到 `315085.75`，罚分仍为 `12865`。启发是：区域强弱不是核心规则，但可见市场可以用来生成更好的候选动作；最终仍必须用官方 exact-tail 回放判定。
+
+37. v93/v94 先修复探索 harness 口径，再找到新的 D001 月末尾链动作。v93 发现 `counterfactual_rollout_probe.py` 对 `submission_score_v92` 没有正确展开 `submission_defaults`，导致 rule branch 无法复现 baseline；修复后重新跑 D003/D004/D005/D008/D010 的 dynamic probe，共 303 个有效分支，全部无正收益。v94 补跑 D001/D002/D006/D007/D009 dynamic probe，并对 D001/D002/D007 做 two-step sequence rebase。唯一新增是 D001 step103 `cargo202502`：原策略在 03-30 01:02 后 `wait480`，改接 `cargo202502` 会多 300 休息罚分，但进入 `cargo202502 -> cargo203175 -> cargo485616` 尾链，D001 净收益 `18504.73 -> 18586.68`，完整月 `315167.70`。启发是：偏好罚分仍应作为边际成本而非硬约束，月末短链价值可以覆盖额外罚分。
 
 28. v62/v63 证明 v61 后单步 regret mining 已经饱和。对 D001/D002/D004/D005/D006/D007/D008/D009 共 75 个关键 step 做 take/wait/reposition full-tail 单步替换，没有正收益动作。结论是：高空驶、高等待、高罚分只是探测信号，不是策略规则；下一步必须做序列级 rebase 或状态价值学习。
 

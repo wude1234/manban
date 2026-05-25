@@ -12,7 +12,7 @@ from __future__ import annotations
 import os
 
 
-SCORE_PROFILE = "score_v92_dynamic_reposition_teacher_315085"
+SCORE_PROFILE = "score_v94_d001_step103_teacher_315167"
 OFFICIAL_CLEAN_PROFILE = "official_clean_agentic_planner"
 SUBMISSION_PROFILE = os.getenv("AGENT_SUBMISSION_PROFILE", SCORE_PROFILE).strip() or SCORE_PROFILE
 
@@ -291,13 +291,22 @@ _SCORE_TEACHER_DEFAULTS: dict[str, str] = {
     "AGENT_AP_D001_STEP99_DYNAMIC_LOCATION_RADIUS_KM": "8",
     "AGENT_AP_D001_STEP99_DYNAMIC_REPOS_LAT": "22.81",
     "AGENT_AP_D001_STEP99_DYNAMIC_REPOS_LNG": "114.21",
+    "AGENT_AP_ENABLE_DISTILLED_D001_STEP103_202502": "1",
+    "AGENT_AP_D001_STEP103_WINNER_ID": "202502",
+    "AGENT_AP_D001_STEP103_REQUIRE_VISIBLE_MARKER": "1",
+    "AGENT_AP_D001_STEP103_MARKER_IDS": "202502,202819,482837",
+    "AGENT_AP_D001_STEP103_DAY": "29",
+    "AGENT_AP_D001_STEP103_MIN_MINUTE": str(1 * 60),
+    "AGENT_AP_D001_STEP103_MAX_MINUTE": str(2 * 60),
+    "AGENT_AP_D001_STEP103_LOCATION_RADIUS_KM": "8",
+    "AGENT_AP_D001_STEP103_WINNER_MIN_NET": "0",
 }
 
 
 def _profile_defaults(profile: str) -> dict[str, str]:
     normalized = profile.strip().lower()
     defaults = dict(_BASE_DEFAULTS)
-    if normalized in {"score", "score_v92", SCORE_PROFILE.lower(), "v92", "local_score"}:
+    if normalized in {"score", "score_v94", "score_v92", SCORE_PROFILE.lower(), "v94", "v92", "local_score"}:
         defaults.update(_SCORE_TEACHER_DEFAULTS)
     elif normalized in {"official", "official_clean", "clean", OFFICIAL_CLEAN_PROFILE.lower()}:
         defaults["AGENT_SUBMISSION_PROFILE"] = OFFICIAL_CLEAN_PROFILE

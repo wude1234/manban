@@ -716,6 +716,8 @@ def _distilled_counterfactual_action(status: dict[str, Any], viable: list[dict[s
         return _d001_step99_dynamic_repos_distilled_action(status, viable)
     if driver_id == "D001" and step == 102 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D001_STEP102_WAIT", False):
         return _d001_step102_wait_distilled_action(status, viable)
+    if driver_id == "D001" and step == 103 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D001_STEP103_202502", False):
+        return _d001_step103_202502_distilled_action(status, viable)
     if driver_id == "D003" and step == 107 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D003_STEP107_WAIT", False):
         return _d003_step107_wait_distilled_action(status, viable)
     if driver_id == "D003" and step == 110 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D003_STEP110", False):
@@ -2046,6 +2048,34 @@ def _d001_step102_wait_distilled_action(status: dict[str, Any], viable: list[dic
     ):
         return None
     return {"action": "wait", "params": {"duration_minutes": _env_int("AGENT_AP_D001_STEP102_WAIT_MINUTES", 180)}}
+
+
+def _d001_step103_202502_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:
+    winner_id = os.getenv("AGENT_AP_D001_STEP103_WINNER_ID", "202502").strip()
+    winner = _feature_by_cargo_id(viable, winner_id)
+    if winner is None:
+        return None
+    if _env_bool("AGENT_AP_D001_STEP103_REQUIRE_VISIBLE_MARKER", True) and not _has_visible_cargo(
+        viable, "AGENT_AP_D001_STEP103_MARKER_IDS", "202502,202819,482837"
+    ):
+        return None
+    if not _phase_guard(
+        status,
+        day_env="AGENT_AP_D001_STEP103_DAY",
+        default_day=29,
+        min_env="AGENT_AP_D001_STEP103_MIN_MINUTE",
+        default_minute=1 * 60,
+        max_env="AGENT_AP_D001_STEP103_MAX_MINUTE",
+        default_max_minute=2 * 60,
+        center_lat=22.60,
+        center_lng=114.29,
+        radius_env="AGENT_AP_D001_STEP103_LOCATION_RADIUS_KM",
+        default_radius_km=8.0,
+    ):
+        return None
+    if float(winner.get("estimated_net", 0.0) or 0.0) < _env_float("AGENT_AP_D001_STEP103_WINNER_MIN_NET", 0.0):
+        return None
+    return {"action": "take_order", "params": {"cargo_id": winner_id}}
 
 
 def _d003_step107_wait_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:

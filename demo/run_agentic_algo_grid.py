@@ -3367,6 +3367,24 @@ def _v92_dynamic_repos_teachers_env() -> dict[str, str]:
     return env
 
 
+def _v94_d001_step103_202502_env() -> dict[str, str]:
+    env = _v92_dynamic_repos_teachers_env()
+    env.update(
+        {
+            "AGENT_AP_ENABLE_DISTILLED_D001_STEP103_202502": "1",
+            "AGENT_AP_D001_STEP103_WINNER_ID": "202502",
+            "AGENT_AP_D001_STEP103_REQUIRE_VISIBLE_MARKER": "1",
+            "AGENT_AP_D001_STEP103_MARKER_IDS": "202502,202819,482837",
+            "AGENT_AP_D001_STEP103_DAY": "29",
+            "AGENT_AP_D001_STEP103_MIN_MINUTE": str(1 * 60),
+            "AGENT_AP_D001_STEP103_MAX_MINUTE": str(2 * 60),
+            "AGENT_AP_D001_STEP103_LOCATION_RADIUS_KM": "8",
+            "AGENT_AP_D001_STEP103_WINNER_MIN_NET": "0",
+        }
+    )
+    return env
+
+
 def _submission_profile_env(profile: str) -> dict[str, str]:
     return {
         "AGENT_DISABLE_SUBMISSION_DEFAULTS": "0",
@@ -4892,7 +4910,9 @@ PRESETS.update(
         "hot_v88_v85_d008_step85_86_sequence": _v88_d008_step85_86_sequence_env(),
         "hot_v89_v88_d010_step103_105_sequence": _v89_d010_step103_105_sequence_env(),
         "hot_v92_v89_dynamic_repos_d001_d007": _v92_dynamic_repos_teachers_env(),
+        "hot_v94_v92_d001_step103_202502": _v94_d001_step103_202502_env(),
         "submission_score_v92": _submission_profile_env("score_v92"),
+        "submission_score_v94": _submission_profile_env("score_v94"),
         "submission_official_clean": _submission_profile_env("official_clean"),
         # v82: re-test true agentic state-value modules on the v77 best route.
         # These presets add no new fixed teacher labels; they only change the

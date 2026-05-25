@@ -15,14 +15,14 @@
 ## Current Best
 
 ```text
-version = v92 grid-validated submission candidate
-preset = submission_score_v92 / hot_v92_v89_dynamic_repos_d001_d007
-score = 315085.75
-penalty = 12865
-latest_verified_run = demo/results/grid_agentic_algo/20260525_185542_two_profiles_check_fixed/01_submission_score_v92
-latest_verified_steps = demo/results/grid_agentic_algo/20260525_185542_two_profiles_check_fixed/01_submission_score_v92/actions_202603_D001_20260525_185746.jsonl ... actions_202603_D010_20260525_185746.jsonl
-latest_verified_summary = demo/results/grid_agentic_algo/20260525_185542_two_profiles_check_fixed/01_submission_score_v92/monthly_income_202603.json
-score_profile = score_v92_dynamic_reposition_teacher_315085
+version = v94 grid-validated submission candidate
+preset = submission_score_v94 / hot_v94_v92_d001_step103_202502
+score = 315167.70
+penalty = 13165
+latest_verified_run = demo/results/grid_agentic_algo/20260525_213043_v94_submission_profile_check/01_submission_score_v94
+latest_verified_steps = demo/results/grid_agentic_algo/20260525_213043_v94_submission_profile_check/01_submission_score_v94/actions_202603_D001_20260525_213249.jsonl ... actions_202603_D010_20260525_213249.jsonl
+latest_verified_summary = demo/results/grid_agentic_algo/20260525_213043_v94_submission_profile_check/01_submission_score_v94/monthly_income_202603.json
+score_profile = score_v94_d001_step103_teacher_315167
 clean_profile = official_clean_agentic_planner
 commit_check = git log -1 --oneline
 ```
@@ -30,8 +30,8 @@ commit_check = git log -1 --oneline
 ## Profile Boundary
 
 ```text
-score_profile = score_v92_dynamic_reposition_teacher_315085
-score_profile_result = 315085.75, penalty 12865
+score_profile = score_v94_d001_step103_teacher_315167
+score_profile_result = 315167.70, penalty 13165
 score_profile_use = local leaderboard/research; includes counterfactual/distilled teachers.
 
 clean_profile = official_clean_agentic_planner

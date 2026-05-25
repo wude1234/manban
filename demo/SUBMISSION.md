@@ -5,9 +5,9 @@
 当前保留两套 profile：
 
 ```text
-score_v92_dynamic_reposition_teacher_315085
+score_v94_d001_step103_teacher_315167
 用途：本地冲分、离线研究和榜单复现实验。
-特点：保留 counterfactual/distilled teacher，复现 315085.75。
+特点：保留 counterfactual/distilled teacher，复现 315167.70。
 
 official_clean_agentic_planner
 用途：官方强调不得使用已知全局视角时的合规 Agent 版本。
@@ -17,8 +17,8 @@ official_clean_agentic_planner
 本地 0509 数据当前最好复现结果为 score profile：
 
 ```text
-score = 315085.75
-total_preference_penalty = 12865.0
+score = 315167.70
+total_preference_penalty = 13165.0
 failed_driver_count = 0
 tokens = 0
 ```
@@ -36,10 +36,16 @@ result_dir = demo/results/grid_agentic_algo/20260525_185542_two_profiles_check_f
 对应实验：
 
 ```text
-demo/results/grid_agentic_algo/20260525_153955_v92_dynamic_repos_teachers/01_hot_v92_v89_dynamic_repos_d001_d007
-preset = hot_v92_v89_dynamic_repos_d001_d007
-step files = demo/results/grid_agentic_algo/20260525_153955_v92_dynamic_repos_teachers/01_hot_v92_v89_dynamic_repos_d001_d007/actions_202603_D001_20260525_154200.jsonl ... actions_202603_D010_20260525_154200.jsonl
-summary = demo/results/grid_agentic_algo/20260525_153955_v92_dynamic_repos_teachers/01_hot_v92_v89_dynamic_repos_d001_d007/monthly_income_202603.json
+demo/results/grid_agentic_algo/20260525_213043_v94_submission_profile_check/01_submission_score_v94
+preset = submission_score_v94
+step files = demo/results/grid_agentic_algo/20260525_213043_v94_submission_profile_check/01_submission_score_v94/actions_202603_D001_20260525_213249.jsonl ... actions_202603_D010_20260525_213249.jsonl
+summary = demo/results/grid_agentic_algo/20260525_213043_v94_submission_profile_check/01_submission_score_v94/monthly_income_202603.json
+```
+
+v94 相比 v92 的新增有效动作：
+
+```text
+D001 step103 cargo202502: 在 03-30 01:02 后，原策略选择 wait480 以补休。clean-env dynamic probe 和 two-step sequence rebase 均发现，直接接 cargo202502 会额外增加 300 休息罚分，但 gross 增长、距离下降，并提前接入 cargo203175 -> cargo485616 尾链，D001 净收益从 18504.73 提升到 18586.68，完整月总分 +81.95 到 315167.70。
 ```
 
 v92 相比 v89 的新增有效动作：

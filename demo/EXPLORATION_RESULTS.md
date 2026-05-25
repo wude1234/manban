@@ -6,17 +6,17 @@
 
 ## 2026-05-25 Snapshot
 
-当前在 0509 数据上的两套 profile 已做同一轮复现：
+当前在 0509 数据上的两套 profile 已做复现：
 
 ```text
-result_root = demo/results/grid_agentic_algo/20260525_185542_two_profiles_check_fixed
-score_profile = score_v92_dynamic_reposition_teacher_315085
+score_result_root = demo/results/grid_agentic_algo/20260525_213043_v94_submission_profile_check
+score_profile = score_v94_d001_step103_teacher_315167
 clean_profile = official_clean_agentic_planner
 ```
 
 | profile | 用途 | score | penalty | tokens | failed |
 | --- | --- | ---: | ---: | ---: | ---: |
-| `score_v92_dynamic_reposition_teacher_315085` | 本地冲分/teacher 研究 | 315085.75 | 12865 | 0 | 0 |
+| `score_v94_d001_step103_teacher_315167` | 本地冲分/teacher 研究 | 315167.70 | 13165 | 0 | 0 |
 | `official_clean_agentic_planner` | 官方合规方向 | 275973.46 | 17565 | 0 | 0 |
 
 score profile 保留 full-tail 反事实回放蒸馏出的固定 teacher，用来做当前榜单最高收益验证。
@@ -25,20 +25,20 @@ route-plan scorer、偏好保护和在线动态空驶候选，是后续“不能
 
 ## Current Best Breakdown
 
-`score_v92_dynamic_reposition_teacher_315085` 单司机净收益：
+`score_v94_d001_step103_teacher_315167` 单司机净收益：
 
 | driver | net | penalty |
 | --- | ---: | ---: |
-| D001 | 18504.73 | 900 |
-| D002 | 34189.64 | 200 |
+| D001 | 18586.68 | 1200 |
+| D002 | 34189.64 | 0 |
 | D003 | 35363.97 | 2000 |
-| D004 | 39516.78 | 2200 |
+| D004 | 39516.78 | 1500 |
 | D005 | 28505.81 | 0 |
 | D006 | 37010.05 | 5200 |
 | D007 | 32527.88 | 0 |
-| D008 | 36051.86 | 400 |
+| D008 | 36051.86 | 800 |
 | D009 | 19851.46 | 900 |
-| D010 | 33563.57 | 1065 |
+| D010 | 33563.57 | 1565 |
 
 `official_clean_agentic_planner` 的主要短板：
 
@@ -220,3 +220,41 @@ drivers = D003,D004,D005,D008,D010
 4. 下一步不应继续在同一批 top suspicious steps 上扩分支。更高价值方向是：
    clean profile 蒸馏、同司机更深 sequence rebase、以及从 score/clean 差异最大司机 D001/D004
    提取状态规则。
+
+## v94 Higher-Score Exploration
+
+本轮目标是继续冲高分，先补跑 v93 未覆盖司机，再切到 two-step sequence rebase：
+
+```text
+dynamic drivers = D001,D002,D006,D007,D009
+sequence drivers = D001,D002,D007
+validated score preset = submission_score_v94
+validated result = demo/results/grid_agentic_algo/20260525_213043_v94_submission_profile_check/01_submission_score_v94
+```
+
+动态候选结果：
+
+| driver | best delta | positive branches | finding |
+| --- | ---: | ---: | --- |
+| D001 | +81.95 | 4 | step103 `cargo202502` 是新正收益点 |
+| D002 | 0.00 | 0 | 月末/长途高疑点局部已稳 |
+| D006 | 0.00 | 0 | 偏好罚分仍值得支付，强改休息/空驶无收益 |
+| D007 | 0.00 | 0 | v92 后尾部动态空驶已无新增 |
+| D009 | 0.00 | 0 | 多个 wait/reposition 只是等价 no-op 或负收益 |
+
+sequence rebase 结果：
+
+| driver | best delta | finding |
+| --- | ---: | --- |
+| D001 | +81.95 | 与 dynamic 相同，来自 `pair_100_103/f01_wait_480__s03_cargo_202502` |
+| D002 | 0.00 | 无新增 |
+| D007 | 0.00 | 无新增 |
+
+v94 的核心启发：
+
+1. D001 step103 证明“休息偏好也不能硬满足”。原策略在 03-30 01:02 后 `wait480`，罚分较低；
+   改接 `cargo202502` 会额外增加 300 休息罚分，但 gross 和后续短链收益覆盖罚分，总分 +81.95。
+2. 这不是当前单贪心，而是月末尾链价值：`cargo202502 -> cargo203175 -> cargo485616` 比长休息后
+   再进入尾链更好。
+3. v94 也进一步确认 D002/D006/D007/D009 的高疑点状态已局部饱和；下一步要找更早的 route-plan
+   重排或转向 clean-profile 状态规则蒸馏，而不是继续在同一批 step 加 deep cargo。
