@@ -20,7 +20,7 @@ score = 315085.75
 penalty = 12865
 run_dir = demo/results/grid_agentic_algo/20260525_153955_v92_dynamic_repos_teachers/01_hot_v92_v89_dynamic_repos_d001_d007
 default_run = demo/results/actions_202603_D001-D010_20260525_154904.jsonl + demo/results/monthly_income_202603.json
-last_commit = pending v92 dynamic reposition teachers score 315085
+last_commit = 6cf8aea v92 dynamic reposition teachers score 315085
 ```
 
 核心发现：
