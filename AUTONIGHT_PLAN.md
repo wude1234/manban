@@ -16,12 +16,15 @@
 
 ```text
 version = v92 grid-validated submission candidate
-preset = hot_v92_v89_dynamic_repos_d001_d007
+preset = submission_score_v92 / hot_v92_v89_dynamic_repos_d001_d007
 score = 315085.75
 penalty = 12865
-run_dir = demo/results/grid_agentic_algo/20260525_153955_v92_dynamic_repos_teachers/01_hot_v92_v89_dynamic_repos_d001_d007
-default_run = demo/results/actions_202603_D001-D010_20260525_154904.jsonl + demo/results/monthly_income_202603.json
-last_commit = f89544a split score and official clean agent profiles
+latest_verified_run = demo/results/grid_agentic_algo/20260525_185542_two_profiles_check_fixed/01_submission_score_v92
+latest_verified_steps = demo/results/grid_agentic_algo/20260525_185542_two_profiles_check_fixed/01_submission_score_v92/actions_202603_D001_20260525_185746.jsonl ... actions_202603_D010_20260525_185746.jsonl
+latest_verified_summary = demo/results/grid_agentic_algo/20260525_185542_two_profiles_check_fixed/01_submission_score_v92/monthly_income_202603.json
+score_profile = score_v92_dynamic_reposition_teacher_315085
+clean_profile = official_clean_agentic_planner
+commit_check = git log -1 --oneline
 ```
 
 ## Profile Boundary
