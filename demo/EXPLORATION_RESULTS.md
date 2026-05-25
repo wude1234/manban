@@ -258,3 +258,33 @@ v94 的核心启发：
    再进入尾链更好。
 3. v94 也进一步确认 D002/D006/D007/D009 的高疑点状态已局部饱和；下一步要找更早的 route-plan
    重排或转向 clean-profile 状态规则蒸馏，而不是继续在同一批 step 加 deep cargo。
+
+## Why Small Teacher Gains Are Saturating
+
+当前从 `315167.70` 追到 `340000+` 的差距是两万级，不能靠每次 `+50/+100` 的窄
+teacher 点堆出来。v95 诊断显示真正瓶颈在搜索目标函数，而不是人工试得不够多。
+
+当前 v94 轨迹的结构性低效：
+
+| driver | symptom |
+| --- | --- |
+| D001 | 等待约 12990 分钟，pickup/haul = 0.62，路线链价值低 |
+| D005 | 等待约 13449 分钟，pickup/haul = 0.64，短货源链容易被低价值等待锁死 |
+| D009 | 102 次 reposition、等待约 16504 分钟，回家/等待边界很多动作只是 no-op |
+
+修复了 `offline_beam_planner.py` 的 profile 口径后，重新用 `submission_score_v94`
+跑整段 beam smoke：
+
+| driver | current net | beam best exact | finding |
+| --- | ---: | ---: | --- |
+| D001 | 18586.68 | 17172.81 | proxy 偏好 gross 链，忽略休息罚分和碎片等待，exact 反而下降 |
+| D005 | 28505.81 | 25113.44 | proxy 诱导大量 60 分钟等待和低质量短链 |
+| D009 | 19851.46 | -8187.98 | proxy 完全没有刻画回家/偏好罚分，路线崩坏 |
+
+结论：
+
+1. 宽 beam 本身不是答案。没有可靠 value/proxy，搜索越宽越可能找到“proxy 高但 exact 低”的坏路线。
+2. 下一步高收益方向应该是 `preference-aware value function`，而不是继续手工加单点 teacher。
+3. 具体实现应先从历史 exact-tail 结果拟合局部价值：`score_delta = f(driver, time, location, wait, pickup_ratio, destination_value, preference_state)`。
+4. 再让 beam 用这个 value function 排序，而不是只用 `price - distance_cost - 0.02*wait`。
+5. 一旦 value function 能让 beam 的 top candidates 至少不低于当前 rule，才值得扩大搜索宽度。

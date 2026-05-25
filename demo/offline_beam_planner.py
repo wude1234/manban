@@ -570,14 +570,30 @@ def _clone_repo(repo: CargoRepository) -> CargoRepository:
 
 
 def _apply_preset_env(preset: str) -> None:
-    env = dict(BASE_ENV)
+    for key in list(os.environ):
+        if key.startswith("AGENT_"):
+            os.environ.pop(key, None)
+    env: dict[str, str] = {}
     if preset:
         if preset not in PRESETS:
             raise KeyError(f"unknown preset: {preset}")
         env.update(PRESETS[preset])
+    if env.pop("AGENT_USE_BASE_ENV", "1") != "0":
+        base = dict(BASE_ENV)
+        base.update(env)
+        env = base
     for key, value in env.items():
         if key.startswith("AGENT_"):
             os.environ[key] = str(value)
+    if os.getenv("AGENT_SUBMISSION_PROFILE") and os.getenv("AGENT_DISABLE_SUBMISSION_DEFAULTS", "").strip().lower() not in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }:
+        from agent.submission_defaults import apply_submission_defaults
+
+        apply_submission_defaults()
 
 
 def _load_driver_cost_map(path: Path) -> dict[str, float]:
