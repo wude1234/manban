@@ -1481,3 +1481,38 @@ change early route branch
 ```
 
 This is closer to the official Agent framing: route plan/value comparison over a short sequence, not isolated cargo reranking.
+
+## v101: High-Yield Tail-Root Stack
+
+### Result
+
+```text
+preset = submission_score_v101 / hot_v101_v100_plus_d00880
+score = 316057.19
+penalty = 13165
+result = results/grid_agentic_algo/20260526_015234_v101_submission_profile_check/01_submission_score_v101
+```
+
+v99 tried to generalize idle-trap risk into an online scorer, but it collapsed the score by more than 13k. The high-yield path was the opposite: use the generalized signal only to pick suspicious root decisions, then run exact full-tail probes and distill only verified positives.
+
+Verified stackable positives on top of v98:
+
+```text
+D001 step105 cargo485682 = +80.55
+D007 step92 cargo290627 = +152.05
+D008 step80 cargo175421 = +117.77
+D009 step198 dynamic reposition to (23.42,113.10) = +18.37
+total v98 -> v101 = +368.74
+```
+
+The main discovery is that the late-month route is still not saturated, but profitable fixes are sparse and hidden below the rule top-k. D008 step80 is the clearest example: the old best action was an explicit wait teacher, while the winning action was a deep candidate `cargo175421` that only appeared after forcing a query at the target step.
+
+Current implication:
+
+```text
+Do not spend the next search budget on broad weight tuning.
+Focus on root-order / root-action probes before long idle tails.
+Force query on target steps so existing wait/reposition teachers do not hide alternative cargo.
+Treat take_order, wait and dynamic reposition as equal candidate actions, then score by full monthly tail.
+Promote only additive positives into score_v101; keep failed generalized gates disabled by default.
+```

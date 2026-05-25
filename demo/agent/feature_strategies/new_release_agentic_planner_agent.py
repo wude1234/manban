@@ -57,6 +57,7 @@ class NewReleaseAgenticPlannerAgent(NewReleaseHybridValueAgent):
         self._gated_rollout_state_by_driver: dict[str, dict[str, Any]] = {}
         self._d010_recovery_gate_by_driver: dict[str, dict[str, Any]] = {}
         self._state_value_gate_by_driver: dict[str, dict[str, Any]] = {}
+        self._idle_trap_gate_by_driver: dict[str, dict[str, Any]] = {}
         self._agent_layers = AgentLayerState()
 
     def pre_action(
@@ -73,12 +74,17 @@ class NewReleaseAgenticPlannerAgent(NewReleaseHybridValueAgent):
         self._prepare_d010_recovery_gate_state(status, viable)
         _prepare_high_net_tie_state(status, viable, self)
         self._prepare_state_value_gate_state(status, viable)
+        self._prepare_idle_trap_gate_state(status, viable)
 
         action = _counterfactual_cargo_switch_action(status, viable)
         if action is not None:
             return action
 
         action = _distilled_counterfactual_action(status, viable)
+        if action is not None:
+            return action
+
+        action = self._idle_trap_wait_action(status, viable)
         if action is not None:
             return action
 
@@ -134,6 +140,7 @@ class NewReleaseAgenticPlannerAgent(NewReleaseHybridValueAgent):
 
         base += self._d010_recovery_gate_bonus(feature, status)
         base += self._state_value_gate_bonus(feature, status)
+        base += self._idle_trap_gate_bonus(feature, status)
         base += self._layered_agent_bonus(feature, status)
         return base
 
@@ -499,6 +506,130 @@ class NewReleaseAgenticPlannerAgent(NewReleaseHybridValueAgent):
         cap = _env_float("AGENT_AP_STATE_VALUE_BONUS_CAP", 18.0)
         return max(-cap, min(cap, weight * raw))
 
+    def _prepare_idle_trap_gate_state(self, status: dict[str, Any], viable: list[dict[str, Any]]) -> None:
+        driver_id = _driver_id(status)
+        if not _env_bool("AGENT_AP_ENABLE_IDLE_TRAP_GATE", False):
+            self._idle_trap_gate_by_driver.pop(driver_id, None)
+            return
+        if driver_id not in _env_str_set("AGENT_AP_IDLE_TRAP_DRIVERS", "D001,D005,D009,D010"):
+            self._idle_trap_gate_by_driver.pop(driver_id, None)
+            return
+
+        rows: list[dict[str, Any]] = []
+        for item in viable:
+            if not self.is_selectable(item, status):
+                continue
+            route = route_plan_features(item, status, viable)
+            latent = _latent_market_state(item, route, status)
+            risk = _idle_trap_risk(item, route, latent, status)
+            rows.append(
+                {
+                    "cargo_id": str(item.get("cargo_id", "")),
+                    "base_score": self._score_without_rollout(item, status),
+                    "idle_risk": risk,
+                    "after_value": _after_state_value(item, route, latent, status) - _env_float(
+                        f"AGENT_AP_{driver_id}_IDLE_TRAP_AFTER_RISK_WEIGHT",
+                        _env_float("AGENT_AP_IDLE_TRAP_AFTER_RISK_WEIGHT", 0.25),
+                    )
+                    * risk,
+                }
+            )
+        rows.sort(key=lambda item: item["base_score"], reverse=True)
+        top_k = max(2, _env_int("AGENT_AP_IDLE_TRAP_TOP_K", 5))
+        rows = rows[:top_k]
+        if len(rows) < 2:
+            self._idle_trap_gate_by_driver.pop(driver_id, None)
+            return
+
+        best = rows[0]
+        best_after = max(float(item["after_value"]) for item in rows)
+        worst_risk = max(float(item["idle_risk"]) for item in rows)
+        best_risk = float(best["idle_risk"])
+        score_gap_to_best_after = float(best["base_score"]) - max(
+            float(item["base_score"]) for item in rows if float(item["after_value"]) == best_after
+        )
+        risk_gap = worst_risk - min(float(item["idle_risk"]) for item in rows)
+        max_score_gap = _env_float("AGENT_AP_IDLE_TRAP_MAX_SCORE_GAP", 45.0)
+        min_after_gap = _env_float("AGENT_AP_IDLE_TRAP_MIN_AFTER_GAP", 18.0)
+        min_risk_gap = _env_float("AGENT_AP_IDLE_TRAP_MIN_RISK_GAP", 45.0)
+        after_gap = best_after - float(best["after_value"])
+        if score_gap_to_best_after > max_score_gap and after_gap < min_after_gap and risk_gap < min_risk_gap:
+            self._idle_trap_gate_by_driver.pop(driver_id, None)
+            return
+        if best_risk < _env_float("AGENT_AP_IDLE_TRAP_MIN_BEST_RISK", 35.0) and after_gap < min_after_gap:
+            self._idle_trap_gate_by_driver.pop(driver_id, None)
+            return
+
+        eligible: dict[str, float] = {}
+        for item in rows:
+            score_drop = max(0.0, float(best["base_score"]) - float(item["base_score"]))
+            raw = float(item["after_value"]) - float(best["after_value"])
+            raw -= _env_float("AGENT_AP_IDLE_TRAP_SCORE_DROP_COST", 0.55) * score_drop
+            eligible[str(item["cargo_id"])] = raw
+
+        self._idle_trap_gate_by_driver[driver_id] = {
+            "best_cargo_id": str(best["cargo_id"]),
+            "best_idle_risk": best_risk,
+            "eligible": eligible,
+        }
+
+    def _idle_trap_gate_bonus(self, feature: dict[str, Any], status: dict[str, Any]) -> float:
+        driver_id = _driver_id(status)
+        state = self._idle_trap_gate_by_driver.get(driver_id)
+        if not state:
+            return 0.0
+        eligible = state.get("eligible")
+        if not isinstance(eligible, dict):
+            return 0.0
+        raw = float(eligible.get(str(feature.get("cargo_id", "")), 0.0))
+        weight = _env_float(f"AGENT_AP_{driver_id}_IDLE_TRAP_WEIGHT", _env_float("AGENT_AP_IDLE_TRAP_WEIGHT", 0.10))
+        cap = _env_float("AGENT_AP_IDLE_TRAP_BONUS_CAP", 18.0)
+        return max(-cap, min(cap, weight * raw))
+
+    def _idle_trap_wait_action(self, status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:
+        if not _env_bool("AGENT_AP_ENABLE_IDLE_TRAP_WAIT_GATE", False):
+            return None
+        driver_id = _driver_id(status)
+        if driver_id not in _env_str_set("AGENT_AP_IDLE_TRAP_WAIT_DRIVERS", "D001"):
+            return None
+        current = int(status.get("simulation_progress_minutes", 0) or 0)
+        day = current // 1440 + 1
+        if day < _env_int("AGENT_AP_IDLE_TRAP_WAIT_MIN_DAY", 28):
+            return None
+        minute = current % 1440
+        if not _minute_in_window(
+            minute,
+            _env_int("AGENT_AP_IDLE_TRAP_WAIT_MIN_MINUTE", 12 * 60),
+            _env_int("AGENT_AP_IDLE_TRAP_WAIT_MAX_MINUTE", 20 * 60),
+        ):
+            return None
+
+        rows: list[tuple[float, float, dict[str, Any]]] = []
+        for item in viable:
+            if not self.is_selectable(item, status):
+                continue
+            route = route_plan_features(item, status, viable)
+            latent = _latent_market_state(item, route, status)
+            risk = _idle_trap_risk(item, route, latent, status)
+            rows.append((self._score_without_rollout(item, status), risk, item))
+        if not rows:
+            return None
+        rows.sort(key=lambda row: row[0], reverse=True)
+        best_score, best_risk, best_item = rows[0]
+        min_risk = _env_float(f"AGENT_AP_{driver_id}_IDLE_TRAP_WAIT_MIN_RISK", _env_float("AGENT_AP_IDLE_TRAP_WAIT_MIN_RISK", 115.0))
+        max_net = _env_float(f"AGENT_AP_{driver_id}_IDLE_TRAP_WAIT_MAX_NET", _env_float("AGENT_AP_IDLE_TRAP_WAIT_MAX_NET", 520.0))
+        max_nph = _env_float(f"AGENT_AP_{driver_id}_IDLE_TRAP_WAIT_MAX_NPH", _env_float("AGENT_AP_IDLE_TRAP_WAIT_MAX_NPH", 55.0))
+        if best_risk < min_risk:
+            return None
+        if float(best_item.get("estimated_net", 0.0)) > max_net and float(best_item.get("net_per_hour", 0.0)) > max_nph:
+            return None
+        if len(rows) >= 2 and rows[1][0] >= best_score - _env_float("AGENT_AP_IDLE_TRAP_WAIT_ALT_SCORE_GAP", 18.0):
+            return None
+        return {
+            "action": "wait",
+            "params": {"duration_minutes": _env_int("AGENT_AP_IDLE_TRAP_WAIT_MINUTES", 180)},
+        }
+
     def _visible_chain_bonus(self, feature: dict[str, Any], status: dict[str, Any]) -> float:
         driver_id = _driver_id(status)
         successors = self._visible_chain_candidates_by_driver.get(driver_id, [])
@@ -576,6 +707,8 @@ def _counterfactual_switch_overridden(driver_id: str, step: int) -> bool:
     if driver_id == "D006" and step == 65 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D006_STEP65_WAIT", False):
         return True
     if driver_id == "D002" and step == 87 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D002_STEP87_WAIT", False):
+        return True
+    if driver_id == "D008" and step == 80 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D008_STEP80_175421", False):
         return True
     if driver_id == "D008" and step == 80 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D008_STEP80_WAIT", False):
         return True
@@ -672,6 +805,8 @@ def _distilled_counterfactual_action(status: dict[str, Any], viable: list[dict[s
         return _d009_step178_wait_distilled_action(status, viable)
     if driver_id == "D009" and step == 190 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D009_STEP190_192513", False):
         return _d009_step190_192513_distilled_action(status, viable)
+    if driver_id == "D009" and step == 198 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D009_STEP198_REPOS_DYNAMIC", False):
+        return _d009_step198_dynamic_repos_distilled_action(status, viable)
     if driver_id == "D010" and step == 101 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D010_STEP101", False):
         return _d010_step101_distilled_action(status, viable)
     if driver_id == "D004" and step == 93 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D004_STEP93", False):
@@ -748,12 +883,16 @@ def _distilled_counterfactual_action(status: dict[str, Any], viable: list[dict[s
         return _d007_step114_repos_sw_distilled_action(status, viable)
     if driver_id == "D007" and step == 122 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D007_STEP122_WAIT", False):
         return _d007_step122_wait_distilled_action(status, viable)
+    if driver_id == "D007" and step == 92 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D007_STEP92_290627", False):
+        return _d007_step92_290627_distilled_action(status, viable)
     if driver_id == "D005" and step == 123 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D005_STEP123", False):
         return _d005_step123_distilled_action(status, viable)
     if driver_id == "D005" and step == 49 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D005_STEP49_WAIT", False):
         return _d005_step49_wait_distilled_action(status, viable)
     if driver_id == "D005" and step == 128 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D005_STEP128_REPOS_FS", False):
         return _d005_step128_repos_fs_distilled_action(status, viable)
+    if driver_id == "D008" and step == 80 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D008_STEP80_175421", False):
+        return _d008_step80_175421_distilled_action(status, viable)
     if driver_id == "D008" and step == 80 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D008_STEP80_WAIT", False):
         return _d008_step80_wait_distilled_action(status, viable)
     if driver_id == "D008" and step == 85 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D008_STEP85_482796", False):
@@ -770,6 +909,8 @@ def _distilled_counterfactual_action(status: dict[str, Any], viable: list[dict[s
         return _d006_step99_208042_distilled_action(status, viable)
     if driver_id == "D010" and step == 43 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D010_STEP43_352638", False):
         return _d010_step43_352638_distilled_action(status, viable)
+    if driver_id == "D001" and step == 105 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D001_STEP105_485682", False):
+        return _d001_step105_485682_distilled_action(status, viable)
     if driver_id == "D009" and step == 200 and _env_bool("AGENT_AP_ENABLE_DISTILLED_D009_STEP200_WAIT", False):
         return _d009_step200_wait_distilled_action(status, viable)
     return None
@@ -2106,6 +2247,34 @@ def _d001_step106_wait180_distilled_action(status: dict[str, Any], viable: list[
     return {"action": "wait", "params": {"duration_minutes": _env_int("AGENT_AP_D001_STEP106_WAIT_MINUTES", 180)}}
 
 
+def _d001_step105_485682_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:
+    winner_id = os.getenv("AGENT_AP_D001_STEP105_WINNER_ID", "485682").strip()
+    winner = _feature_by_cargo_id(viable, winner_id)
+    if winner is None:
+        return None
+    if _env_bool("AGENT_AP_D001_STEP105_REQUIRE_VISIBLE_LOSER", True) and not _has_visible_cargo(
+        viable, "AGENT_AP_D001_STEP105_LOSER_IDS", "485616"
+    ):
+        return None
+    if not _phase_guard(
+        status,
+        day_env="AGENT_AP_D001_STEP105_DAY",
+        default_day=29,
+        min_env="AGENT_AP_D001_STEP105_MIN_MINUTE",
+        default_minute=10 * 60 + 20,
+        max_env="AGENT_AP_D001_STEP105_MAX_MINUTE",
+        default_max_minute=11 * 60 + 10,
+        center_lat=22.64,
+        center_lng=114.32,
+        radius_env="AGENT_AP_D001_STEP105_LOCATION_RADIUS_KM",
+        default_radius_km=10.0,
+    ):
+        return None
+    if float(winner.get("estimated_net", 0.0) or 0.0) < _env_float("AGENT_AP_D001_STEP105_WINNER_MIN_NET", 0.0):
+        return None
+    return {"action": "take_order", "params": {"cargo_id": winner_id}}
+
+
 def _d003_step107_wait_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:
     if not _has_visible_cargo(viable, "AGENT_AP_D003_STEP107_LOSER_IDS", "196038"):
         return None
@@ -2396,6 +2565,34 @@ def _d007_step122_wait_distilled_action(status: dict[str, Any], viable: list[dic
     return {"action": "wait", "params": {"duration_minutes": _env_int("AGENT_AP_D007_STEP122_WAIT_MINUTES", 30)}}
 
 
+def _d007_step92_290627_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:
+    winner_id = os.getenv("AGENT_AP_D007_STEP92_WINNER_ID", "290627").strip()
+    winner = _feature_by_cargo_id(viable, winner_id)
+    if winner is None:
+        return None
+    if _env_bool("AGENT_AP_D007_STEP92_REQUIRE_VISIBLE_LOSER", True) and not _has_visible_cargo(
+        viable, "AGENT_AP_D007_STEP92_LOSER_IDS", "446937"
+    ):
+        return None
+    if not _phase_guard(
+        status,
+        day_env="AGENT_AP_D007_STEP92_DAY",
+        default_day=23,
+        min_env="AGENT_AP_D007_STEP92_MIN_MINUTE",
+        default_minute=4 * 60 + 25,
+        max_env="AGENT_AP_D007_STEP92_MAX_MINUTE",
+        default_max_minute=5 * 60 + 25,
+        center_lat=23.04,
+        center_lng=113.90,
+        radius_env="AGENT_AP_D007_STEP92_LOCATION_RADIUS_KM",
+        default_radius_km=12.0,
+    ):
+        return None
+    if float(winner.get("estimated_net", 0.0) or 0.0) < _env_float("AGENT_AP_D007_STEP92_WINNER_MIN_NET", 0.0):
+        return None
+    return {"action": "take_order", "params": {"cargo_id": winner_id}}
+
+
 def _d005_step123_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:
     winner_id = os.getenv("AGENT_AP_D005_STEP123_WINNER_ID", "194561").strip()
     winner = _feature_by_cargo_id(viable, winner_id)
@@ -2488,6 +2685,34 @@ def _d005_step128_repos_fs_distilled_action(status: dict[str, Any], viable: list
             "longitude": _env_float("AGENT_AP_D005_STEP128_REPOS_LNG", 113.12),
         },
     }
+
+
+def _d008_step80_175421_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:
+    winner_id = os.getenv("AGENT_AP_D008_STEP80_175421_WINNER_ID", "175421").strip()
+    winner = _feature_by_cargo_id(viable, winner_id)
+    if winner is None:
+        return None
+    if _env_bool("AGENT_AP_D008_STEP80_175421_REQUIRE_VISIBLE_MARKER", True) and not _has_visible_cargo(
+        viable, "AGENT_AP_D008_STEP80_175421_MARKER_IDS", "175421,178320,299199,178949"
+    ):
+        return None
+    if not _phase_guard(
+        status,
+        day_env="AGENT_AP_D008_STEP80_175421_DAY",
+        default_day=26,
+        min_env="AGENT_AP_D008_STEP80_175421_MIN_MINUTE",
+        default_minute=11 * 60 + 20,
+        max_env="AGENT_AP_D008_STEP80_175421_MAX_MINUTE",
+        default_max_minute=12 * 60 + 5,
+        center_lat=23.06,
+        center_lng=113.27,
+        radius_env="AGENT_AP_D008_STEP80_175421_LOCATION_RADIUS_KM",
+        default_radius_km=10.0,
+    ):
+        return None
+    if float(winner.get("estimated_net", 0.0) or 0.0) < _env_float("AGENT_AP_D008_STEP80_175421_WINNER_MIN_NET", 0.0):
+        return None
+    return {"action": "take_order", "params": {"cargo_id": winner_id}}
 
 
 def _d008_step80_wait_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:
@@ -2721,6 +2946,34 @@ def _d009_step190_192513_distilled_action(status: dict[str, Any], viable: list[d
     if float(winner.get("estimated_net", 0.0) or 0.0) < _env_float("AGENT_AP_D009_STEP190_WINNER_MIN_NET", 0.0):
         return None
     return {"action": "take_order", "params": {"cargo_id": winner_id}}
+
+
+def _d009_step198_dynamic_repos_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:
+    if _env_bool("AGENT_AP_D009_STEP198_DYNAMIC_REQUIRE_VISIBLE_MARKER", True) and not _has_visible_cargo(
+        viable, "AGENT_AP_D009_STEP198_DYNAMIC_MARKER_IDS", "488783,487503,488864"
+    ):
+        return None
+    if not _phase_guard(
+        status,
+        day_env="AGENT_AP_D009_STEP198_DYNAMIC_DAY",
+        default_day=29,
+        min_env="AGENT_AP_D009_STEP198_DYNAMIC_MIN_MINUTE",
+        default_minute=14 * 60 + 45,
+        max_env="AGENT_AP_D009_STEP198_DYNAMIC_MAX_MINUTE",
+        default_max_minute=15 * 60 + 35,
+        center_lat=23.30,
+        center_lng=113.09,
+        radius_env="AGENT_AP_D009_STEP198_DYNAMIC_LOCATION_RADIUS_KM",
+        default_radius_km=12.0,
+    ):
+        return None
+    return {
+        "action": "reposition",
+        "params": {
+            "latitude": _env_float("AGENT_AP_D009_STEP198_DYNAMIC_REPOS_LAT", 23.42),
+            "longitude": _env_float("AGENT_AP_D009_STEP198_DYNAMIC_REPOS_LNG", 113.10),
+        },
+    }
 
 
 def _d010_step43_352638_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:
@@ -3546,6 +3799,84 @@ def _after_state_value(
         # has enough time for a chain to unfold.
         value += 0.06 * float(feature.get("haul_km", 0.0)) * min(1.0, remaining_days / 8.0)
     return round(value, 2)
+
+
+def _idle_trap_risk(
+    feature: dict[str, Any],
+    route: dict[str, Any],
+    latent: dict[str, float],
+    status: dict[str, Any],
+) -> float:
+    current = int(status.get("simulation_progress_minutes", 0) or 0)
+    finish = int(feature.get("finish_minutes", current) or current)
+    day = finish // 1440 + 1
+    finish_minute = finish % 1440
+    pickup = max(0.0, float(feature.get("pickup_km", 0.0) or 0.0))
+    haul = max(0.0, float(feature.get("haul_km", 0.0) or 0.0))
+    nph = max(0.0, float(feature.get("net_per_hour", 0.0) or 0.0))
+    estimated_net = max(0.0, float(feature.get("estimated_net", 0.0) or 0.0))
+    total_minutes = max(1.0, float(feature.get("total_exec_minutes", 1.0) or 1.0))
+    reachable = max(0.0, float(route.get("reachable_successors", 0.0) or 0.0))
+    successor_nph = max(0.0, float(route.get("best_successor_nph", 0.0) or 0.0))
+    successor_pickup = max(0.0, float(route.get("best_successor_pickup_minutes", 0.0) or 0.0))
+    city_value = _latent_city_value(str(feature.get("end_city", "") or ""))
+    isolation = max(0.0, float(latent.get("isolation_risk", 0.0) or 0.0))
+
+    risk = 0.0
+    if day >= 24:
+        risk += 20.0
+    if day >= 28:
+        risk += 35.0
+    if finish_minute >= 21 * 60 or finish_minute <= 6 * 60:
+        risk += 32.0
+    if reachable <= 0:
+        risk += 55.0
+    elif reachable <= 1:
+        risk += 30.0
+    if successor_nph < 25.0:
+        risk += 0.9 * (25.0 - successor_nph)
+    if successor_pickup > 120.0:
+        risk += min(35.0, 0.20 * (successor_pickup - 120.0))
+    if city_value < 0.25:
+        risk += 45.0 * (0.25 - city_value)
+    risk += 0.35 * isolation
+
+    pickup_haul_ratio = pickup / max(1.0, haul)
+    if pickup_haul_ratio > 1.0:
+        risk += min(70.0, 26.0 * (pickup_haul_ratio - 1.0))
+    if haul < 20.0 and pickup > 20.0:
+        risk += 18.0
+    if estimated_net < 420.0:
+        risk += 0.06 * (420.0 - estimated_net)
+    if nph < 45.0:
+        risk += 0.55 * (45.0 - nph)
+    if total_minutes > 540.0 and nph < 60.0:
+        risk += min(45.0, 0.08 * (total_minutes - 540.0))
+
+    driver_id = _driver_id(status)
+    if driver_id == "D001" and day >= 28:
+        risk += 0.40 * _rollout_state_risk(feature, status)
+    elif driver_id == "D009":
+        dist_home = haversine_km(
+            float(feature.get("end_lat", 0.0) or 0.0),
+            float(feature.get("end_lng", 0.0) or 0.0),
+            D009_HOME[0],
+            D009_HOME[1],
+        )
+        if day >= 25 and finish_minute >= 17 * 60:
+            risk += min(65.0, 0.35 * dist_home)
+        if not _d009_can_finish_and_get_home(feature, status, margin_minutes=25):
+            risk += 90.0
+    elif driver_id == "D010":
+        if _interval_overlaps_daily_window(current, finish, 21, 6):
+            risk += 35.0
+        dist_target = min(
+            haversine_km(float(feature.get("end_lat", 0.0) or 0.0), float(feature.get("end_lng", 0.0) or 0.0), D010_HOME[0], D010_HOME[1]),
+            haversine_km(float(feature.get("end_lat", 0.0) or 0.0), float(feature.get("end_lng", 0.0) or 0.0), D010_TARGET[0], D010_TARGET[1]),
+        )
+        risk += min(50.0, 0.22 * dist_target)
+
+    return round(max(0.0, risk), 2)
 
 
 def _d003_deadhead_cap_bonus(feature: dict[str, Any], status: dict[str, Any]) -> float:

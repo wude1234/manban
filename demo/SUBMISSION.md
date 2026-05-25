@@ -2,11 +2,15 @@
 
 ## 当前提交版本
 
-当前保留三套 profile：
+当前保留四套 profile：
 
 ```text
-score_v98_root_idle_trap_teacher_315688
+score_v101_high_yield_teacher_316057
 用途：当前默认本地冲分、离线研究和榜单复现实验。
+特点：在 v98 root-order idle-trap 底座上叠加 D001/D007/D008/D009 四个完整尾部验证过的高收益 teacher，复现 316057.19。
+
+score_v98_root_idle_trap_teacher_315688
+用途：历史稳定基线和消融对照。
 特点：保留 counterfactual/distilled teacher，并加入 root-order idle-trap distillation，复现 315688.45。
 
 score_v94_d001_step103_teacher_315167
@@ -21,8 +25,8 @@ official_clean_agentic_planner
 本地 0509 数据当前最好复现结果为 score profile：
 
 ```text
-score = 315688.45
-total_preference_penalty = 12865.0
+score = 316057.19
+total_preference_penalty = 13165.0
 failed_driver_count = 0
 tokens = 0
 ```
@@ -40,11 +44,25 @@ result_dir = demo/results/grid_agentic_algo/20260525_185542_two_profiles_check_f
 对应实验：
 
 ```text
-demo/results/grid_agentic_algo/20260526_001234_v98_submission_profile_check/01_submission_score_v98
-preset = submission_score_v98
-step files = demo/results/grid_agentic_algo/20260526_001234_v98_submission_profile_check/01_submission_score_v98/actions_202603_D001_*.jsonl ... actions_202603_D010_*.jsonl
-summary = demo/results/grid_agentic_algo/20260526_001234_v98_submission_profile_check/01_submission_score_v98/monthly_income_202603.json
+demo/results/grid_agentic_algo/20260526_015234_v101_submission_profile_check/01_submission_score_v101
+preset = submission_score_v101
+step files = demo/results/grid_agentic_algo/20260526_015234_v101_submission_profile_check/01_submission_score_v101/actions_202603_D001_*.jsonl ... actions_202603_D010_*.jsonl
+summary = demo/results/grid_agentic_algo/20260526_015234_v101_submission_profile_check/01_submission_score_v101/monthly_income_202603.json
 ```
+
+v101 相比 v98 的新增有效动作：
+
+```text
+D001 step105 cargo485682: v98 月末 root-order 探针发现原接 cargo485616 会进入 03-30 晚间 8 小时长等。改接 cargo485682 后虽然休息罚分从 900 增到 1200，但 gross/distance 链路收益覆盖罚分，D001 净收益从 18732.78 提升到 18813.33，完整月 +80.55。
+
+D007 step92 cargo290627: D007 step90/91 idle root 探针发现，等待后原路径接 cargo446937 不是最优。改接深层候选 cargo290627 后罚分仍为 0，D007 净收益从 32527.88 提升到 32679.93，完整月 +152.05。
+
+D008 step80 cargo175421: D008 step80 原 teacher 是等待 240 分钟；force-query 动态探针发现深层候选 cargo175421 能改写后续尾链，罚分仍为 800，D008 净收益从 36051.86 提升到 36169.63，完整月 +117.77。
+
+D009 step198 dynamic reposition: D009 step198 原路径接近月末 home/reposition 长等尾巴。动态候选发现空驶到 `(23.42,113.10)` 可轻微改善月末尾链，罚分仍为 900，D009 净收益从 20051.77 提升到 20070.14，完整月 +18.37。
+```
+
+v101 的核心启发是：高收益不来自全局权重微调，而来自对尾段 root-order / root-action 的精确 full-tail 比较。固定 teacher 仍必须满足司机、step、时间窗、位置和可见货源 marker，不能绕过在线候选集合。
 
 v98 相比 v94 的新增有效动作：
 

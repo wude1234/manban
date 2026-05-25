@@ -3420,6 +3420,122 @@ def _v98_root_idle_trap_env() -> dict[str, str]:
     return env
 
 
+def _v99_idle_trap_gate_env(*, clean: bool = False, wait_gate: bool = False, strength: str = "light") -> dict[str, str]:
+    env = _submission_profile_env("official_clean") if clean else _v98_root_idle_trap_env()
+    if strength == "strong":
+        weight = "0.18"
+        cap = "30"
+        max_gap = "85"
+        after_gap = "12"
+        risk_gap = "25"
+        score_drop_cost = "0.35"
+    else:
+        weight = "0.08"
+        cap = "14"
+        max_gap = "45"
+        after_gap = "18"
+        risk_gap = "45"
+        score_drop_cost = "0.55"
+    env.update(
+        {
+            "AGENT_AP_ENABLE_IDLE_TRAP_GATE": "1",
+            "AGENT_AP_IDLE_TRAP_DRIVERS": "D001,D005,D009,D010",
+            "AGENT_AP_IDLE_TRAP_WEIGHT": weight,
+            "AGENT_AP_IDLE_TRAP_BONUS_CAP": cap,
+            "AGENT_AP_IDLE_TRAP_TOP_K": "5",
+            "AGENT_AP_IDLE_TRAP_MAX_SCORE_GAP": max_gap,
+            "AGENT_AP_IDLE_TRAP_MIN_AFTER_GAP": after_gap,
+            "AGENT_AP_IDLE_TRAP_MIN_RISK_GAP": risk_gap,
+            "AGENT_AP_IDLE_TRAP_SCORE_DROP_COST": score_drop_cost,
+            "AGENT_AP_IDLE_TRAP_AFTER_RISK_WEIGHT": "0.25",
+            "AGENT_AP_IDLE_TRAP_MIN_BEST_RISK": "35",
+        }
+    )
+    if wait_gate:
+        env.update(
+            {
+                "AGENT_AP_ENABLE_IDLE_TRAP_WAIT_GATE": "1",
+                "AGENT_AP_IDLE_TRAP_WAIT_DRIVERS": "D001,D005",
+                "AGENT_AP_IDLE_TRAP_WAIT_MIN_DAY": "26",
+                "AGENT_AP_IDLE_TRAP_WAIT_MIN_MINUTE": str(12 * 60),
+                "AGENT_AP_IDLE_TRAP_WAIT_MAX_MINUTE": str(20 * 60),
+                "AGENT_AP_IDLE_TRAP_WAIT_MINUTES": "180",
+                "AGENT_AP_IDLE_TRAP_WAIT_MIN_RISK": "115",
+                "AGENT_AP_IDLE_TRAP_WAIT_MAX_NET": "520",
+                "AGENT_AP_IDLE_TRAP_WAIT_MAX_NPH": "55",
+                "AGENT_AP_IDLE_TRAP_WAIT_ALT_SCORE_GAP": "18",
+            }
+        )
+    return env
+
+
+def _v100_high_yield_probe_env(
+    *,
+    d001: bool = True,
+    d007: bool = True,
+    d008: bool = False,
+    d009: bool = True,
+) -> dict[str, str]:
+    env = _v98_root_idle_trap_env()
+    if d001:
+        env.update(
+            {
+                "AGENT_AP_ENABLE_DISTILLED_D001_STEP105_485682": "1",
+                "AGENT_AP_D001_STEP105_WINNER_ID": "485682",
+                "AGENT_AP_D001_STEP105_REQUIRE_VISIBLE_LOSER": "1",
+                "AGENT_AP_D001_STEP105_LOSER_IDS": "485616",
+                "AGENT_AP_D001_STEP105_DAY": "29",
+                "AGENT_AP_D001_STEP105_MIN_MINUTE": str(10 * 60 + 20),
+                "AGENT_AP_D001_STEP105_MAX_MINUTE": str(11 * 60 + 10),
+                "AGENT_AP_D001_STEP105_LOCATION_RADIUS_KM": "10",
+                "AGENT_AP_D001_STEP105_WINNER_MIN_NET": "0",
+            }
+        )
+    if d007:
+        env.update(
+            {
+                "AGENT_AP_ENABLE_DISTILLED_D007_STEP92_290627": "1",
+                "AGENT_AP_D007_STEP92_WINNER_ID": "290627",
+                "AGENT_AP_D007_STEP92_REQUIRE_VISIBLE_LOSER": "1",
+                "AGENT_AP_D007_STEP92_LOSER_IDS": "446937",
+                "AGENT_AP_D007_STEP92_DAY": "23",
+                "AGENT_AP_D007_STEP92_MIN_MINUTE": str(4 * 60 + 25),
+                "AGENT_AP_D007_STEP92_MAX_MINUTE": str(5 * 60 + 25),
+                "AGENT_AP_D007_STEP92_LOCATION_RADIUS_KM": "12",
+                "AGENT_AP_D007_STEP92_WINNER_MIN_NET": "0",
+            }
+        )
+    if d008:
+        env.update(
+            {
+                "AGENT_AP_ENABLE_DISTILLED_D008_STEP80_175421": "1",
+                "AGENT_AP_D008_STEP80_175421_WINNER_ID": "175421",
+                "AGENT_AP_D008_STEP80_175421_REQUIRE_VISIBLE_MARKER": "1",
+                "AGENT_AP_D008_STEP80_175421_MARKER_IDS": "175421,178320,299199,178949",
+                "AGENT_AP_D008_STEP80_175421_DAY": "26",
+                "AGENT_AP_D008_STEP80_175421_MIN_MINUTE": str(11 * 60 + 20),
+                "AGENT_AP_D008_STEP80_175421_MAX_MINUTE": str(12 * 60 + 5),
+                "AGENT_AP_D008_STEP80_175421_LOCATION_RADIUS_KM": "10",
+                "AGENT_AP_D008_STEP80_175421_WINNER_MIN_NET": "0",
+            }
+        )
+    if d009:
+        env.update(
+            {
+                "AGENT_AP_ENABLE_DISTILLED_D009_STEP198_REPOS_DYNAMIC": "1",
+                "AGENT_AP_D009_STEP198_DYNAMIC_REQUIRE_VISIBLE_MARKER": "1",
+                "AGENT_AP_D009_STEP198_DYNAMIC_MARKER_IDS": "488783,487503,488864",
+                "AGENT_AP_D009_STEP198_DYNAMIC_DAY": "29",
+                "AGENT_AP_D009_STEP198_DYNAMIC_MIN_MINUTE": str(14 * 60 + 45),
+                "AGENT_AP_D009_STEP198_DYNAMIC_MAX_MINUTE": str(15 * 60 + 35),
+                "AGENT_AP_D009_STEP198_DYNAMIC_LOCATION_RADIUS_KM": "12",
+                "AGENT_AP_D009_STEP198_DYNAMIC_REPOS_LAT": "23.42",
+                "AGENT_AP_D009_STEP198_DYNAMIC_REPOS_LNG": "113.10",
+            }
+        )
+    return env
+
+
 def _submission_profile_env(profile: str) -> dict[str, str]:
     return {
         "AGENT_DISABLE_SUBMISSION_DEFAULTS": "0",
@@ -4947,9 +5063,22 @@ PRESETS.update(
         "hot_v92_v89_dynamic_repos_d001_d007": _v92_dynamic_repos_teachers_env(),
         "hot_v94_v92_d001_step103_202502": _v94_d001_step103_202502_env(),
         "hot_v98_root_idle_trap_teacher": _v98_root_idle_trap_env(),
+        "hot_v99_v98_idle_gate_light": _v99_idle_trap_gate_env(strength="light"),
+        "hot_v99_v98_idle_gate_strong": _v99_idle_trap_gate_env(strength="strong"),
+        "hot_v99_v98_idle_wait_light": _v99_idle_trap_gate_env(wait_gate=True, strength="light"),
+        "hot_v99_clean_idle_gate_light": _v99_idle_trap_gate_env(clean=True, strength="light"),
+        "hot_v99_clean_idle_gate_strong": _v99_idle_trap_gate_env(clean=True, strength="strong"),
+        "hot_v99_clean_idle_wait_light": _v99_idle_trap_gate_env(clean=True, wait_gate=True, strength="light"),
+        "hot_v100_v98_plus_d001105": _v100_high_yield_probe_env(d001=True, d007=False, d009=False),
+        "hot_v100_v98_plus_d00792": _v100_high_yield_probe_env(d001=False, d007=True, d009=False),
+        "hot_v100_v98_plus_d009198": _v100_high_yield_probe_env(d001=False, d007=False, d009=True),
+        "hot_v100_v98_plus_d001_d007": _v100_high_yield_probe_env(d001=True, d007=True, d009=False),
+        "hot_v100_v98_plus_d001_d007_d009": _v100_high_yield_probe_env(d001=True, d007=True, d009=True),
+        "hot_v101_v100_plus_d00880": _v100_high_yield_probe_env(d001=True, d007=True, d008=True, d009=True),
         "submission_score_v92": _submission_profile_env("score_v92"),
         "submission_score_v94": _submission_profile_env("score_v94"),
         "submission_score_v98": _submission_profile_env("score_v98"),
+        "submission_score_v101": _submission_profile_env("score_v101"),
         "submission_official_clean": _submission_profile_env("official_clean"),
         # v82: re-test true agentic state-value modules on the v77 best route.
         # These presets add no new fixed teacher labels; they only change the
