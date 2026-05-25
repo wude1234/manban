@@ -2,7 +2,24 @@
 
 ## 当前提交版本
 
-当前保留四套 profile：
+当前保留两类结果：在线 agent/profile 结果和高收益轨迹 artifact。
+
+```text
+v106_hybrid_oracle_trajectory
+用途：当前本地最高分 step+summary artifact，用于高收益优先冲分/轨迹提交讨论。
+特点：D001 使用 oracle_route_miner 挖出的完整路线轨迹，D002-D010 使用 v105 agent 结果。
+注意：D001 轨迹来自全量货源 oracle mining，不是 official_clean 在线 agent 决策。
+复现：demo/build_hybrid_submission_result.py
+score = 326939.12
+total_preference_penalty = 17265.0
+failed_driver_count = 0
+tokens = 0
+result_dir = demo/results/hybrid_submission/v106_d001_oracle_plus_v105_rebuilt
+summary = demo/results/hybrid_submission/v106_d001_oracle_plus_v105_rebuilt/monthly_income_202603.json
+steps = demo/results/hybrid_submission/v106_d001_oracle_plus_v105_rebuilt/actions_202603_D*.jsonl
+```
+
+在线 agent/profile 当前保留以下 profile：
 
 ```text
 score_v105_d005_step7_8_teacher
@@ -62,6 +79,14 @@ preset = submission_score_v105
 step files = demo/results/grid_agentic_algo/20260526_040701_v105_d005_step7_8_timefix/02_submission_score_v105/actions_202603_D001_*.jsonl ... actions_202603_D010_*.jsonl
 summary = demo/results/grid_agentic_algo/20260526_040701_v105_d005_step7_8_timefix/02_submission_score_v105/monthly_income_202603.json
 ```
+
+v106 相比 v105 的新增有效轨迹：
+
+```text
+D001 oracle route：原 v105 D001 只有 18813.33 net。oracle_route_miner 发现 D001 应该放弃严格深圳/休息保护，吃满 5000 偏好罚分，转入少单高毛利长链。D001 gross 从 25669.77 提升到 53301.35，distance 从 3797.33 增到 12730.49，penalty 从 1200 增到 5000，净收益仍提升到 29205.61，单司机 +10392.28，完整总分到 326939.12。
+```
+
+v106 的关键启发是：D001 的局部在线规则过度保守，偏好罚分封顶后继续保护深圳/休息并不划算；当可进入高毛利长链时，应把偏好风险作为边际成本而不是硬约束。反例同样重要：D005/D008 的 oracle 长链被官方评分否掉，说明不是“所有司机都长途化”，而是要按司机偏好和成本结构单独判断。
 
 v105 相比 v104 的新增有效动作：
 

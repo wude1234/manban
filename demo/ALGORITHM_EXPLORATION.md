@@ -1629,3 +1629,60 @@ For cargo teachers, require visible winners/markers; for timing, calibrate on qu
 If a sequence probe says step A + step B is positive, validate that both guards trigger together before changing the default profile.
 D005 still has some route-chain headroom, but single-step or half-chain promotion is dangerous.
 ```
+
+## v106: Oracle Route Mining Finds a D001 High-Score Skeleton
+
+### Result
+
+```text
+artifact = results/hybrid_submission/v106_d001_oracle_plus_v105_rebuilt
+score = 326939.12
+penalty = 17265
+tokens = 0
+failed_driver_count = 0
+
+composition =
+  D001 = results/oracle_route_miner/v106_d001_oracle_120/candidate_02/actions_202603_D001_oracle.jsonl
+  D002-D010 = v105 submission_score_v105 action files
+
+builder =
+  demo/build_hybrid_submission_result.py
+```
+
+This round intentionally switched away from online top-k regret mining into an
+offline oracle route miner. The miner has full cargo visibility, so this is not
+an official-clean online agent result. Its purpose is to find high-yield route
+skeletons that the current agent is missing.
+
+The major positive is D001:
+
+```text
+v105 D001 = 18813.33 net, 25669.77 gross, 3797.33 km, 1200 penalty
+v106 D001 oracle = 29205.61 net, 53301.35 gross, 12730.49 km, 5000 penalty
+delta = +10392.28 net
+full score = 316546.84 -> 326939.12
+```
+
+The important finding is not that every oracle route is good. D005 and D008
+looked huge by proxy score, but official scoring rejected them:
+
+```text
+D005 oracle best = 24986.46 net vs current 28583.75, because long-haul/distance and night/haul preferences eat the route value.
+D008 oracle best = 28583.34 net vs current 36169.63, because pickup-distance/rest/food penalties plus distance cost dominate.
+```
+
+So the usable high-score lesson is driver-specific:
+
+```text
+D001 should pay capped preference penalties if the route enters a high-gross long-haul chain.
+D005/D008 cannot blindly copy the same long-haul chain idea; their preference and distance rules are much more binding.
+The score ceiling gap is not just single-step cargo choice. It is route skeleton selection across the month.
+```
+
+Current implication:
+
+```text
+For local high-score exploration, continue oracle mining on D002/D003/D004/D006/D007/D010 before more weight tuning.
+If submitting trajectory artifacts is allowed, v106 is the current best complete step+summary result.
+If submitting an online agent is required, use D001 oracle route as a teacher and distill it into guarded route-plan actions; do not present full-cargo oracle mining as compliant online decision logic.
+```
