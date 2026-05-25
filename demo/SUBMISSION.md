@@ -5,18 +5,18 @@
 当前保留两类结果：在线 agent/profile 结果和高收益轨迹 artifact。
 
 ```text
-v112_hybrid_oracle_trajectory
+v113_hybrid_oracle_trajectory
 用途：当前本地最高分 step+summary artifact，用于高收益优先冲分/轨迹提交讨论。
-特点：D001 使用 v112 lowfuture/high-gross oracle_route_miner 挖出的更强完整路线轨迹，D003/D005 使用历史 full-tail probe 中各自最高轨迹，其余司机使用当前最好稳定轨迹。
+特点：D001 使用 v113 nph270/future015 loose oracle_route_miner 挖出的更强完整路线轨迹，D003/D005 使用历史 full-tail probe 中各自最高轨迹，其余司机使用当前最好稳定轨迹。
 注意：D001 轨迹来自全量货源 oracle mining；D003/D005 来自历史 counterfactual/full-tail artifact。这是高收益轨迹 artifact，不是 official_clean 在线 agent 决策。
 复现：demo/build_hybrid_submission_result.py
-score = 335654.37
+score = 337961.59
 total_preference_penalty = 17265.0
 failed_driver_count = 0
 tokens = 0
-result_dir = demo/results/hybrid_submission/v112_d001_lowfuture_plus_v111_best
-summary = demo/results/hybrid_submission/v112_d001_lowfuture_plus_v111_best/monthly_income_202603.json
-steps = demo/results/hybrid_submission/v112_d001_lowfuture_plus_v111_best/actions_202603_D*.jsonl
+result_dir = demo/results/hybrid_submission/v113_d001_nph270_candidate04_plus_v112_best
+summary = demo/results/hybrid_submission/v113_d001_nph270_candidate04_plus_v112_best/monthly_income_202603.json
+steps = demo/results/hybrid_submission/v113_d001_nph270_candidate04_plus_v112_best/actions_202603_D*.jsonl
 ```
 
 在线 agent/profile 当前保留以下 profile：
@@ -79,6 +79,16 @@ preset = submission_score_v105
 step files = demo/results/grid_agentic_algo/20260526_040701_v105_d005_step7_8_timefix/02_submission_score_v105/actions_202603_D001_*.jsonl ... actions_202603_D010_*.jsonl
 summary = demo/results/grid_agentic_algo/20260526_040701_v105_d005_step7_8_timefix/02_submission_score_v105/monthly_income_202603.json
 ```
+
+v113 相比 v112 的新增有效轨迹：
+
+```text
+D001 使用 results/oracle_route_miner/v113_d001_nph270_future015_loose/candidate_04 轨迹。D001 净收益从 v112 的 37601.82 提升到 39909.04，+2307.22；gross 67088.85，distance 14786.54，偏好罚分仍为封顶 5000。
+
+完整总分从 335654.37 提升到 337961.59，总偏好罚分仍为 17265。
+```
+
+v113 的关键启发是：D001 的真实偏好罚分已经封顶，继续在线性 scorer 里惩罚每个出深圳/偏好违规订单会压掉高毛利路线。高收益优先时，D001 应按“接受 5000 固定罚分后最大化 gross - distance cost”的思路继续搜索；下一轮应试 `preference-mode ignore`、更低 future 权重、更宽 pickup/min-net。
 
 v112 相比 v111 的新增有效轨迹：
 

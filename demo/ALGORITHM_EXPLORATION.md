@@ -1868,3 +1868,61 @@ the daily home rule is not merely a capped soft preference in practice: failing
 it across many days dominates gross. The next D009 search needs a constrained
 planner that forces nightly home/quiet windows and only optimizes the daytime
 route between home returns.
+
+## v113: D001 Low-Future Loose Oracle Raises Local Artifact To 337961.59
+
+### Result
+
+```text
+artifact = results/hybrid_submission/v113_d001_nph270_candidate04_plus_v112_best
+score = 337961.59
+penalty = 17265
+tokens = 0
+failed_driver_count = 0
+
+composition =
+  D001 = results/oracle_route_miner/v113_d001_nph270_future015_loose/candidate_04/actions_202603_D001_oracle.jsonl
+  D003/D005 = historical per-driver best trajectories from v109
+  D002/D004/D006/D007/D008/D009/D010 = inherited best stable trajectories
+```
+
+This round prioritized high local score over generalization and continued the
+D001 route-family search. The winning run used lower future pressure and looser
+pickup/min-net constraints:
+
+```text
+command family = D001 oracle, beam 32, branch 20, candidate_pool 720,
+                 future_window 720, max_pickup_km 280, min_net -700,
+                 score_nph_weight 2.70, score_future_weight 0.15
+
+v112 D001 = 37601.82 net, 64248.96 gross, 14431.43 km, 5000 penalty
+v113 D001 = 39909.04 net, 67088.85 gross, 14786.54 km, 5000 penalty
+D001 delta = +2307.22
+full score = 335654.37 -> 337961.59
+gap to 340000 = 2038.41
+```
+
+The useful controls in this batch were:
+
+```text
+v113 nph265/future025 best = 38310.83
+v113 nph285/future025 wide best = 37945.98
+v113 nph275/future020 wide best = 39776.22
+v113 nph270/future015 loose best = 39909.04
+```
+
+The key discovery is that D001's proxy scorer was still too conservative. In
+the exact evaluator, D001's preference penalty is already capped at 5000, so
+extra out-of-Shenzhen/preference violations often have zero marginal penalty.
+After that cap is accepted, the objective becomes much closer to
+`gross - distance_cost`, with NPH only acting as a route-density prior. This is
+why lowering future weight and loosening pickup/min-net found a 29-order,
+67088.85 gross route that beats the previous 28-order high-gross route.
+
+Current implication:
+
+```text
+For D001 high-score mining, test preference-mode ignore and very low future weights.
+Do not over-trust proxy route order; exact monthly scoring is still required.
+To pass 340000, only 2038.41 points remain; D001 may still have headroom, but D009/D005 are the largest per-driver bottlenecks.
+```
