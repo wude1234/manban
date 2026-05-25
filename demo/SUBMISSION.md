@@ -38,8 +38,8 @@ result_dir = demo/results/grid_agentic_algo/20260525_185542_two_profiles_check_f
 ```text
 demo/results/grid_agentic_algo/20260525_153955_v92_dynamic_repos_teachers/01_hot_v92_v89_dynamic_repos_d001_d007
 preset = hot_v92_v89_dynamic_repos_d001_d007
-default step files = demo/results/actions_202603_D001-D010_20260525_154904.jsonl
-summary = demo/results/monthly_income_202603.json
+step files = demo/results/grid_agentic_algo/20260525_153955_v92_dynamic_repos_teachers/01_hot_v92_v89_dynamic_repos_d001_d007/actions_202603_D001_20260525_154200.jsonl ... actions_202603_D010_20260525_154200.jsonl
+summary = demo/results/grid_agentic_algo/20260525_153955_v92_dynamic_repos_teachers/01_hot_v92_v89_dynamic_repos_d001_d007/monthly_income_202603.json
 ```
 
 v92 相比 v89 的新增有效动作：
