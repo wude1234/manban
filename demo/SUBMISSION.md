@@ -5,18 +5,18 @@
 当前保留两类结果：在线 agent/profile 结果和高收益轨迹 artifact。
 
 ```text
-v113_hybrid_oracle_trajectory
+v115_hybrid_oracle_trajectory
 用途：当前本地最高分 step+summary artifact，用于高收益优先冲分/轨迹提交讨论。
-特点：D001 使用 v113 nph270/future015 loose oracle_route_miner 挖出的更强完整路线轨迹，D003/D005 使用历史 full-tail probe 中各自最高轨迹，其余司机使用当前最好稳定轨迹。
+特点：D001 使用 v115 d001_capsoft oracle_route_miner 挖出的更强完整路线轨迹，D003/D005 使用历史 full-tail probe 中各自最高轨迹，其余司机使用当前最好稳定轨迹。
 注意：D001 轨迹来自全量货源 oracle mining；D003/D005 来自历史 counterfactual/full-tail artifact。这是高收益轨迹 artifact，不是 official_clean 在线 agent 决策。
 复现：demo/build_hybrid_submission_result.py
-score = 337961.59
+score = 338553.68
 total_preference_penalty = 17265.0
 failed_driver_count = 0
 tokens = 0
-result_dir = demo/results/hybrid_submission/v113_d001_nph270_candidate04_plus_v112_best
-summary = demo/results/hybrid_submission/v113_d001_nph270_candidate04_plus_v112_best/monthly_income_202603.json
-steps = demo/results/hybrid_submission/v113_d001_nph270_candidate04_plus_v112_best/actions_202603_D*.jsonl
+result_dir = demo/results/hybrid_submission/v115_d001_capsoft_candidate04_plus_v114_best
+summary = demo/results/hybrid_submission/v115_d001_capsoft_candidate04_plus_v114_best/monthly_income_202603.json
+steps = demo/results/hybrid_submission/v115_d001_capsoft_candidate04_plus_v114_best/actions_202603_D*.jsonl
 ```
 
 在线 agent/profile 当前保留以下 profile：
@@ -79,6 +79,16 @@ preset = submission_score_v105
 step files = demo/results/grid_agentic_algo/20260526_040701_v105_d005_step7_8_timefix/02_submission_score_v105/actions_202603_D001_*.jsonl ... actions_202603_D010_*.jsonl
 summary = demo/results/grid_agentic_algo/20260526_040701_v105_d005_step7_8_timefix/02_submission_score_v105/monthly_income_202603.json
 ```
+
+v115 相比 v113/v114 的新增有效轨迹：
+
+```text
+D001 使用 results/oracle_route_miner/v115_d001_capsoft_nph280_future012_branch28/candidate_04 轨迹。D001 净收益从 v113 的 39909.04、v114 的 40171.89 提升到 40501.13；gross 68477.75，distance 15317.75，偏好罚分仍为封顶 5000。
+
+完整总分从 v113 的 337961.59、v114 的 338224.44 提升到 338553.68，总偏好罚分仍为 17265，距离 340000 还差 1446.32。
+```
+
+v115 的关键启发是：D001 不能继续按“每次出深圳/未休息都扣边际分”的 proxy 搜索。真实评测里 D001 的每日休息罚分封顶 3000、深圳范围罚分封顶 2000，二者在高收益路线中已经是固定成本；但禁接化工塑料/煤炭矿产还不能放开。因此 `d001_capsoft` 只保护非封顶禁止品类，把已封顶项当固定成本，最终找到更高的 gross-distance 路线。
 
 v113 相比 v112 的新增有效轨迹：
 

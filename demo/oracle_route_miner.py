@@ -125,7 +125,12 @@ def main() -> int:
     parser.add_argument("--score-pickup-penalty", type=float, default=0.2)
     parser.add_argument("--rest-waits", default="", help="Optional explicit wait branches, comma-separated minutes.")
     parser.add_argument("--query-cost", type=int, default=0, help="Synthetic query cost minutes per decision.")
-    parser.add_argument("--preference-mode", choices=["ignore", "soft"], default="soft")
+    parser.add_argument(
+        "--preference-mode",
+        choices=["ignore", "soft", "d001_capsoft"],
+        default="soft",
+        help="Preference proxy. d001_capsoft treats D001 rest/Shenzhen penalties as capped fixed costs and only guards forbidden cargo categories.",
+    )
     parser.add_argument(
         "--reposition-targets",
         default="",
@@ -599,6 +604,8 @@ def _preference_proxy(
     if driver_id == "D001":
         if name in {"化工塑料", "煤炭矿产"}:
             penalty += 500.0
+        if preference_mode == "d001_capsoft":
+            return penalty
         if not (_in_shenzhen(rec.start_lat, rec.start_lng) and _in_shenzhen(rec.end_lat, rec.end_lng)):
             penalty += 120.0
     elif driver_id == "D002":

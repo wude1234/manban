@@ -15,13 +15,13 @@
 ## Current Best
 
 ```text
-version = v113 hybrid/oracle trajectory high-score result
-preset = D001 nph270/future015 loose oracle candidate_04 + best-known D003/D005 trajectories + v105/v104/v101 other drivers
-score = 337961.59
+version = v115 hybrid/oracle trajectory high-score result
+preset = D001 capsoft nph280/future012 candidate_04 + best-known D003/D005 trajectories + v105/v104/v101 other drivers
+score = 338553.68
 penalty = 17265
-latest_verified_run = demo/results/hybrid_submission/v113_d001_nph270_candidate04_plus_v112_best
-latest_verified_steps = demo/results/hybrid_submission/v113_d001_nph270_candidate04_plus_v112_best/actions_202603_D*.jsonl
-latest_verified_summary = demo/results/hybrid_submission/v113_d001_nph270_candidate04_plus_v112_best/monthly_income_202603.json
+latest_verified_run = demo/results/hybrid_submission/v115_d001_capsoft_candidate04_plus_v114_best
+latest_verified_steps = demo/results/hybrid_submission/v115_d001_capsoft_candidate04_plus_v114_best/actions_202603_D*.jsonl
+latest_verified_summary = demo/results/hybrid_submission/v115_d001_capsoft_candidate04_plus_v114_best/monthly_income_202603.json
 score_profile = score_v105_d005_step7_8_teacher
 clean_profile = official_clean_agentic_planner
 commit_check = git log -1 --oneline
@@ -30,9 +30,9 @@ commit_check = git log -1 --oneline
 Boundary:
 
 ```text
-v113 is the current highest local score artifact. It combines a stronger D001 low-future/high-throughput oracle route with best-known historical D003 and D005 trajectory artifacts.
+v115 is the current highest local score artifact. It combines a D001 capsoft oracle route with best-known historical D003 and D005 trajectory artifacts.
 v105 remains the latest online agent/profile score: 316546.84, penalty 13465, result demo/results/grid_agentic_algo/20260526_040701_v105_d005_step7_8_timefix/02_submission_score_v105.
-Use v113 for high-score trajectory/teacher exploration; use v105/official_clean for online-agent compliance work.
+Use v115 for high-score trajectory/teacher exploration; use v105/official_clean for online-agent compliance work.
 ```
 
 ## Latest Exploration State
@@ -99,6 +99,11 @@ v113 lowered future pressure further and loosened pickup/min-net to find an even
   D001 gross 67088.85, distance 14786.54, orders 29
   full hybrid score = 337961.59, penalty 17265
   gap_to_340000 = 2038.41
+v114/v115 changed D001 preference proxy to cap-aware search:
+  v114 ignore-pref ultraloose found D001 40171.89, full score 338224.44
+  v115 d001_capsoft found D001 40501.13, gross 68477.75, distance 15317.75, penalty still capped at 5000
+  full hybrid score = 338553.68, penalty 17265
+  gap_to_340000 = 1446.32
 ```
 
 当前搜索范式要切换：
@@ -107,7 +112,7 @@ v113 lowered future pressure further and loosened pickup/min-net to find an even
 不要只围绕 wait step 本身做修补。
 长等待往往是结果，不是原因；要追溯 root_order / root_route，把 after_state 的未来价值纳入接单评分。
 当前冲分第一目标不是泛化，而是继续沿 v105 底座找百元级 early/mid route-chain positives。v104 证明 D010 并非单步 step43 饱和，而是 step39-43 的前置链路可重构；v105 证明 D005 step7 单独改动会崩盘，但 step7+step8 完整链为正。
-v113 证明 D001 的高收益搜索还没有收敛：NPH 型宽搜索先打开 30 单链，但继续降低 future 权重和放宽 pickup/min-net 后，29 单更高 gross 路线反而更优。future125、longlook、future055 deeper 的 proxy 都会误导；必须以 monthly_income 精确评分为准。下一步优先围绕 D001 lowfuture/high-gross/high-throughput route family 做 ignore-pref/low-future 宽搜，同时对 D009/D010 做真实偏好约束版 constrained oracle miner。
+v113/v115 证明 D001 的高收益搜索还没有完全收敛：NPH 型宽搜索先打开 30 单链，但继续降低 future 权重、放宽 pickup/min-net，并把已封顶的休息/深圳罚分当固定成本后，29 单更高 gross 路线反而更优。future125、longlook、future055 deeper 的 proxy 都会误导；必须以 monthly_income 精确评分为准。下一步高收益优先：继续 D001 capsoft/ignore-pref 宽搜，同时对 D009 做硬每日回家的日内闭环规划。
 ```
 
 ## Profile Boundary
@@ -165,6 +170,7 @@ v110 shows D001's best route family is high-order-count, high-gross, NPH-biased 
 v111 shows D001 can still gain by pushing the route to 30 orders: nph28/future045 reaches 62412.51 gross, 13986.55 km, capped 5000 penalty, 36432.69 net.
 v112 shows D001's true high-score signal is exact gross-chain value rather than order count alone: nph275/future030 lowfuture reaches 64248.96 gross with 28 orders and 37601.82 net. It beats the 30-order v111 route because extra gross covers distance while penalty remains capped.
 v113 shows D001's proxy preference penalty was still suppressing valuable route branches. With lower future pressure and looser pickup/min-net, nph270/future015 reaches 67088.85 gross, 14786.54 km, 29 orders and 39909.04 net. Because the true preference penalty is already capped at 5000, D001 should be searched as a gross-minus-distance maximizer after the capped penalty is accepted.
+v114/v115 show the cap-aware D001 hypothesis is correct. Ignoring already-capped rest/Shenzhen risk and only guarding non-capped forbidden cargo categories raises D001 to 40501.13 net and total score to 338553.68. Current gap to 340000 is 1446.32. The next high-score path is not generic threshold tuning; it is exact-scored route mining under each driver's true capped/non-capped penalty geometry.
 D009 target-reposition smoke is a strong negative control: ignoring the daily home rule raises gross to about 49615 but triggers 37000 penalty and produces negative net. D009 must be explored with a hard daily-home constrained planner, not D001-style penalty-capped long-haul.
 ```
 

@@ -1926,3 +1926,67 @@ For D001 high-score mining, test preference-mode ignore and very low future weig
 Do not over-trust proxy route order; exact monthly scoring is still required.
 To pass 340000, only 2038.41 points remain; D001 may still have headroom, but D009/D005 are the largest per-driver bottlenecks.
 ```
+
+## v114-v115: Cap-Aware D001 Oracle Raises Local Artifact To 338553.68
+
+### Result
+
+```text
+v114 artifact = results/hybrid_submission/v114_d001_ignorepref255_candidate07_plus_v113_best
+v114 score = 338224.44
+v114 D001 = 40171.89 net, 68527.55 gross, 15570.44 km, 5000 penalty
+
+v115 artifact = results/hybrid_submission/v115_d001_capsoft_candidate04_plus_v114_best
+v115 score = 338553.68
+v115 total penalty = 17265
+v115 D001 = 40501.13 net, 68477.75 gross, 15317.75 km, 5000 penalty
+gap to 340000 = 1446.32
+```
+
+The winning D001 route is:
+
+```text
+D001 = results/oracle_route_miner/v115_d001_capsoft_nph280_future012_branch28/candidate_04/actions_202603_D001_oracle.jsonl
+```
+
+The useful control set is:
+
+```text
+v114 ignorepref nph285/future015 = 39699.15, penalty 5500
+v114 ignorepref nph270/future010 = 39831.97, penalty 5500
+v114 ignorepref nph255/future005 = 40171.89, penalty 5000
+v115 d001_capsoft nph270/future010 = 40501.13, penalty 5000
+v115 d001_capsoft nph280/future012 = 40501.13, penalty 5000
+v115 d001_capsoft nph260/future008 = 39531.99, penalty 5000
+```
+
+The new discovery is sharper than "ignore preference." D001 has two preference
+components that are already capped in the high-gross route family:
+
+```text
+daily rest cap = 3000
+Shenzhen boundary cap = 2000
+forbidden cargo category is separate and still must be guarded
+```
+
+So the profitable D001 search objective is not pure free long-haul. It is:
+
+```text
+maximize gross - distance_cost - forbidden_category_risk
+after accepting fixed capped rest/Shenzhen cost
+```
+
+That is why `d001_capsoft` beats the broad ignore-pref controls. The ignore-pref
+runs sometimes selected forbidden cargo and paid an avoidable extra 500,
+whereas capsoft keeps the search aggressive while filtering only the non-free
+preference dimension.
+
+High-score implication:
+
+```text
+The next 1446.32 points probably cannot come from small threshold tuning.
+Continue exact-scored route mining under each driver's true capped/non-capped
+penalty geometry. D001 may still have a few hundred points, but the larger
+breakthrough likely needs D009 daily-home constrained planning or another
+driver-specific cap-aware search.
+```
