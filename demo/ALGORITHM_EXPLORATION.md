@@ -1751,3 +1751,57 @@ rules. D010 must preserve the family-event/home constraints, D009 must preserve
 home-return constraints, D003 must control deadhead/forbidden-zone penalties,
 and D006 must trade rest/fresh-cargo/long-haul penalties against gross instead
 of ignoring them.
+
+## v110: Wider D001 NPH Oracle Finds Another Large Route Skeleton
+
+### Result
+
+```text
+artifact = results/hybrid_submission/v110_d001_nph24_plus_v109_best
+score = 332327.78
+penalty = 17265
+tokens = 0
+failed_driver_count = 0
+
+composition =
+  D001 = results/oracle_route_miner/v110_d001_wide_nph24/candidate_12/actions_202603_D001_oracle.jsonl
+  D003/D005 = v109 per-driver best historical trajectories
+  other drivers = v109 inherited best stable trajectories
+```
+
+This round continued high-score-first exploration by widening D001 oracle
+search instead of trying to generalize the online agent. The winning run used
+stronger NPH pressure:
+
+```text
+command family = D001 oracle, beam 18, branch 20, candidate_pool 360,
+                 future_window 1080, max_pickup_km 200,
+                 score_nph_weight 2.4, score_future_weight 0.55
+
+v109 D001 = 29205.61 net, 53301.35 gross, 12730.49 km, 5000 penalty
+v110 D001 = 34275.23 net, 59373.00 gross, 13398.51 km, 5000 penalty
+D001 delta = +5069.62
+full score = 327258.16 -> 332327.78
+```
+
+The negative controls matter:
+
+```text
+D001 future125 best exact = 21125.22
+D001 longlook best exact = 16156.80
+D001 future095 best exact = 29986.57
+D001 nph24 best exact = 34275.23
+```
+
+The new finding is that D001 wants a high-order-count, high-gross, NPH-biased
+chain after accepting the capped preference penalty. Over-weighting far-future
+destination value or very long lookahead can look excellent by proxy but lose
+more than 10k after exact monthly scoring because it picks too little gross.
+
+Current implication:
+
+```text
+D001 remains the best high-upside target; continue local variants around the nph24 route family.
+Never promote oracle proxy winners without exact monthly_income scoring.
+For non-D001 drivers, generic long-haul oracle is mostly a trap; the next search needs constrained oracle with real preference accounting.
+```

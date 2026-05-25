@@ -5,18 +5,18 @@
 当前保留两类结果：在线 agent/profile 结果和高收益轨迹 artifact。
 
 ```text
-v109_hybrid_per_driver_best_trajectory
+v110_hybrid_oracle_trajectory
 用途：当前本地最高分 step+summary artifact，用于高收益优先冲分/轨迹提交讨论。
-特点：D001 使用 oracle_route_miner 挖出的完整路线轨迹，D003/D005 使用历史 full-tail probe 中各自最高轨迹，其余司机使用当前最好稳定轨迹。
+特点：D001 使用 v110 NPH-weighted oracle_route_miner 挖出的更强完整路线轨迹，D003/D005 使用历史 full-tail probe 中各自最高轨迹，其余司机使用当前最好稳定轨迹。
 注意：D001 轨迹来自全量货源 oracle mining；D003/D005 来自历史 counterfactual/full-tail artifact。这是高收益轨迹 artifact，不是 official_clean 在线 agent 决策。
 复现：demo/build_hybrid_submission_result.py
-score = 327258.16
+score = 332327.78
 total_preference_penalty = 17265.0
 failed_driver_count = 0
 tokens = 0
-result_dir = demo/results/hybrid_submission/v109_d001_d003_d005_best_known
-summary = demo/results/hybrid_submission/v109_d001_d003_d005_best_known/monthly_income_202603.json
-steps = demo/results/hybrid_submission/v109_d001_d003_d005_best_known/actions_202603_D*.jsonl
+result_dir = demo/results/hybrid_submission/v110_d001_nph24_plus_v109_best
+summary = demo/results/hybrid_submission/v110_d001_nph24_plus_v109_best/monthly_income_202603.json
+steps = demo/results/hybrid_submission/v110_d001_nph24_plus_v109_best/actions_202603_D*.jsonl
 ```
 
 在线 agent/profile 当前保留以下 profile：
@@ -79,6 +79,16 @@ preset = submission_score_v105
 step files = demo/results/grid_agentic_algo/20260526_040701_v105_d005_step7_8_timefix/02_submission_score_v105/actions_202603_D001_*.jsonl ... actions_202603_D010_*.jsonl
 summary = demo/results/grid_agentic_algo/20260526_040701_v105_d005_step7_8_timefix/02_submission_score_v105/monthly_income_202603.json
 ```
+
+v110 相比 v109 的新增有效轨迹：
+
+```text
+D001 使用 results/oracle_route_miner/v110_d001_wide_nph24/candidate_12 轨迹。D001 净收益从 v109 的 29205.61 提升到 34275.23，+5069.62；gross 59373.00，distance 13398.51，偏好罚分仍为封顶 5000。
+
+完整总分从 327258.16 提升到 332327.78，总偏好罚分仍为 17265。
+```
+
+v110 的关键启发是：D001 不是简单“放大未来区域价值”就能更好。`future125` 和 `longlook` 的 proxy 很高，但精确评分分别只有 21125.22 和 16156.80；真正有效的是 NPH 压力更强的 27 单高 gross 路线。后续 D001 应继续围绕高订单数、高毛收、可吃满封顶罚分的路线族搜索；其他司机不能照搬，因为 D005/D008/D010 的真实偏好会把长链罚穿。
 
 v109 相比 v106 的新增有效轨迹：
 
