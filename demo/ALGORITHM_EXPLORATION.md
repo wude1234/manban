@@ -5,10 +5,53 @@
 当前最好可复现分数：
 
 ```text
-score = 367316.31
-preset = v118_hybrid_oracle_trajectory
-penalty = 55615.0
-result_dir = results/hybrid_submission/v118_d004_d005_ignore_oracle_plus_v117_best
+score = 370755.73
+preset = v125_v124_plus_d006_tail_p18_semisoft
+penalty = 59315.0
+result_dir = results/hybrid_submission/v125_v124_plus_d006_tail_p18_semisoft
+```
+
+## v125 新发现：D006 不能全月放开，但保留前 18 单后尾段冲单为正
+
+v125 在 v124 的基础上替换 D006：使用 D006 当前最好轨迹的前 18 单作为 seed prefix，再开启半软偏好 tail mining。结果比 v124 保留的 D006 稳定轨迹更高：
+
+```text
+D006 37060.89 -> 37251.63, +190.74
+gross 56396.21 -> 67307.35
+distance 9423.55 -> 14570.48
+preference_penalty 5200 -> 8200
+orders = 43
+
+full hybrid:
+  score 370564.99 -> 370755.73
+  total_preference_penalty 56315 -> 59315
+```
+
+关键启发：D006 的全月 ignore/semisoft 长链都没有超过原最好轨迹，但从第 18 单之后放开尾段，新增毛利能覆盖新增偏好罚分。这说明“负类司机”也不一定完全不能高毛利化，真正边界是前半月偏好安全骨架不能破坏。后续 D006 应测 prefix 14/16/20/22，并微调 `d006_semisoft` 的水产品/长距离罚分权重。
+
+## v124 新发现：固定前 16 单后做尾段重规划，比全月重搜更有效
+
+v124 以 v118 为底座，不再全月重搜，而是把 D002/D003/D004/D005/D008 的前 16 个已验证订单固定住，只从 3 月 16 日后的状态继续做 tail mining。这个搜索方式同时保留了前半月高毛利骨架，又给后半月留出重构空间，最终五个司机都得到正收益替换：
+
+```text
+D002 37692.29 -> 38602.12, +909.83, gross 74028.18, distance 16450.71, penalty 10750
+D003 41051.78 -> 41598.44, +546.66, gross 74028.18, distance 16419.83, penalty 7800
+D004 44659.52 -> 45206.17, +546.65, gross 74028.18, distance 16481.34, penalty 4100
+D005 38677.74 -> 39324.40, +646.66, gross 74028.18, distance 16469.19, penalty 10000
+D008 37647.59 -> 38246.47, +598.88, gross 73483.45, distance 16357.99, penalty 10700
+
+full hybrid:
+  score 367316.31 -> 370564.99
+  total_preference_penalty 55615 -> 56315
+```
+
+关键启发：全月重搜 v120 虽然 proxy 很高，但 exact 评分全面低于 v118，因为它破坏了已验证前半月链路，并让距离/偏好罚分恶化。v121 的 fixed-prefix tail mining 则证明，当前高分瓶颈不在月初主链，而在月中以后几个可替换尾部订单。后续高收益优先应继续围绕不同 prefix 位置做路线族重构：
+
+```text
+1. 对 D002/D003/D004/D005/D008 测 prefix 12/14/18，找是否比 prefix16 更早或更晚放开更好。
+2. 对 D001 做同样 tail-prefix 搜索，检查 33 单高毛利链后段是否还能降距离或加 gross。
+3. D006 继续半软偏好搜索，因为 ignore 长链只差当前最优约 530 分，有可能通过保留关键偏好追回。
+4. 不再主力跑 v120 这种全月宽搜参数族；它已被 exact 证实为负方向。
 ```
 
 ## v118 新发现：D004/D005 也能靠高毛利链覆盖偏好罚分

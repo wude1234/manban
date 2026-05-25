@@ -126,10 +126,21 @@ def main() -> int:
     parser.add_argument("--rest-waits", default="", help="Optional explicit wait branches, comma-separated minutes.")
     parser.add_argument("--query-cost", type=int, default=0, help="Synthetic query cost minutes per decision.")
     parser.add_argument(
+        "--seed-actions",
+        default="",
+        help="Optional existing actions JSONL used as a fixed route prefix before mining the remaining tail.",
+    )
+    parser.add_argument(
+        "--seed-prefix-orders",
+        type=int,
+        default=0,
+        help="Number of take_order actions to keep from --seed-actions before tail mining.",
+    )
+    parser.add_argument(
         "--preference-mode",
-        choices=["ignore", "soft", "d001_capsoft"],
+        choices=["ignore", "soft", "d001_capsoft", "d006_semisoft"],
         default="soft",
-        help="Preference proxy. d001_capsoft treats D001 rest/Shenzhen penalties as capped fixed costs and only guards forbidden cargo categories.",
+        help="Preference proxy. d001_capsoft treats D001 rest/Shenzhen penalties as capped fixed costs. d006_semisoft keeps the high-gross route search but avoids the expensive D006 fish/long-haul caps.",
     )
     parser.add_argument(
         "--reposition-targets",
@@ -169,6 +180,18 @@ def main() -> int:
         lat=float(driver.get("current_lat", 0.0)),
         lng=float(driver.get("current_lng", 0.0)),
     )
+    if args.seed_actions:
+        root = _load_seed_prefix(
+            Path(args.seed_actions),
+            driver_id=driver_id,
+            prefix_orders=max(0, int(args.seed_prefix_orders)),
+            fallback=root,
+        )
+        print(
+            f"seed prefix: orders={root.accepted_orders} steps={len(root.history)} "
+            f"t={_clock(root.progress)} used={len(root.used_ids)}",
+            flush=True,
+        )
 
     wait_branches = _parse_int_list(args.rest_waits)
     reposition_targets = _parse_target_points(args.reposition_targets)
@@ -628,6 +651,15 @@ def _preference_proxy(
         if _overlaps_night(action_start, finish, 23 * 60, 6 * 60):
             penalty += 120.0
     elif driver_id == "D006":
+        if preference_mode == "d006_semisoft":
+            # D006's rest/off-day penalties cap out, but fish and long-haul caps
+            # explain most of the gap between the high-gross chain and the best
+            # exact monthly score. Use a light proxy so gross can still win.
+            if name == "鲜活水产品":
+                penalty += 650.0
+            if rec.haul_km > 150.0:
+                penalty += 260.0
+            return penalty
         if name == "鲜活水产品":
             penalty += 300.0
         if rec.haul_km > 150.0:
@@ -760,6 +792,52 @@ def _load_cargo_table(path: Path, *, cost_per_km: float) -> CargoTable:
 def _load_drivers(path: Path) -> dict[str, dict[str, Any]]:
     raw = json.loads(path.read_text(encoding="utf-8"))
     return {str(item["driver_id"]).upper(): item for item in raw if isinstance(item, dict)}
+
+
+def _load_seed_prefix(path: Path, *, driver_id: str, prefix_orders: int, fallback: RouteNode) -> RouteNode:
+    if prefix_orders <= 0:
+        return fallback
+    if not path.is_file():
+        raise FileNotFoundError(f"missing --seed-actions file: {path}")
+    history: list[dict[str, Any]] = []
+    used: set[str] = set()
+    progress = fallback.progress
+    lat = fallback.lat
+    lng = fallback.lng
+    accepted = 0
+    with path.open(encoding="utf-8") as f:
+        for line in f:
+            if not line.strip():
+                continue
+            rec = json.loads(line)
+            action = rec.get("action") if isinstance(rec, dict) else None
+            params = action.get("params", {}) if isinstance(action, dict) else {}
+            action_name = str(action.get("action", "") if isinstance(action, dict) else "")
+            history.append(rec)
+            result = rec.get("result", {}) if isinstance(rec.get("result"), dict) else {}
+            pos_after = rec.get("position_after", {}) if isinstance(rec.get("position_after"), dict) else {}
+            progress = int(result.get("simulation_progress_minutes") or progress)
+            lat = float(pos_after.get("lat", lat))
+            lng = float(pos_after.get("lng", lng))
+            if action_name == "take_order":
+                cargo_id = str(params.get("cargo_id", "")).strip()
+                if cargo_id:
+                    used.add(cargo_id)
+                accepted += 1
+                if accepted >= prefix_orders:
+                    break
+    if accepted < prefix_orders:
+        raise ValueError(f"{path} contains only {accepted} take_order actions, requested prefix {prefix_orders}")
+    return RouteNode(
+        progress=progress,
+        lat=lat,
+        lng=lng,
+        history=history,
+        used_ids=frozenset(used),
+        proxy_score=0.0,
+        accepted_orders=accepted,
+        label=f"seed:{driver_id}:{prefix_orders}",
+    )
 
 
 def _write_run(out_dir: Path, node: RouteNode, *, driver_id: str, settings: Any, elapsed: float) -> None:

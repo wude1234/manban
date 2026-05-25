@@ -15,13 +15,13 @@
 ## Current Best
 
 ```text
-version = v118 hybrid/oracle trajectory high-score result
-preset = v117 + ignore-pref oracle D004/D005
-score = 367316.31
-penalty = 55615
-latest_verified_run = demo/results/hybrid_submission/v118_d004_d005_ignore_oracle_plus_v117_best
-latest_verified_steps = demo/results/hybrid_submission/v118_d004_d005_ignore_oracle_plus_v117_best/actions_202603_D*.jsonl
-latest_verified_summary = demo/results/hybrid_submission/v118_d004_d005_ignore_oracle_plus_v117_best/monthly_income_202603.json
+version = v125 tail-prefix oracle trajectory high-score result
+preset = v124 + D006 fixed-prefix18 semisoft tail route
+score = 370755.73
+penalty = 59315
+latest_verified_run = demo/results/hybrid_submission/v125_v124_plus_d006_tail_p18_semisoft
+latest_verified_steps = demo/results/hybrid_submission/v125_v124_plus_d006_tail_p18_semisoft/actions_202603_D*.jsonl
+latest_verified_summary = demo/results/hybrid_submission/v125_v124_plus_d006_tail_p18_semisoft/monthly_income_202603.json
 score_profile = score_v105_d005_step7_8_teacher
 clean_profile = official_clean_agentic_planner
 commit_check = git log -1 --oneline
@@ -30,7 +30,7 @@ commit_check = git log -1 --oneline
 Boundary:
 
 ```text
-v118 is the current highest local score artifact. It combines the v116 D001 route with ignore-pref oracle routes for D002/D003/D004/D005/D008.
+v125 is the current highest local score artifact. It keeps the v116 D001 route, v124 tail-mined D002/D003/D004/D005/D008, and replaces D006 with a fixed-prefix18 semisoft tail-mined route.
 v105 remains the latest online agent/profile score: 316546.84, penalty 13465, result demo/results/grid_agentic_algo/20260526_040701_v105_d005_step7_8_timefix/02_submission_score_v105.
 Use v115 for high-score trajectory/teacher exploration; use v105/official_clean for online-agent compliance work.
 ```
@@ -122,6 +122,19 @@ v118 added D004/D005 ignore-pref oracle positives:
   D005 28734.46 -> 38677.74, +9943.28, penalty 10100
   full hybrid score = 367316.31, penalty 55615
   D009/D010 ignore-pref long chains are strong negative controls: D009 11378.86 < 20070.14 with 37700 penalty; D010 9543.81 < 34062.66 with 39540 penalty.
+v124 changed search paradigm from full-month rescan to fixed-prefix tail mining:
+  v120 full-month deeper rescan was negative for D001/D002/D003/D004/D005/D008.
+  v121 fixed first 16 orders then tail-mined D002/D003/D004/D005/D008:
+    D002 37692.29 -> 38602.12, +909.83
+    D003 41051.78 -> 41598.44, +546.66
+    D004 44659.52 -> 45206.17, +546.65
+    D005 38677.74 -> 39324.40, +646.66
+    D008 37647.59 -> 38246.47, +598.88
+  full hybrid score = 370564.99, penalty 56315
+v125 added D006 fixed-prefix18 semisoft tail mining:
+  D006 37060.89 -> 37251.63, +190.74
+  gross 56396.21 -> 67307.35, penalty 5200 -> 8200
+  full hybrid score = 370755.73, penalty 59315
 ```
 
 当前搜索范式要切换：
@@ -130,7 +143,7 @@ v118 added D004/D005 ignore-pref oracle positives:
 不要只围绕 wait step 本身做修补。
 长等待往往是结果，不是原因；要追溯 root_order / root_route，把 after_state 的未来价值纳入接单评分。
 当前冲分第一目标不是泛化，而是继续沿 v105 底座找百元级 early/mid route-chain positives。v104 证明 D010 并非单步 step43 饱和，而是 step39-43 的前置链路可重构；v105 证明 D005 step7 单独改动会崩盘，但 step7+step8 完整链为正。
-v113-v118 证明高收益搜索的核心不是泛化区域规则，而是“路线毛利链是否足以覆盖真实偏好罚分”。D001/D002/D003/D004/D005/D008 都存在 31-33 单高毛利路线族；D006/D007/D009/D010 会被罚分打穿，不能照搬。future125、longlook、future055 deeper 的 proxy 都会误导；必须以 monthly_income 精确评分为准。下一步围绕正司机做更宽/更深路线族搜索，D009/D010 只做偏好约束路线，不再做 ignore-pref 主力搜索。
+v113-v118 证明高收益搜索的核心不是泛化区域规则，而是“路线毛利链是否足以覆盖真实偏好罚分”。D001/D002/D003/D004/D005/D008 都存在 31-33 单高毛利路线族；D006/D007/D009/D010 会被罚分打穿，不能照搬。v120 证明全月重搜会破坏前半月强链；v121/v124 证明固定前缀后的尾段重规划更有效；v125 证明 D006 也能在保留前 18 单后通过尾段高毛利覆盖新增罚分。下一步围绕 D001-D005/D008 测 prefix 12/14/18，D006 测 prefix 14/16/20/22 和 semisoft 权重，D009/D010 只做偏好约束路线。
 ```
 
 ## Profile Boundary

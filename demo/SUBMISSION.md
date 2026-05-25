@@ -5,18 +5,18 @@
 当前保留两类结果：在线 agent/profile 结果和高收益轨迹 artifact。
 
 ```text
-v118_hybrid_oracle_trajectory
+v125_tail_prefix_oracle_trajectory
 用途：当前本地最高分 step+summary artifact，用于高收益优先冲分/轨迹提交讨论。
-特点：D001 使用 v116 d001_capsoft oracle route；D002/D003/D004/D005/D008 使用 ignore-pref oracle route；其余司机保留当前最好稳定轨迹。
-注意：D001/D002/D003/D004/D005/D008 轨迹来自全量货源 oracle mining。这是高收益轨迹 artifact，不是 official_clean 在线 agent 决策。
+特点：D001 使用 v116 d001_capsoft oracle route；D002/D003/D004/D005/D008 使用固定前 16 单后的 tail-prefix oracle route；D006 使用固定前 18 单后的 semisoft tail route；其余司机保留当前最好稳定轨迹。
+注意：D001/D002/D003/D004/D005/D006/D008 轨迹来自全量货源 oracle/tail mining。这是高收益轨迹 artifact，不是 official_clean 在线 agent 决策。
 复现：demo/build_hybrid_submission_result.py
-score = 367316.31
-total_preference_penalty = 55615.0
+score = 370755.73
+total_preference_penalty = 59315.0
 failed_driver_count = 0
 tokens = 0
-result_dir = demo/results/hybrid_submission/v118_d004_d005_ignore_oracle_plus_v117_best
-summary = demo/results/hybrid_submission/v118_d004_d005_ignore_oracle_plus_v117_best/monthly_income_202603.json
-steps = demo/results/hybrid_submission/v118_d004_d005_ignore_oracle_plus_v117_best/actions_202603_D*.jsonl
+result_dir = demo/results/hybrid_submission/v125_v124_plus_d006_tail_p18_semisoft
+summary = demo/results/hybrid_submission/v125_v124_plus_d006_tail_p18_semisoft/monthly_income_202603.json
+steps = demo/results/hybrid_submission/v125_v124_plus_d006_tail_p18_semisoft/actions_202603_D*.jsonl
 ```
 
 在线 agent/profile 当前保留以下 profile：
@@ -79,6 +79,34 @@ preset = submission_score_v105
 step files = demo/results/grid_agentic_algo/20260526_040701_v105_d005_step7_8_timefix/02_submission_score_v105/actions_202603_D001_*.jsonl ... actions_202603_D010_*.jsonl
 summary = demo/results/grid_agentic_algo/20260526_040701_v105_d005_step7_8_timefix/02_submission_score_v105/monthly_income_202603.json
 ```
+
+v125 相比 v124 的新增有效轨迹：
+
+```text
+D006 使用 results/oracle_route_miner/v122_d006_tail_p18_semisoft_retry/candidate_01，净收益从 37060.89 提升到 37251.63，+190.74；gross 67307.35，distance 14570.48，偏好罚分 8200。
+
+完整总分从 v124 的 370564.99 提升到 370755.73，总偏好罚分从 56315 升到 59315。
+```
+
+v125 的关键启发是：D006 全月放开长链会被偏好/距离打穿，但保留前 18 单后只重构尾段是正收益。D006 不是“完全负类”，而是需要先保住前半月偏好安全骨架，再在后半月用高毛利订单覆盖新增罚分。
+
+v124 相比 v118 的新增有效轨迹：
+
+```text
+D002 使用 results/oracle_route_miner/v121_d002_tail_p16_nph255_f015/candidate_01，净收益从 37692.29 提升到 38602.12，+909.83；gross 74028.18，distance 16450.71，偏好罚分 10750。
+
+D003 使用 results/oracle_route_miner/v121_d003_tail_p16_nph255_f015/candidate_01，净收益从 41051.78 提升到 41598.44，+546.66；gross 74028.18，distance 16419.83，偏好罚分 7800。
+
+D004 使用 results/oracle_route_miner/v121_d004_tail_p16_nph255_f015/candidate_01，净收益从 44659.52 提升到 45206.17，+546.65；gross 74028.18，distance 16481.34，偏好罚分 4100。
+
+D005 使用 results/oracle_route_miner/v121_d005_tail_p16_nph255_f015/candidate_01，净收益从 38677.74 提升到 39324.40，+646.66；gross 74028.18，distance 16469.19，偏好罚分 10000。
+
+D008 使用 results/oracle_route_miner/v121_d008_tail_p16_nph255_f015/candidate_56，净收益从 37647.59 提升到 38246.47，+598.88；gross 73483.45，distance 16357.99，偏好罚分 10700。
+
+完整总分从 v118 的 367316.31 提升到 370564.99，总偏好罚分从 55615 升到 56315。
+```
+
+v124 的关键启发是：当前高收益链路不是全月越宽搜越好，v120 全月重搜已经证明会破坏前半月强链。固定前 16 单后只重构后半月，能同时提高 D002/D003/D004/D005/D008 的 gross 或降低 distance，说明月中以后才是当前可挖的主空间。后续应围绕 prefix 12/14/18 做尾段搜索，而不是继续无差别全月重搜。
 
 v118 相比 v117 的新增有效轨迹：
 
