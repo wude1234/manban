@@ -5,10 +5,45 @@
 当前最好可复现分数：
 
 ```text
-score = 373463.36
-preset = v129_v127_plus_d001_tail_p12_capsoft
-penalty = 59015.0
-result_dir = results/hybrid_submission/v129_v127_plus_d001_tail_p12_capsoft
+score = 373504.18
+preset = v132_v129_plus_d006_p18_tightdist
+penalty = 59215.0
+result_dir = results/hybrid_submission/v132_v129_plus_d006_p18_tightdist
+```
+
+## v132 新发现：tightdist 不是通用方向，但 D006 尾段仍可小幅吃毛利
+
+v132 在 v129 基础上替换 D006 的 prefix18 tightdist tail route：
+
+```text
+D006 37251.63 -> 37292.45, +40.82
+gross 67307.35 -> 68563.94
+distance 14570.48 -> 15247.66
+preference_penalty 8200 -> 8400
+
+full hybrid:
+  score 373463.36 -> 373504.18
+  total_preference_penalty 59015 -> 59215
+```
+
+同批 v131 的负例更重要：
+
+```text
+D001 tightdist = 43932.95, -609.71
+D002 tightdist = 38406.95, -629.61
+D003 tightdist = 41270.97, -609.70
+D004 tightdist = 44678.70, -809.71
+D005 tightdist = 39196.93, -461.91
+D008 tightdist = 37429.95, -1361.91
+D001 widegross = 44542.66, tied current
+```
+
+启发：当前路线族已经不是简单“压距离”能提升；tightdist 会牺牲高 gross 主链，只有 D006 因为前缀18后尾段仍有偏好/距离/毛利的局部错配，能多吃一单毛利覆盖新增 200 罚分。下一步高收益优先应换搜索范式：
+
+```text
+1. D006 做 semisoft 权重族，而不是只调 release point。
+2. D007/D009/D010 做偏好约束 tail mining，找是否存在非 ignore-pref 的后半月正链。
+3. D002/D003/D004/D005/D008 可试固定前缀 widegross 分支，但 tightdist 已基本判负。
 ```
 
 ## v129 新发现：D001 也进入 tail-release 收益区，prefix10 对其他司机过早
