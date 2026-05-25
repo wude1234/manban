@@ -101,6 +101,14 @@ class Candidate:
     destination_value: float
 
 
+@dataclass(frozen=True)
+class TargetPoint:
+    label: str
+    lat: float
+    lng: float
+    bonus: float = 0.0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Mine high-yield full-month routes with global cargo visibility.")
     parser.add_argument("--driver", required=True, help="Driver id, e.g. D009.")
@@ -118,6 +126,19 @@ def main() -> int:
     parser.add_argument("--rest-waits", default="", help="Optional explicit wait branches, comma-separated minutes.")
     parser.add_argument("--query-cost", type=int, default=0, help="Synthetic query cost minutes per decision.")
     parser.add_argument("--preference-mode", choices=["ignore", "soft"], default="soft")
+    parser.add_argument(
+        "--reposition-targets",
+        default="",
+        help="Optional target reposition branches: label:lat,lng[:bonus];label2:lat,lng[:bonus].",
+    )
+    parser.add_argument(
+        "--reposition-daily-window",
+        default="",
+        help="Optional daily action window for target reposition, e.g. 16:00-23:00 or 960-1380.",
+    )
+    parser.add_argument("--reposition-min-km", type=float, default=5.0)
+    parser.add_argument("--reposition-max-km", type=float, default=260.0)
+    parser.add_argument("--reposition-value-weight", type=float, default=0.35)
     parser.add_argument("--out-dir", default="")
     parser.add_argument("--score-final", action="store_true")
     args = parser.parse_args()
@@ -145,6 +166,8 @@ def main() -> int:
     )
 
     wait_branches = _parse_int_list(args.rest_waits)
+    reposition_targets = _parse_target_points(args.reposition_targets)
+    reposition_daily_window = _parse_daily_window(args.reposition_daily_window)
     beam = [root]
     finals: list[RouteNode] = []
     for depth in range(max(1, int(args.max_steps))):
@@ -173,6 +196,11 @@ def main() -> int:
                     pickup_penalty=float(args.score_pickup_penalty),
                     preference_mode=str(args.preference_mode),
                     wait_branches=wait_branches,
+                    reposition_targets=reposition_targets,
+                    reposition_daily_window=reposition_daily_window,
+                    reposition_min_km=max(0.0, float(args.reposition_min_km)),
+                    reposition_max_km=max(1.0, float(args.reposition_max_km)),
+                    reposition_value_weight=float(args.reposition_value_weight),
                 )
             )
         if not expanded:
@@ -247,6 +275,11 @@ def _expand_node(
     pickup_penalty: float,
     preference_mode: str,
     wait_branches: list[int],
+    reposition_targets: list[TargetPoint],
+    reposition_daily_window: tuple[int, int] | None,
+    reposition_min_km: float,
+    reposition_max_km: float,
+    reposition_value_weight: float,
 ) -> list[RouteNode]:
     action_start_floor = node.progress + query_cost
     candidates = _generate_candidates(
@@ -274,6 +307,24 @@ def _expand_node(
         if minutes <= 0 or node.progress + minutes > HORIZON_MINUTES:
             continue
         out.append(_wait_node(node, minutes, driver_id=driver_id, label=f"wait:{minutes}"))
+    for target in reposition_targets:
+        if reposition_daily_window is not None and not _minute_in_daily_window(node.progress, reposition_daily_window):
+            continue
+        moved = _reposition_node(
+            node,
+            target,
+            driver_id=driver_id,
+            speed_km_per_hour=speed_km_per_hour,
+            cost_per_km=cost_per_km,
+            query_cost=query_cost,
+            value_index=value_index,
+            min_km=reposition_min_km,
+            max_km=reposition_max_km,
+            future_weight=future_weight * reposition_value_weight,
+            wait_penalty=wait_penalty,
+        )
+        if moved is not None:
+            out.append(moved)
     if not out:
         # Move time to the next likely release instead of dying at an empty/low-value state.
         next_wait = _next_release_wait(cargo, node.progress, max_wait=max(60, future_window))
@@ -467,6 +518,67 @@ def _wait_node(node: RouteNode, minutes: int, *, driver_id: str, label: str, que
         proxy_score=node.proxy_score - 0.02 * actual_wait,
         accepted_orders=node.accepted_orders,
         label=f"{node.label}>{label}",
+    )
+
+
+def _reposition_node(
+    node: RouteNode,
+    target: TargetPoint,
+    *,
+    driver_id: str,
+    speed_km_per_hour: float,
+    cost_per_km: float,
+    query_cost: int,
+    value_index: dict[tuple[int, int, int], float],
+    min_km: float,
+    max_km: float,
+    future_weight: float,
+    wait_penalty: float,
+) -> RouteNode | None:
+    distance_km = haversine_km(node.lat, node.lng, target.lat, target.lng)
+    if distance_km < min_km or distance_km > max_km:
+        return None
+    move_minutes = _distance_to_minutes(distance_km, speed_km_per_hour)
+    end_progress = node.progress + query_cost + move_minutes
+    if end_progress > HORIZON_MINUTES:
+        return None
+    dest_value = _lookup_destination_value(value_index, end_progress, target.lat, target.lng)
+    proxy_delta = target.bonus + future_weight * dest_value - cost_per_km * distance_km - wait_penalty * move_minutes
+    history = list(node.history)
+    history.append(
+        {
+            "step": len(history) + 1,
+            "driver_id": driver_id,
+            "step_elapsed_minutes": query_cost + move_minutes,
+            "query_scan_cost_minutes": query_cost,
+            "action_exec_cost_minutes": move_minutes,
+            "position_before": {"lat": round(node.lat, 6), "lng": round(node.lng, 6)},
+            "position_after": {"lat": round(target.lat, 6), "lng": round(target.lng, 6)},
+            "simulation_end_time": _clock(end_progress),
+            "action": {
+                "action": "reposition",
+                "params": {"latitude": round(target.lat, 6), "longitude": round(target.lng, 6)},
+                "model_usage": _zero_usage(),
+            },
+            "token_usage": _zero_usage(),
+            "result": {
+                "current_lat": round(target.lat, 6),
+                "current_lng": round(target.lng, 6),
+                "simulation_progress_minutes": end_progress,
+                "simulation_wall_time": _clock(end_progress) + ":00",
+                "distance_km": round(distance_km, 2),
+            },
+        }
+    )
+    return RouteNode(
+        progress=end_progress,
+        lat=target.lat,
+        lng=target.lng,
+        history=history,
+        used_ids=node.used_ids,
+        proxy_score=node.proxy_score + proxy_delta,
+        accepted_orders=node.accepted_orders,
+        label=f"{node.label}>repos:{target.label}",
     )
 
 
@@ -739,6 +851,50 @@ def _parse_int_list(text: str) -> list[int]:
             continue
         out.append(int(part))
     return out
+
+
+def _parse_target_points(text: str) -> list[TargetPoint]:
+    out: list[TargetPoint] = []
+    for raw in str(text or "").split(";"):
+        item = raw.strip()
+        if not item:
+            continue
+        if ":" not in item:
+            raise ValueError(f"invalid target point, expected label:lat,lng[:bonus], got {item!r}")
+        label, rest = item.split(":", 1)
+        parts = [p.strip() for p in rest.split(":")]
+        coord = parts[0]
+        if "," not in coord:
+            raise ValueError(f"invalid target coordinates: {item!r}")
+        lat_s, lng_s = coord.split(",", 1)
+        bonus = float(parts[1]) if len(parts) > 1 and parts[1] else 0.0
+        out.append(TargetPoint(label=label.strip() or f"target{len(out) + 1}", lat=float(lat_s), lng=float(lng_s), bonus=bonus))
+    return out
+
+
+def _parse_daily_window(text: str) -> tuple[int, int] | None:
+    raw = str(text or "").strip()
+    if not raw:
+        return None
+    if "-" not in raw:
+        raise ValueError(f"invalid daily window: {raw!r}")
+    start_s, end_s = raw.split("-", 1)
+    return (_parse_day_minute(start_s.strip()), _parse_day_minute(end_s.strip()))
+
+
+def _parse_day_minute(text: str) -> int:
+    if ":" in text:
+        hour_s, minute_s = text.split(":", 1)
+        return int(hour_s) * 60 + int(minute_s)
+    return int(text)
+
+
+def _minute_in_daily_window(minute: int, window: tuple[int, int]) -> bool:
+    start, end = window
+    day_minute = int(minute) % 1440
+    if start <= end:
+        return start <= day_minute <= end
+    return day_minute >= start or day_minute <= end
 
 
 def _in_shenzhen(lat: float, lng: float) -> bool:

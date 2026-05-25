@@ -1805,3 +1805,66 @@ D001 remains the best high-upside target; continue local variants around the nph
 Never promote oracle proxy winners without exact monthly_income scoring.
 For non-D001 drivers, generic long-haul oracle is mostly a trap; the next search needs constrained oracle with real preference accounting.
 ```
+
+## v111-v112: D001 Low-Future High-Gross Oracle Raises Local Artifact To 335654.37
+
+### Result
+
+```text
+v111 artifact = results/hybrid_submission/v111_d001_nph28_plus_v110_best
+v111 score = 334485.24
+v111 D001 = 36432.69 net, 62412.51 gross, 13986.55 km, 5000 penalty
+
+v112 artifact = results/hybrid_submission/v112_d001_lowfuture_plus_v111_best
+v112 score = 335654.37
+v112 D001 = 37601.82 net, 64248.96 gross, 14431.43 km, 5000 penalty
+v112 total penalty = 17265
+gap to 340000 = 4345.63
+```
+
+The useful sequence of negative and positive controls is:
+
+```text
+v111 nph28/future045 = 36432.69
+v112 nph26/future045 = 36392.31
+v112 nph29/future040 = 35733.59
+v112 nph275/future030 = 37601.82
+v112 nph28/future055 deeper = 31929.53
+```
+
+The discovery is that D001's best local-score route is not simply "more orders"
+or "more future value." The v111 30-order route was strong, but v112 found a
+28-order route with much higher gross and better exact net. The D001 penalty is
+already capped at 5000, so the scorer should treat preference loss as a fixed
+cost and then maximize exact gross-chain value minus distance. Over-weighted
+future value and deeper lookahead can look attractive by proxy while dropping
+exact monthly net by several thousand.
+
+Practical implication:
+
+```text
+Continue D001 narrow search around nph 2.65-2.85 and future 0.20-0.35.
+Do not trust oracle proxy rank; exact monthly_income decides promotion.
+Track both route families:
+  30-order v111 family: 224174 -> 312731 -> ... -> 491561
+  28-order v112 family: 224174 -> 312731 -> 238748 -> 245702 -> 329062 -> ... -> 210030
+```
+
+### D009 Negative Control
+
+Target reposition support was added to `oracle_route_miner.py` so the search can
+branch to explicit points such as home or special-event locations. A D009 smoke
+test with home/temp targets intentionally allowed broad long-haul choices:
+
+```text
+D009 gross ~= 49615
+D009 distance ~= 11845
+D009 preference penalty = 37000
+D009 exact net = -5152.56
+```
+
+This is a strong negative control. D009 cannot be optimized like D001 because
+the daily home rule is not merely a capped soft preference in practice: failing
+it across many days dominates gross. The next D009 search needs a constrained
+planner that forces nightly home/quiet windows and only optimizes the daytime
+route between home returns.

@@ -15,13 +15,13 @@
 ## Current Best
 
 ```text
-version = v110 hybrid/oracle trajectory high-score result
-preset = D001 nph24 oracle candidate_12 + best-known D003/D005 trajectories + v105/v104/v101 other drivers
-score = 332327.78
+version = v112 hybrid/oracle trajectory high-score result
+preset = D001 lowfuture oracle candidate_26 + best-known D003/D005 trajectories + v105/v104/v101 other drivers
+score = 335654.37
 penalty = 17265
-latest_verified_run = demo/results/hybrid_submission/v110_d001_nph24_plus_v109_best
-latest_verified_steps = demo/results/hybrid_submission/v110_d001_nph24_plus_v109_best/actions_202603_D*.jsonl
-latest_verified_summary = demo/results/hybrid_submission/v110_d001_nph24_plus_v109_best/monthly_income_202603.json
+latest_verified_run = demo/results/hybrid_submission/v112_d001_lowfuture_plus_v111_best
+latest_verified_steps = demo/results/hybrid_submission/v112_d001_lowfuture_plus_v111_best/actions_202603_D*.jsonl
+latest_verified_summary = demo/results/hybrid_submission/v112_d001_lowfuture_plus_v111_best/monthly_income_202603.json
 score_profile = score_v105_d005_step7_8_teacher
 clean_profile = official_clean_agentic_planner
 commit_check = git log -1 --oneline
@@ -30,9 +30,9 @@ commit_check = git log -1 --oneline
 Boundary:
 
 ```text
-v110 is the current highest local score artifact. It combines a stronger D001 NPH-weighted oracle route with best-known historical D003 and D005 trajectory artifacts.
+v112 is the current highest local score artifact. It combines a stronger D001 low-future/high-gross oracle route with best-known historical D003 and D005 trajectory artifacts.
 v105 remains the latest online agent/profile score: 316546.84, penalty 13465, result demo/results/grid_agentic_algo/20260526_040701_v105_d005_step7_8_timefix/02_submission_score_v105.
-Use v110 for high-score trajectory/teacher exploration; use v105/official_clean for online-agent compliance work.
+Use v112 for high-score trajectory/teacher exploration; use v105/official_clean for online-agent compliance work.
 ```
 
 ## Latest Exploration State
@@ -87,6 +87,13 @@ v109 scanned all historical result artifacts for per-driver best action files an
 v110 widened D001 oracle search with stronger NPH pressure and found a much better long-haul chain:
   D001 v109 route net 29205.61 -> 34275.23, +5069.62, penalty stays 5000
   full hybrid score = 332327.78, penalty 17265
+v111 continued D001 NPH search and found a 30-order high-gross route:
+  D001 v110 net 34275.23 -> 36432.69, +2157.46, penalty stays 5000
+  full hybrid score = 334485.24, penalty 17265
+v112 changed D001 search pressure again and found a higher-gross 28-order route:
+  D001 v111 net 36432.69 -> 37601.82, +1169.13, penalty stays 5000
+  full hybrid score = 335654.37, penalty 17265
+  gap_to_340000 = 4345.63
 ```
 
 当前搜索范式要切换：
@@ -95,7 +102,7 @@ v110 widened D001 oracle search with stronger NPH pressure and found a much bett
 不要只围绕 wait step 本身做修补。
 长等待往往是结果，不是原因；要追溯 root_order / root_route，把 after_state 的未来价值纳入接单评分。
 当前冲分第一目标不是泛化，而是继续沿 v105 底座找百元级 early/mid route-chain positives。v104 证明 D010 并非单步 step43 饱和，而是 step39-43 的前置链路可重构；v105 证明 D005 step7 单独改动会崩盘，但 step7+step8 完整链为正。
-v110 证明 D001 的高收益搜索还没有收敛：NPH 型宽搜索比过强 future-value/longlook 更有效。future125 和 longlook proxy 很高但精确净收益很低，说明 proxy 会误导；必须以 monthly_income 精确评分为准。下一步优先继续围绕 D001 NPH route family 做局部变体，同时对其他司机做真实偏好约束版 constrained oracle miner。
+v112 证明 D001 的高收益搜索还没有收敛：NPH 型宽搜索先打开 30 单链，但继续降低 future 权重后，28 单更高 gross 路线反而更优。future125、longlook、future055 deeper 的 proxy 都会误导；必须以 monthly_income 精确评分为准。下一步优先围绕 D001 lowfuture/high-gross route family 做窄搜，同时对 D009/D010 做真实偏好约束版 constrained oracle miner。
 ```
 
 ## Profile Boundary
@@ -150,6 +157,9 @@ v105 shows that route repair must be promoted as a complete linked plan: D005 st
 v106 shows D001 is not locally saturated; its best high-score route is a long-haul oracle skeleton that deliberately pays the full 5000 preference penalty but raises gross to 53301.35. This route is not an online-agent discovery yet, but it is a strong teacher label showing that strict Shenzhen/rest preservation is far less valuable than high-margin route chaining for local score.
 v109 shows cross-run per-driver action-file assembly can still recover missed score without new online logic: D003's historical load-wait route and D005's historical daybreak wait/cargo route are independently better than the current v105/v106 copies and stack cleanly with the D001 oracle route.
 v110 shows D001's best route family is high-order-count, high-gross, NPH-biased long-haul chaining: 27 orders, 59373 gross, 13398.51 km, 5000 capped penalty, 34275.23 net. Over-weighting destination future value or very long lookahead can reduce exact net by more than 10k because it chooses too little gross.
+v111 shows D001 can still gain by pushing the route to 30 orders: nph28/future045 reaches 62412.51 gross, 13986.55 km, capped 5000 penalty, 36432.69 net.
+v112 shows D001's true high-score signal is exact gross-chain value rather than order count alone: nph275/future030 lowfuture reaches 64248.96 gross with 28 orders and 37601.82 net. It beats the 30-order v111 route because extra gross covers distance while penalty remains capped.
+D009 target-reposition smoke is a strong negative control: ignoring the daily home rule raises gross to about 49615 but triggers 37000 penalty and produces negative net. D009 must be explored with a hard daily-home constrained planner, not D001-style penalty-capped long-haul.
 ```
 
 ### v92 result
