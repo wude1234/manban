@@ -5,18 +5,18 @@
 当前保留两类结果：在线 agent/profile 结果和高收益轨迹 artifact。
 
 ```text
-v127_tail_release_oracle_trajectory
+v129_tail_release_oracle_trajectory
 用途：当前本地最高分 step+summary artifact，用于高收益优先冲分/轨迹提交讨论。
-特点：D001 使用 v116 d001_capsoft oracle route；D002/D005 使用 prefix12 tail route；D003/D004/D008 使用 prefix14 tail route；D006 使用 prefix18 semisoft tail route；其余司机保留当前最好稳定轨迹。
+特点：D001 使用 prefix12 capsoft tail route；D002/D005 使用 prefix12 tail route；D003/D004/D008 使用 prefix14 tail route；D006 使用 prefix18 semisoft tail route；其余司机保留当前最好稳定轨迹。
 注意：D001/D002/D003/D004/D005/D006/D008 轨迹来自全量货源 oracle/tail mining。这是高收益轨迹 artifact，不是 official_clean 在线 agent 决策。
 复现：demo/build_hybrid_submission_result.py
-score = 372634.47
+score = 373463.36
 total_preference_penalty = 59015.0
 failed_driver_count = 0
 tokens = 0
-result_dir = demo/results/hybrid_submission/v127_v126_tail_release_plus_v125_best
-summary = demo/results/hybrid_submission/v127_v126_tail_release_plus_v125_best/monthly_income_202603.json
-steps = demo/results/hybrid_submission/v127_v126_tail_release_plus_v125_best/actions_202603_D*.jsonl
+result_dir = demo/results/hybrid_submission/v129_v127_plus_d001_tail_p12_capsoft
+summary = demo/results/hybrid_submission/v129_v127_plus_d001_tail_p12_capsoft/monthly_income_202603.json
+steps = demo/results/hybrid_submission/v129_v127_plus_d001_tail_p12_capsoft/actions_202603_D*.jsonl
 ```
 
 在线 agent/profile 当前保留以下 profile：
@@ -79,6 +79,16 @@ preset = submission_score_v105
 step files = demo/results/grid_agentic_algo/20260526_040701_v105_d005_step7_8_timefix/02_submission_score_v105/actions_202603_D001_*.jsonl ... actions_202603_D010_*.jsonl
 summary = demo/results/grid_agentic_algo/20260526_040701_v105_d005_step7_8_timefix/02_submission_score_v105/monthly_income_202603.json
 ```
+
+v129 相比 v127 的新增有效轨迹：
+
+```text
+D001 使用 results/oracle_route_miner/v128_d001_tail_p12_capsoft/candidate_01，净收益从 43713.77 提升到 44542.66，+828.89；gross 74410.48，distance 16578.55，偏好罚分 5000。
+
+完整总分从 v127 的 372634.47 提升到 373463.36，总偏好罚分保持 59015。
+```
+
+v129 的关键启发是：D001 也适合 tail-release，且收益来自更高 gross 与略低 distance 的共同作用。同批 D002/D005/D008 的 prefix10 均明显负收益，说明释放点存在临界区间，不是越早越好。
 
 v127 相比 v125 的新增有效轨迹：
 

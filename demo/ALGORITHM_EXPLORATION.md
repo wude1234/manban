@@ -5,11 +5,37 @@
 当前最好可复现分数：
 
 ```text
-score = 372634.47
-preset = v127_v126_tail_release_plus_v125_best
+score = 373463.36
+preset = v129_v127_plus_d001_tail_p12_capsoft
 penalty = 59015.0
-result_dir = results/hybrid_submission/v127_v126_tail_release_plus_v125_best
+result_dir = results/hybrid_submission/v129_v127_plus_d001_tail_p12_capsoft
 ```
+
+## v129 新发现：D001 也进入 tail-release 收益区，prefix10 对其他司机过早
+
+v129 在 v127 基础上替换 D001 的 prefix12 capsoft tail route：
+
+```text
+D001 43713.77 -> 44542.66, +828.89
+gross 73657.00 -> 74410.48
+distance 16628.82 -> 16578.55
+preference_penalty = 5000
+
+full hybrid:
+  score 372634.47 -> 373463.36
+  total_preference_penalty = 59015
+```
+
+同批 v128 的负例也很关键：
+
+```text
+D002 prefix10 = 38065.24, lower than prefix12/13 best 39036.56
+D005 prefix10 = 39137.52, lower than prefix12/14 best 39658.84
+D008 prefix10 = 37859.59, lower than prefix14 best 38791.86
+D006 prefix20 = 37251.63, tied with current prefix18 route
+```
+
+启发：release point 不是越早越好。D001 可以从 prefix12 放开并提升 gross；D002/D005/D008 在 prefix10 会破坏 3 月 10-12 日关键骨架，导致罚分/距离恶化。下一步应围绕临界区间做细搜：D001 prefix10/11/13，D002/D005 prefix11/12，D008 prefix12/13，D006 保持 prefix18 或微调 semisoft scorer。
 
 ## v127 新发现：释放点继续前移到 prefix12/14，收益来自降距离而非单纯加 gross
 
