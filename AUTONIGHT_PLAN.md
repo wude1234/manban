@@ -5,6 +5,7 @@
 新对话开始时先读取本文件，再读取：
 
 - `demo/ALGORITHM_EXPLORATION.md`
+- `demo/EXPLORATION_RESULTS.md`
 - `demo/SUBMISSION.md`
 - `demo/agent/submission_defaults.py`
 - `demo/run_agentic_algo_grid.py`
