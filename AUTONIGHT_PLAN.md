@@ -23,6 +23,22 @@ default_run = demo/results/actions_202603_D001-D010_20260525_154904.jsonl + demo
 last_commit = 6cf8aea v92 dynamic reposition teachers score 315085
 ```
 
+## Profile Boundary
+
+```text
+score_profile = score_v92_dynamic_reposition_teacher_315085
+score_profile_result = 315085.75, penalty 12865
+score_profile_use = local leaderboard/research; includes counterfactual/distilled teachers.
+
+clean_profile = official_clean_agentic_planner
+clean_profile_result = 275973.46, penalty 17565
+clean_profile_use = official-compliance direction; disables fixed step/cargo teachers and uses only online visible-state scoring plus dynamic reposition candidate generation.
+
+profile_check = demo/results/grid_agentic_algo/20260525_185542_two_profiles_check_fixed
+```
+
+下一步如果要满足“不能用已知全局视角”，优化目标应切到 `official_clean`：把 score profile 的正收益 teacher 逐个蒸馏成不含 step/cargo/id 的状态规则，例如低机会窗口、可见 pickup cluster、后继可达密度、偏好边际风险，而不是直接保留固定路径。
+
 核心发现：
 
 ```text

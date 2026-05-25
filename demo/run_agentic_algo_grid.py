@@ -3367,6 +3367,14 @@ def _v92_dynamic_repos_teachers_env() -> dict[str, str]:
     return env
 
 
+def _submission_profile_env(profile: str) -> dict[str, str]:
+    return {
+        "AGENT_DISABLE_SUBMISSION_DEFAULTS": "0",
+        "AGENT_USE_BASE_ENV": "0",
+        "AGENT_SUBMISSION_PROFILE": profile,
+    }
+
+
 def _v82_v77_layered_env(
     *,
     route_weight: str = "0.010",
@@ -4884,6 +4892,8 @@ PRESETS.update(
         "hot_v88_v85_d008_step85_86_sequence": _v88_d008_step85_86_sequence_env(),
         "hot_v89_v88_d010_step103_105_sequence": _v89_d010_step103_105_sequence_env(),
         "hot_v92_v89_dynamic_repos_d001_d007": _v92_dynamic_repos_teachers_env(),
+        "submission_score_v92": _submission_profile_env("score_v92"),
+        "submission_official_clean": _submission_profile_env("official_clean"),
         # v82: re-test true agentic state-value modules on the v77 best route.
         # These presets add no new fixed teacher labels; they only change the
         # online scoring layer, so gains here are algorithmic rather than trace
@@ -5017,8 +5027,11 @@ def main() -> int:
 
         env = _clean_process_env()
         env["AGENT_DISABLE_SUBMISSION_DEFAULTS"] = "1"
-        env.update(BASE_ENV)
         env.update(PRESETS[name])
+        if env.pop("AGENT_USE_BASE_ENV", "1") != "0":
+            base = dict(BASE_ENV)
+            base.update(env)
+            env = base
         if args.trace:
             env["AGENT_DECISION_TRACE_DIR"] = str(run_dir / "decision_traces")
             env.setdefault("AGENT_DECISION_TRACE_TOP_K", "8")

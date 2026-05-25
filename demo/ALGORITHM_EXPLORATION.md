@@ -11,6 +11,23 @@ penalty = 12865.0
 result_dir = results/grid_agentic_algo/20260525_153955_v92_dynamic_repos_teachers/01_hot_v92_v89_dynamic_repos_d001_d007
 ```
 
+## 两套提交/研究 Profile
+
+```text
+score_v92_dynamic_reposition_teacher_315085
+  本地冲分和离线研究版本。
+  使用 full-tail 反事实回放蒸馏出的 fixed step/cargo/action teacher。
+  当前复现 score=315085.75, penalty=12865。
+
+official_clean_agentic_planner
+  官方合规版本。
+  关闭 AGENT_AP_ENABLE_COUNTERFACTUAL_SWITCHES 与 AGENT_AP_ENABLE_DISTILLED_COUNTERFACTUAL_GATE。
+  只保留当前可观测状态、司机 memory、偏好编译、visible-chain/route-plan scorer、gated rollout，以及在线动态空驶候选。
+  当前复现 score=275973.46, penalty=17565。
+```
+
+clean 版的在线动态空驶只使用本轮 `query_cargo` 返回的可见货源，按 pickup/end 聚类生成 reposition 候选，不读取完整货源表、不使用未来 full-tail 结果、不写死 step/cargo/坐标。后续如果官方严格审查“不得使用已知全局视角”，应以 clean 版为提交主线，并继续把 teacher 版中的规律蒸馏成可泛化状态规则。
+
 这套分数不是靠单点阈值堆出来的，核心是把司机拆成不同画像后做收益-扣分权衡，并在关键决策步使用反事实回放验证“换一个候选货源是否让整个月更优”：
 
 ```text

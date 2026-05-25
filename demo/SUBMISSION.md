@@ -2,15 +2,35 @@
 
 ## 当前提交版本
 
-提交 profile：`v92_dynamic_reposition_teacher_315085`
+当前保留两套 profile：
 
-本地 0509 数据当前最好复现结果：
+```text
+score_v92_dynamic_reposition_teacher_315085
+用途：本地冲分、离线研究和榜单复现实验。
+特点：保留 counterfactual/distilled teacher，复现 315085.75。
+
+official_clean_agentic_planner
+用途：官方强调不得使用已知全局视角时的合规 Agent 版本。
+特点：关闭固定 step/cargo teacher，只使用当前 get_driver_status/query_cargo/query_decision_history 可见状态、司机私有记忆、偏好编译、route scorer 和在线动态空驶候选。
+```
+
+本地 0509 数据当前最好复现结果为 score profile：
 
 ```text
 score = 315085.75
 total_preference_penalty = 12865.0
 failed_driver_count = 0
 tokens = 0
+```
+
+clean profile 当前验证结果：
+
+```text
+score = 275973.46
+total_preference_penalty = 17565.0
+failed_driver_count = 0
+tokens = 0
+result_dir = demo/results/grid_agentic_algo/20260525_185542_two_profiles_check_fixed/02_submission_official_clean
 ```
 
 对应实验：

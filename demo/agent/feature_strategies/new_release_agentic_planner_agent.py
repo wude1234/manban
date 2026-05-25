@@ -102,6 +102,11 @@ class NewReleaseAgenticPlannerAgent(NewReleaseHybridValueAgent):
             if action is not None:
                 return action
 
+        if _env_bool("AGENT_AP_ENABLE_ONLINE_DYNAMIC_REPOSITION", False):
+            action = _online_dynamic_reposition_action(status, viable, settings)
+            if action is not None:
+                return action
+
         if driver_id == "D009" and _env_bool("AGENT_AP_ENABLE_D009_EVENING_STAY_HOME", False):
             action = _d009_evening_stay_home_action(status, viable)
             if action is not None:
@@ -1882,6 +1887,145 @@ def _d001_step99_dynamic_repos_distilled_action(status: dict[str, Any], viable: 
             "longitude": _env_float("AGENT_AP_D001_STEP99_DYNAMIC_REPOS_LNG", 114.21),
         },
     }
+
+
+def _online_dynamic_reposition_action(
+    status: dict[str, Any],
+    viable: list[dict[str, Any]],
+    settings: FeatureSettings,
+) -> dict[str, Any] | None:
+    """Generate a legal online reposition action from the currently visible market.
+
+    This is the clean-profile version of the v92 discovery: no step labels, no
+    future replay, and no fixed target coordinates.  It only uses the current
+    query_cargo result to identify whether a nearby pickup cluster is more
+    valuable than waiting or taking the current best visible cargo.
+    """
+
+    driver_id = _driver_id(status)
+    if driver_id not in _env_str_set("AGENT_AP_DYNAMIC_REPOSITION_DRIVERS", "D001,D004,D006,D007,D010"):
+        return None
+    if len(viable) < _env_int("AGENT_AP_DYNAMIC_REPOSITION_MIN_VIABLE", 10):
+        return None
+
+    current = int(status.get("simulation_progress_minutes", 0) or 0)
+    minute = current % 1440
+    min_minute = _env_int("AGENT_AP_DYNAMIC_REPOSITION_MIN_MINUTE", 0)
+    max_minute = _env_int("AGENT_AP_DYNAMIC_REPOSITION_MAX_MINUTE", 21 * 60)
+    if not _minute_in_window(minute, min_minute, max_minute):
+        return None
+
+    current_lat = float(status.get("current_lat", 0.0) or 0.0)
+    current_lng = float(status.get("current_lng", 0.0) or 0.0)
+    if current_lat == 0.0 or current_lng == 0.0:
+        return None
+
+    best_order = _best_online_order_value(viable)
+    if best_order >= _env_float("AGENT_AP_DYNAMIC_REPOSITION_BLOCK_IF_BEST_ORDER_VALUE", 165.0):
+        return None
+
+    points = _online_dynamic_reposition_points(
+        viable,
+        current_lat=current_lat,
+        current_lng=current_lng,
+        speed_km_per_hour=settings.speed_km_per_hour,
+    )
+    if not points:
+        return None
+    label, lat, lng, value, distance_km = points[0]
+    if value < _env_float("AGENT_AP_DYNAMIC_REPOSITION_MIN_VALUE", 120.0):
+        return None
+    if value - best_order < _env_float("AGENT_AP_DYNAMIC_REPOSITION_MIN_GAIN", 30.0):
+        return None
+    if distance_km < _env_float("AGENT_AP_DYNAMIC_REPOSITION_MIN_KM", 5.0):
+        return None
+    return {
+        "action": "reposition",
+        "params": {"latitude": round(lat, 5), "longitude": round(lng, 5)},
+        "_reason": f"online_dynamic_reposition:{label}",
+    }
+
+
+def _online_dynamic_reposition_points(
+    viable: list[dict[str, Any]],
+    *,
+    current_lat: float,
+    current_lng: float,
+    speed_km_per_hour: float,
+) -> list[tuple[str, float, float, float, float]]:
+    top_k = max(3, _env_int("AGENT_AP_DYNAMIC_REPOSITION_TOP_K", 14))
+    max_km = _env_float("AGENT_AP_DYNAMIC_REPOSITION_MAX_KM", 180.0)
+    radius_km = _env_float("AGENT_AP_DYNAMIC_REPOSITION_CLUSTER_RADIUS_KM", 35.0)
+    rows = sorted(viable, key=_online_market_seed_value, reverse=True)[:top_k]
+    scored: list[tuple[str, float, float, float, float]] = []
+    for item in rows:
+        cargo_id = str(item.get("cargo_id", ""))
+        for prefix, lat_key, lng_key, scale in (
+            ("start", "start_lat", "start_lng", 1.0),
+            ("end", "end_lat", "end_lng", 0.68),
+        ):
+            lat = float(item.get(lat_key, 0.0) or 0.0)
+            lng = float(item.get(lng_key, 0.0) or 0.0)
+            if not lat or not lng:
+                continue
+            distance_km = haversine_km(current_lat, current_lng, lat, lng)
+            if distance_km > max_km:
+                continue
+            value = scale * _online_cluster_value(lat, lng, viable, radius_km, speed_km_per_hour)
+            value -= _env_float("AGENT_AP_DYNAMIC_REPOSITION_DISTANCE_COST", 0.16) * distance_km
+            if value <= 0:
+                continue
+            scored.append((f"{prefix}_{cargo_id}", lat, lng, value, distance_km))
+    scored.sort(key=lambda row: row[3], reverse=True)
+    deduped: list[tuple[str, float, float, float, float]] = []
+    dedupe_km = _env_float("AGENT_AP_DYNAMIC_REPOSITION_DEDUPE_KM", 8.0)
+    for row in scored:
+        _, lat, lng, _, _ = row
+        if any(haversine_km(lat, lng, old_lat, old_lng) <= dedupe_km for _, old_lat, old_lng, _, _ in deduped):
+            continue
+        deduped.append(row)
+    return deduped
+
+
+def _online_cluster_value(
+    lat: float,
+    lng: float,
+    viable: list[dict[str, Any]],
+    radius_km: float,
+    speed_km_per_hour: float,
+) -> float:
+    values: list[float] = []
+    for item in viable:
+        start_lat = float(item.get("start_lat", 0.0) or 0.0)
+        start_lng = float(item.get("start_lng", 0.0) or 0.0)
+        if not start_lat or not start_lng:
+            continue
+        pickup_km = haversine_km(lat, lng, start_lat, start_lng)
+        if pickup_km > radius_km:
+            continue
+        pickup_minutes = distance_to_minutes(pickup_km, speed_km_per_hour)
+        value = _online_market_seed_value(item)
+        value -= _env_float("AGENT_AP_DYNAMIC_REPOSITION_LOCAL_PICKUP_COST", 0.11) * pickup_minutes
+        values.append(value)
+    if not values:
+        return 0.0
+    values.sort(reverse=True)
+    return values[0] + _env_float("AGENT_AP_DYNAMIC_REPOSITION_CLUSTER_TAIL_WEIGHT", 0.30) * sum(values[1:4])
+
+
+def _online_market_seed_value(item: dict[str, Any]) -> float:
+    return (
+        _env_float("AGENT_AP_DYNAMIC_REPOSITION_NET_WEIGHT", 0.055) * max(0.0, float(item.get("estimated_net", 0.0) or 0.0))
+        + _env_float("AGENT_AP_DYNAMIC_REPOSITION_NPH_WEIGHT", 0.48) * max(0.0, float(item.get("net_per_hour", 0.0) or 0.0))
+        + _env_float("AGENT_AP_DYNAMIC_REPOSITION_HOTSPOT_WEIGHT", 22.0)
+        * max(0.0, float(item.get("destination_hotspot_score", 0.0) or 0.0))
+        - _env_float("AGENT_AP_DYNAMIC_REPOSITION_WAIT_COST", 0.035) * max(0.0, float(item.get("wait_minutes", 0.0) or 0.0))
+        - _env_float("AGENT_AP_DYNAMIC_REPOSITION_PICKUP_COST", 0.035) * max(0.0, float(item.get("pickup_minutes", 0.0) or 0.0))
+    )
+
+
+def _best_online_order_value(viable: list[dict[str, Any]]) -> float:
+    return max((_online_market_seed_value(item) for item in viable), default=0.0)
 
 
 def _d001_step102_wait_distilled_action(status: dict[str, Any], viable: list[dict[str, Any]]) -> dict[str, Any] | None:

@@ -12,10 +12,12 @@ from __future__ import annotations
 import os
 
 
-SUBMISSION_PROFILE = "v92_dynamic_reposition_teacher_315085"
+SCORE_PROFILE = "score_v92_dynamic_reposition_teacher_315085"
+OFFICIAL_CLEAN_PROFILE = "official_clean_agentic_planner"
+SUBMISSION_PROFILE = os.getenv("AGENT_SUBMISSION_PROFILE", SCORE_PROFILE).strip() or SCORE_PROFILE
 
 
-_DEFAULTS: dict[str, str] = {
+_BASE_DEFAULTS: dict[str, str] = {
     "AGENT_STRATEGY": "new_release_agentic_planner_agent",
     "AGENT_AP_ENABLE_D004_LUNCH_FIRST_TRADEOFF": "1",
     "AGENT_AP_D004_LUNCH_FIRST_MIN_NET": "680",
@@ -75,6 +77,26 @@ _DEFAULTS: dict[str, str] = {
     "AGENT_AP_D006_FORCED_REST_MAX_MINUTE": "720",
     "AGENT_AP_D006_FORCED_REST_REQUIRE_NO_ORDER": "0",
     "AGENT_AP_D006_FORCED_REST_AFTER_ORDERS": "-1",
+    "AGENT_AP_ENABLE_COUNTERFACTUAL_SWITCHES": "0",
+    "AGENT_AP_COUNTERFACTUAL_SWITCHES": "",
+    "AGENT_AP_ENABLE_DISTILLED_COUNTERFACTUAL_GATE": "0",
+    "AGENT_AP_ENABLE_ONLINE_DYNAMIC_REPOSITION": "1",
+    "AGENT_AP_DYNAMIC_REPOSITION_DRIVERS": "D001,D004,D006,D007,D010",
+    "AGENT_AP_DYNAMIC_REPOSITION_MIN_VALUE": "120",
+    "AGENT_AP_DYNAMIC_REPOSITION_MIN_GAIN": "30",
+    "AGENT_AP_DYNAMIC_REPOSITION_MAX_KM": "180",
+    "AGENT_AP_DYNAMIC_REPOSITION_CLUSTER_RADIUS_KM": "35",
+    "AGENT_AP_DYNAMIC_REPOSITION_TOP_K": "14",
+    "AGENT_AP_DYNAMIC_REPOSITION_MAX_MINUTE": "1260",
+    "AGENT_AP_DYNAMIC_REPOSITION_MIN_VIABLE": "12",
+    "AGENT_AP_ENABLE_LAYERED_AGENT_SCORER": "1",
+    "AGENT_AP_LAYER_ROUTE_WEIGHT": "0.006",
+    "AGENT_AP_LAYER_RISK_WEIGHT": "0.012",
+    "AGENT_AP_LAYER_BONUS_CAP": "8",
+}
+
+
+_SCORE_TEACHER_DEFAULTS: dict[str, str] = {
     "AGENT_AP_ENABLE_COUNTERFACTUAL_SWITCHES": "1",
     "AGENT_AP_COUNTERFACTUAL_SWITCHES": (
         "D002:15:334719,D006:16:263827,D006:59:115337,D008:45:102505,"
@@ -89,6 +111,8 @@ _DEFAULTS: dict[str, str] = {
         "D004:93:297250,D009:180:181577,D010:123:484817"
     ),
     "AGENT_AP_ENABLE_DISTILLED_COUNTERFACTUAL_GATE": "1",
+    "AGENT_AP_ENABLE_ONLINE_DYNAMIC_REPOSITION": "0",
+    "AGENT_AP_ENABLE_LAYERED_AGENT_SCORER": "0",
     "AGENT_AP_ENABLE_DISTILLED_D004_STEP7_REPOS_DG": "1",
     "AGENT_AP_D004_STEP7_DG_MIN_MINUTE": "480",
     "AGENT_AP_D004_STEP7_DG_MAX_MINUTE": "540",
@@ -270,12 +294,25 @@ _DEFAULTS: dict[str, str] = {
 }
 
 
+def _profile_defaults(profile: str) -> dict[str, str]:
+    normalized = profile.strip().lower()
+    defaults = dict(_BASE_DEFAULTS)
+    if normalized in {"score", "score_v92", SCORE_PROFILE.lower(), "v92", "local_score"}:
+        defaults.update(_SCORE_TEACHER_DEFAULTS)
+    elif normalized in {"official", "official_clean", "clean", OFFICIAL_CLEAN_PROFILE.lower()}:
+        defaults["AGENT_SUBMISSION_PROFILE"] = OFFICIAL_CLEAN_PROFILE
+    else:
+        # Unknown profile names should still run the safer official-clean stack.
+        defaults["AGENT_SUBMISSION_PROFILE"] = normalized or OFFICIAL_CLEAN_PROFILE
+    return defaults
+
+
 def apply_submission_defaults() -> None:
     if os.getenv("AGENT_DISABLE_SUBMISSION_DEFAULTS", "").strip().lower() in {"1", "true", "yes", "on"}:
         return
-    for name, value in _DEFAULTS.items():
+    for name, value in _profile_defaults(SUBMISSION_PROFILE).items():
         os.environ.setdefault(name, value)
 
 
 def submission_defaults() -> dict[str, str]:
-    return dict(_DEFAULTS)
+    return _profile_defaults(SUBMISSION_PROFILE)
