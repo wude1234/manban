@@ -5,18 +5,18 @@
 当前保留两类结果：在线 agent/profile 结果和高收益轨迹 artifact。
 
 ```text
-v132_tail_release_oracle_trajectory
+v134_tail_release_oracle_trajectory
 用途：当前本地最高分 step+summary artifact，用于高收益优先冲分/轨迹提交讨论。
-特点：D001 使用 prefix12 capsoft tail route；D002/D005 使用 prefix12 tail route；D003/D004/D008 使用 prefix14 tail route；D006 使用 prefix18 tightdist tail route；其余司机保留当前最好稳定轨迹。
-注意：D001/D002/D003/D004/D005/D006/D008 轨迹来自全量货源 oracle/tail mining。这是高收益轨迹 artifact，不是 official_clean 在线 agent 决策。
+特点：D001 使用 prefix12 capsoft tail route；D002/D005 使用 prefix12 tail route；D003/D004/D008 使用 prefix14 tail route；D006 使用 prefix18 tightdist tail route；D009 使用 prefix20 soft high-gross tail route；其余司机保留当前最好稳定轨迹。
+注意：D001/D002/D003/D004/D005/D006/D008/D009 轨迹来自全量货源 oracle/tail mining。这是高收益轨迹 artifact，不是 official_clean 在线 agent 决策。
 复现：demo/build_hybrid_submission_result.py
-score = 373504.18
-total_preference_penalty = 59215.0
+score = 373554.89
+total_preference_penalty = 78115.0
 failed_driver_count = 0
 tokens = 0
-result_dir = demo/results/hybrid_submission/v132_v129_plus_d006_p18_tightdist
-summary = demo/results/hybrid_submission/v132_v129_plus_d006_p18_tightdist/monthly_income_202603.json
-steps = demo/results/hybrid_submission/v132_v129_plus_d006_p18_tightdist/actions_202603_D*.jsonl
+result_dir = demo/results/hybrid_submission/v134_v132_plus_d009_p20_soft_c01
+summary = demo/results/hybrid_submission/v134_v132_plus_d009_p20_soft_c01/monthly_income_202603.json
+steps = demo/results/hybrid_submission/v134_v132_plus_d009_p20_soft_c01/actions_202603_D*.jsonl
 ```
 
 在线 agent/profile 当前保留以下 profile：
@@ -79,6 +79,16 @@ preset = submission_score_v105
 step files = demo/results/grid_agentic_algo/20260526_040701_v105_d005_step7_8_timefix/02_submission_score_v105/actions_202603_D001_*.jsonl ... actions_202603_D010_*.jsonl
 summary = demo/results/grid_agentic_algo/20260526_040701_v105_d005_step7_8_timefix/02_submission_score_v105/monthly_income_202603.json
 ```
+
+v134 相比 v132 的新增有效轨迹：
+
+```text
+D009 使用 results/oracle_route_miner/v133_d009_p20_soft_homeguard/candidate_01，净收益从 20070.14 提升到 20120.85，+50.71；gross 61428.04，distance 14338.13，偏好罚分 19800。
+
+完整总分从 v132 的 373504.18 提升到 373554.89，总偏好罚分从 59215 提升到 78115。
+```
+
+v134 的关键启发是：D009 不是完全不能冲高毛利，prefix20 后的高 gross 尾链即使带来 22 天回家违规，仍有极小正收益。但这不是理想终点，真正潜力在于保留 D009 高毛利尾链的一部分，同时修复 23 点回家/夜间静止罚分。同期 D006 soft/ignore、D007 p15/p20 soft、D010 p20 soft 都是负例，说明不能把 D009 的高毛利缝隙泛化到所有低分司机。
 
 v132 相比 v129 的新增有效轨迹：
 

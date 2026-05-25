@@ -5,10 +5,46 @@
 当前最好可复现分数：
 
 ```text
-score = 373504.18
-preset = v132_v129_plus_d006_p18_tightdist
-penalty = 59215.0
-result_dir = results/hybrid_submission/v132_v129_plus_d006_p18_tightdist
+score = 373554.89
+preset = v134_v132_plus_d009_p20_soft_c01
+penalty = 78115.0
+result_dir = results/hybrid_submission/v134_v132_plus_d009_p20_soft_c01
+```
+
+## v134 新发现：D009 存在高毛利覆盖回家罚分的窄缝，但需要 home repair
+
+v134 在 v132 基础上替换 D009 的 prefix20 soft high-gross tail route：
+
+```text
+D009 20070.14 -> 20120.85, +50.71
+gross 31571.41 -> 61428.04
+distance 7067.51 -> 14338.13
+preference_penalty 900 -> 19800
+
+full hybrid:
+  score 373504.18 -> 373554.89
+  total_preference_penalty 59215 -> 78115
+```
+
+这不是一个漂亮路线，但它是有价值的发现：D009 的长链 gross 增量接近 3 万，扣掉距离和 22 天回家违规后仍略正。说明 D009 不能简单归为“绝对不能冲毛利”，而是要把高毛利尾链和 nightly home repair 同时优化。
+
+同批 v133 负例：
+
+```text
+D006 p18 soft = 36504.35, lower than v132 37292.45
+D006 p18 ignore = 36102.45, lower than v132 37292.45
+D007 p20 soft = 30222.35, lower than current 32679.93
+D007 p15 soft = 31828.10, lower than current 32679.93
+D010 p20 soft = 8675.33, lower than current 34062.66 due 36000 penalty
+```
+
+启发：
+
+```text
+1. D006 当前有效的是 semisoft/tightdist 窄通道，继续放松偏好会掉分。
+2. D007 零罚分路线不是保守浪费，而是当前 exact 最优附近；高毛利尾链被夜间/品类/长距离罚分打穿。
+3. D010 家事约束是硬边界，prefix20 后放开会触发灾难罚分。
+4. D009 可以继续探索，但下一步必须从“冲高 gross”切换到“高 gross + 每晚回家修复”，目标是保留 61428 gross 的一部分，同时把 19800 回家罚分降下来。
 ```
 
 ## v132 新发现：tightdist 不是通用方向，但 D006 尾段仍可小幅吃毛利
