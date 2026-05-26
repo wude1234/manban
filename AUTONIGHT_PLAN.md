@@ -15,13 +15,13 @@
 ## Current Best
 
 ```text
-version = v138 tail-release oracle trajectory high-score result
-preset = v134 + D009 prefix43 preserve-all-orders home closure
-score = 374429.79
-penalty = 77215
-latest_verified_run = demo/results/hybrid_submission/v138_v134_plus_d009_p43_home_tail
-latest_verified_steps = demo/results/hybrid_submission/v138_v134_plus_d009_p43_home_tail/actions_202603_D*.jsonl
-latest_verified_summary = demo/results/hybrid_submission/v138_v134_plus_d009_p43_home_tail/monthly_income_202603.json
+version = v140 tail-release oracle trajectory high-score result
+preset = v138 + D001/D002/D004/D008 prefix30 tail repairs
+score = 374596.30
+penalty = 76815
+latest_verified_run = demo/results/hybrid_submission/v140_v138_plus_d001_d002_d004_d008_p30_tail
+latest_verified_steps = demo/results/hybrid_submission/v140_v138_plus_d001_d002_d004_d008_p30_tail/actions_202603_D*.jsonl
+latest_verified_summary = demo/results/hybrid_submission/v140_v138_plus_d001_d002_d004_d008_p30_tail/monthly_income_202603.json
 score_profile = score_v105_d005_step7_8_teacher
 clean_profile = official_clean_agentic_planner
 commit_check = git log -1 --oneline
@@ -30,7 +30,7 @@ commit_check = git log -1 --oneline
 Boundary:
 
 ```text
-v138 is the current highest local score artifact. It keeps v134, then preserves all D009 orders and appends only the month-end home/wait closure.
+v140 is the current highest local score artifact. It keeps v138, then replaces prefix30 tails for D001/D002/D004/D008.
 v105 remains the latest online agent/profile score: 316546.84, penalty 13465, result demo/results/grid_agentic_algo/20260526_040701_v105_d005_step7_8_timefix/02_submission_score_v105.
 Use v115 for high-score trajectory/teacher exploration; use v105/official_clean for online-agent compliance work.
 ```
@@ -172,6 +172,13 @@ v138 found the cleaner D009 month-end closure:
   gross returns to 61428.04, distance 14354.86, penalty stays 18900
   full hybrid score = 374429.79, penalty 77215
   the issue was not the last order; the v134 route already had a profitable final order, but missing the final home/wait action caused one avoidable daily-home violation.
+v140 added prefix30 tail repairs on top of v138:
+  D001 44542.66 -> 44568.48, +25.82
+  D002 39036.56 -> 39062.38, +25.82
+  D004 45488.41 -> 45514.23, +25.82
+  D008 38791.86 -> 38880.91, +89.05
+  full hybrid score = 374596.30, penalty 76815
+  D003/D005 p30 and all p31 shared-tail probes were negative/tied. Month-end closure probe after v138 found no remaining positive closure, so closure is saturated except the D009 fix already captured.
 ```
 
 当前搜索范式要切换：
@@ -180,7 +187,7 @@ v138 found the cleaner D009 month-end closure:
 不要只围绕 wait step 本身做修补。
 长等待往往是结果，不是原因；要追溯 root_order / root_route，把 after_state 的未来价值纳入接单评分。
 当前冲分第一目标不是泛化，而是继续沿 v105 底座找百元级 early/mid route-chain positives。v104 证明 D010 并非单步 step43 饱和，而是 step39-43 的前置链路可重构；v105 证明 D005 step7 单独改动会崩盘，但 step7+step8 完整链为正。
-v113-v118 证明高收益搜索的核心不是泛化区域规则，而是“路线毛利链是否足以覆盖真实偏好罚分”。D001/D002/D003/D004/D005/D008 都存在 31-33 单高毛利路线族；D006/D007/D009/D010 会被罚分打穿，不能照搬。v120 证明全月重搜会破坏前半月强链；v121/v124 证明固定前缀后的尾段重规划更有效；v125 证明 D006 也能在保留前 18 单后通过尾段高毛利覆盖新增罚分；v127 证明 release point 前移到 prefix12/14 可以降距离和罚分；v129 证明 D001 也适合 prefix12，但 prefix10 对 D002/D005/D008 过早。v132 证明 tightdist 整体不是通用正方向，但 D006 的尾部 scorer 还没完全收敛。v134-v138 证明 D009 的最优处理不是换尾单，而是保留高毛利骨架后补月末 closure。下一步优先系统扫描所有司机的 final closure/reposition/wait 是否能减少月末偏好罚分，然后回到 D001/D002/D003/D004/D005/D008 的 release-neighborhood 搜索。
+v113-v118 证明高收益搜索的核心不是泛化区域规则，而是“路线毛利链是否足以覆盖真实偏好罚分”。D001/D002/D003/D004/D005/D008 都存在 31-33 单高毛利路线族；D006/D007/D009/D010 会被罚分打穿，不能照搬。v120 证明全月重搜会破坏前半月强链；v121/v124 证明固定前缀后的尾段重规划更有效；v125 证明 D006 也能在保留前 18 单后通过尾段高毛利覆盖新增罚分；v127 证明 release point 前移到 prefix12/14 可以降距离和罚分；v129 证明 D001 也适合 prefix12，但 prefix10 对 D002/D005/D008 过早。v132 证明 tightdist 整体不是通用正方向，但 D006 的尾部 scorer 还没完全收敛。v134-v138 证明 D009 的最优处理不是换尾单，而是保留高毛利骨架后补月末 closure。v139 closure probe 证明 v138 后月末 closure 已饱和。v140 证明共享尾段 p31 已局部最优，但 p30 仍能给 D001/D002/D004 小幅换毛利、给 D008 通过少一单降罚分。下一步优先 D006/D010 专属尾链和 D008 p29/p30 少单降罚分邻域。
 ```
 
 ## Profile Boundary

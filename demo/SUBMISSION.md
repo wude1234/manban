@@ -5,18 +5,18 @@
 当前保留两类结果：在线 agent/profile 结果和高收益轨迹 artifact。
 
 ```text
-v138_tail_release_oracle_trajectory
+v140_tail_release_oracle_trajectory
 用途：当前本地最高分 step+summary artifact，用于高收益优先冲分/轨迹提交讨论。
-特点：D001 使用 prefix12 capsoft tail route；D002/D005 使用 prefix12 tail route；D003/D004/D008 使用 prefix14 tail route；D006 使用 prefix18 tightdist tail route；D009 使用 prefix20 soft high-gross route 后保留全部订单并追加 month-end home/wait closure；其余司机保留当前最好稳定轨迹。
+特点：D001/D002/D004 使用 prefix30 小幅尾链替换；D008 使用 prefix30 少单降罚分尾链；D003/D005 保留 prefix14/prefix12 当前最优；D006 使用 prefix18 tightdist tail route；D009 使用 prefix20 soft high-gross route 后保留全部订单并追加 month-end home/wait closure；其余司机保留当前最好稳定轨迹。
 注意：D001/D002/D003/D004/D005/D006/D008/D009 轨迹来自全量货源 oracle/tail mining。这是高收益轨迹 artifact，不是 official_clean 在线 agent 决策。
 复现：demo/build_hybrid_submission_result.py
-score = 374429.79
-total_preference_penalty = 77215.0
+score = 374596.30
+total_preference_penalty = 76815.0
 failed_driver_count = 0
 tokens = 0
-result_dir = demo/results/hybrid_submission/v138_v134_plus_d009_p43_home_tail
-summary = demo/results/hybrid_submission/v138_v134_plus_d009_p43_home_tail/monthly_income_202603.json
-steps = demo/results/hybrid_submission/v138_v134_plus_d009_p43_home_tail/actions_202603_D*.jsonl
+result_dir = demo/results/hybrid_submission/v140_v138_plus_d001_d002_d004_d008_p30_tail
+summary = demo/results/hybrid_submission/v140_v138_plus_d001_d002_d004_d008_p30_tail/monthly_income_202603.json
+steps = demo/results/hybrid_submission/v140_v138_plus_d001_d002_d004_d008_p30_tail/actions_202603_D*.jsonl
 ```
 
 在线 agent/profile 当前保留以下 profile：
@@ -119,6 +119,19 @@ D009 使用 results/oracle_route_miner/v138_d009_p43_preserve_all_home/candidate
 ```
 
 v138 的关键启发是：有些高收益轨迹的问题不是货源选择，而是月末 closure 缺失。D009 原高毛利尾单可以保留，追加一次回家就能少吃一天 900 元罚分，同时只增加约 16.73km 空驶成本。
+
+v140 相比 v138 的新增有效轨迹：
+
+```text
+D001 使用 results/oracle_route_miner/v140_d001_p30_taildeep/candidate_03，净收益 +25.82。
+D002 使用 results/oracle_route_miner/v140_d002_p30_taildeep/candidate_03，净收益 +25.82。
+D004 使用 results/oracle_route_miner/v140_d004_p30_taildeep/candidate_03，净收益 +25.82。
+D008 使用 results/oracle_route_miner/v140_d008_p30_taildeep/candidate_72，净收益 +89.05，偏好罚分从 10700 降到 10300。
+
+完整总分从 v138 的 374429.79 提升到 374596.30，总偏好罚分从 77215 降到 76815。
+```
+
+v140 的关键启发是：p31 释放最后两单已经饱和；p30 释放最后三单仍有小收益。D001/D002/D004 是 `484386 -> 206199 -> 210030` 的毛利覆盖距离成本；D008 是少接末端一单，牺牲 gross 但减少休息/空驶相关罚分后净收益更高。
 
 v132 相比 v129 的新增有效轨迹：
 

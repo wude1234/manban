@@ -2399,3 +2399,57 @@ Systematically scan month-end closure actions for all drivers with residual
 time after the final order. Then search final 3-6 order neighborhoods for the
 high-gross drivers only if closure is saturated.
 ```
+
+## v139-v140: Closure Saturation And Prefix30 Tail Repairs Raise Artifact To 374596.30
+
+### Result
+
+```text
+closure_probe = results/month_end_closure_probe/v139_from_v138
+v140 artifact = results/hybrid_submission/v140_v138_plus_d001_d002_d004_d008_p30_tail
+v140 score = 374596.30
+v140 penalty = 76815
+tokens = 0
+failed_driver_count = 0
+```
+
+The positive replacements are:
+
+```text
+D001 = results/oracle_route_miner/v140_d001_p30_taildeep/candidate_03
+  44542.66 -> 44568.48, +25.82
+D002 = results/oracle_route_miner/v140_d002_p30_taildeep/candidate_03
+  39036.56 -> 39062.38, +25.82
+D004 = results/oracle_route_miner/v140_d004_p30_taildeep/candidate_03
+  45488.41 -> 45514.23, +25.82
+D008 = results/oracle_route_miner/v140_d008_p30_taildeep/candidate_72
+  38791.86 -> 38880.91, +89.05
+```
+
+Controls:
+
+```text
+v139 closure probe from v138 found no positive remaining month-end closure.
+D001/D002/D003/D004/D005/D008 p31 taildeep all tied or worse, confirming the
+last-two-order shared tail is locally saturated.
+D003 p30 was negative; D005 p30 was tied/worse.
+```
+
+Discovery:
+
+```text
+The shared high-gross tail has two layers. The final two orders are saturated,
+but releasing one order earlier still exposes small positive alternatives.
+D001/D002/D004 use a higher-gross replacement tail
+484386 -> 206199 -> 210030, which beats the original despite extra distance.
+D008 is different: the best p30 tail drops one order, lowers preference penalty
+by 400, and wins even with lower gross.
+```
+
+Next search:
+
+```text
+Do not keep hammering p31. Search D008 p29/p30 "fewer orders for lower penalty"
+neighborhoods, and D006/D010 independent tail routes whose structures differ
+from the shared high-gross chain.
+```
