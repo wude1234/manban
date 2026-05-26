@@ -2659,3 +2659,56 @@ suffix, then exact-score the top candidates. Prioritize D001/D002/D003/D004/D005
 shared late-chain steps around 46-59, because the same route family may contain
 more distance-saving swaps that full tail beam search pruned away.
 ```
+
+## v154: D007 Last-Order Splice Raises Artifact To 375519.13
+
+### Result
+
+```text
+artifact = results/hybrid_submission/v154_d007_step120_splice
+score = 375519.13
+penalty = 76315
+tokens = 0
+failed_driver_count = 0
+```
+
+Winning local replacement:
+
+```text
+tool = demo/splice_replay_probe.py
+source = results/hybrid_submission/v151_d006_step60_splice/actions_202603_D007_20260526_041143.jsonl
+source_step = 120
+original cargo = 207995
+replacement cargo = 484386
+v151 D007 = 32679.93 net, 44289.55 gross, 7739.75 km, 0 penalty
+v154 D007 = 32889.22 net, 44550.50 gross, 7774.19 km, 0 penalty
+D007 delta = +209.29
+```
+
+Controls:
+
+```text
+D001-D005 shared late-chain splice found no positive replacements.
+D006 mid/late splice found no improvement beyond v151's step60 replacement.
+D009 mid-chain splice remained below current high-gross/home-closure route.
+D010 mid-chain splice remained below current p58 low-distance route.
+```
+
+Discovery:
+
+```text
+The largest new gain came from a non-oracle/online D007 trajectory, not from
+the shared oracle long-haul chain. The important feature is: last-order
+replacement with zero suffix risk. Because there are no downstream orders to
+break, a slightly higher-gross cargo can lift score even with a modest distance
+increase, as long as D007's hard preferences remain clean.
+```
+
+Next search:
+
+```text
+Rebase D007 on v154 and continue probing the final 1-3 take_order actions with
+wider candidate limits and alternative sort keys. Also probe "last positive
+take" replacements for every driver because the no-suffix-risk property makes
+these cheaper and more reliable than mid-chain splices.
+```

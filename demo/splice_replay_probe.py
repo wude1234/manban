@@ -12,17 +12,18 @@ from __future__ import annotations
 import argparse
 import json
 import shutil
-import subprocess
-import sys
 import time
 from pathlib import Path
 from typing import Any
 
 from calc_monthly_income import (
     _distance_minutes,
+    build_drivers_payload,
+    compute_income,
     haversine_km,
     load_cargo_map,
     load_driver_cost_map,
+    load_driver_preference_rules,
 )
 from server.bench.settings import load_settings
 from surgery_replay_actions import (
@@ -60,7 +61,9 @@ def main() -> int:
     driver_id = args.driver.strip().upper()
     settings = load_settings()
     speed = float(settings.reposition_speed_km_per_hour)
-    cost_per_km = float(load_driver_cost_map(settings.drivers_path).get(driver_id, 1.5))
+    driver_cost_map = load_driver_cost_map(settings.drivers_path)
+    driver_preference_rules = load_driver_preference_rules(settings.drivers_path)
+    cost_per_km = float(driver_cost_map.get(driver_id, 1.5))
     cargo_map = load_cargo_map(settings.cargo_dataset_path)
     rows = _read_actions(Path(args.source))
     if not rows:
@@ -128,6 +131,8 @@ def main() -> int:
                     rows2,
                     driver_id=driver_id,
                     cargo_map=cargo_map,
+                    driver_cost_map=driver_cost_map,
+                    driver_preference_rules=driver_preference_rules,
                     speed_km_per_hour=speed,
                     out_dir=cand_dir,
                     skip_invalid=bool(args.skip_invalid),
@@ -270,6 +275,8 @@ def _score_rows(
     *,
     driver_id: str,
     cargo_map: dict[str, dict[str, Any]],
+    driver_cost_map: dict[str, float],
+    driver_preference_rules: dict[str, Any],
     speed_km_per_hour: float,
     out_dir: Path,
     skip_invalid: bool,
@@ -299,28 +306,51 @@ def _score_rows(
         "splice_replay": {"skipped": skipped},
     }
     (out_dir / "run_summary_202603.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
-    proc = subprocess.run(
-        [
-            sys.executable,
-            str(DEMO_ROOT / "calc_monthly_income.py"),
-            "--project-root",
-            str(DEMO_ROOT),
-            "--results-dir",
-            str(out_dir),
-        ],
-        cwd=str(DEMO_ROOT),
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        check=False,
+    monthly = _score_action_files(
+        [action_path],
+        cargo_map=cargo_map,
+        driver_cost_map=driver_cost_map,
+        driver_preference_rules=driver_preference_rules,
+        speed_km_per_hour=speed_km_per_hour,
     )
-    (out_dir / "calc.log").write_text(proc.stdout, encoding="utf-8")
-    if proc.returncode != 0:
-        raise RuntimeError(proc.stdout[-2000:])
-    monthly = json.loads((out_dir / "monthly_income_202603.json").read_text(encoding="utf-8"))
+    (out_dir / "monthly_income_202603.json").write_text(json.dumps(monthly, ensure_ascii=False, indent=2), encoding="utf-8")
     payload = next((d for d in monthly.get("drivers", []) if d.get("driver_id") == driver_id), {})
     shutil.copy2(action_path, out_dir / f"best_source_{driver_id}.jsonl")
     return _extract_net_income(payload.get("income")), skipped
+
+
+def _score_action_files(
+    files: list[Path],
+    *,
+    cargo_map: dict[str, dict[str, Any]],
+    driver_cost_map: dict[str, float],
+    driver_preference_rules: dict[str, Any],
+    speed_km_per_hour: float,
+) -> dict[str, Any]:
+    income, token_by_driver, total_token_usage, validation_errors, preference_details = compute_income(
+        files,
+        cargo_map,
+        driver_cost_map,
+        driver_preference_rules,
+        reposition_speed_km_per_hour=speed_km_per_hour,
+        simulation_duration_days=30,
+    )
+    drivers = build_drivers_payload(income, token_by_driver, validation_errors, preference_details)
+    return {
+        "month": "2026-03",
+        "simulate_time_seconds": 0.0,
+        "result_files_count": len(files),
+        "drivers": drivers,
+        "summary": {
+            "total_net_income_all_drivers": round(sum(float(d["income"]["net_income"]) for d in drivers), 2),
+            "total_preference_penalty": round(sum(float(d["income"].get("preference_penalty", 0.0)) for d in drivers), 2),
+            "total_token_usage": total_token_usage,
+            "failed_driver_count": len(validation_errors),
+            "failed_drivers": validation_errors,
+        },
+        "cost_meaning": "cost = distance_km * cost_per_km (driver cost per km)",
+        "cost_metric": "net_income = gross_income - (distance_km * cost_per_km)",
+    }
 
 
 def _extract_net_income(income: Any) -> float:
