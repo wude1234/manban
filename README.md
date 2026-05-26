@@ -94,9 +94,31 @@ DASHSCOPE_API_KEY="$DASHSCOPE_API_KEY" /home/zrr/anaconda3/envs/llava/bin/python
 ## 重要边界
 
 - `v169`、`v157`、`v154` 等 `hybrid_submission` artifact 是离线 oracle 结果，适合研究“最优路线为什么赢”。
+- 赛事最终要求 Agent 不能使用未来信息、全量货源表或离线 oracle 轨迹来做路径选择判断；每一步只能基于当前合法接口可见的司机状态、候选货源和历史决策记忆。
+- 因此，`v169` 这类静态最优结果不能直接作为最终在线策略提交，只能作为 teacher label / 事后分析样本，用来提取可泛化的状态规律。
 - `official_clean` 是合规在线方向，只使用当前可观测状态、候选货源、司机私有记忆和偏好解析。
 - `official_clean_flash` 是 API Agent 方向，Qwen3.5-Flash 只做受控 top-k 仲裁，不应直接自由调度。
 - 当前合法蒸馏 value v1 是负例，说明 oracle 经验必须逐司机、窄 gate、近似同分场景消融后再加入。
+
+## 最终算法目标
+
+当前高分 artifact 给出的不是最终可提交算法，而是“未来最优路线的证据”。后续要做的是：
+
+```text
+离线 oracle / 静态最优轨迹
+  -> 分析哪些状态选择带来长期收益
+  -> 蒸馏成不使用未来信息的在线 value function / scorer
+  -> 当前候选评分 = 当前净收益 + 完单后状态价值 - 偏好风险 - 闭环风险
+  -> LLM 只在当前 top-k 近似同分或收益/偏好冲突时受控仲裁
+```
+
+最终提交版本应满足：
+
+- 不读取 `demo/server/data/cargo_dataset.jsonl` 或任何全量未来货源。
+- 不依赖固定 `driver_id + step + cargo_id` 的预录轨迹做路径选择。
+- 只通过 `SimulationApiPort` 查询当前状态、当前可见候选和历史决策。
+- 可以使用 v169 这类离线结果做离线训练、规则蒸馏和参数设计，但在线决策时不能查询或回放未来答案。
+- 目标是在合规前提下尽量提高收益，而不是简单复刻 37w oracle 分数。
 
 ## 推荐阅读顺序
 
@@ -115,4 +137,3 @@ DASHSCOPE_API_KEY="$DASHSCOPE_API_KEY" /home/zrr/anaconda3/envs/llava/bin/python
 - D009 的关键不是硬回家，而是保留高毛利骨架后做月末 home repair。
 - D010 的关键不是 max gross，而是低距离、低罚分、能闭环的尾段路线。
 - 将 oracle 结果转成合法在线 Agent 时，应该蒸馏成状态价值函数，而不是提交固定 step/cargo 轨迹。
-
