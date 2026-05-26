@@ -2453,3 +2453,50 @@ Do not keep hammering p31. Search D008 p29/p30 "fewer orders for lower penalty"
 neighborhoods, and D006/D010 independent tail routes whose structures differ
 from the shared high-gross chain.
 ```
+
+## v141: D010 Independent Tail Repair Raises Artifact To 374834.75
+
+### Result
+
+```text
+artifact = results/hybrid_submission/v141_v140_plus_d006_d010_tail
+score = 374834.75
+penalty = 76615
+tokens = 0
+failed_driver_count = 0
+```
+
+Positive replacements:
+
+```text
+D006 = results/oracle_route_miner/v141_d006_p42_taildeep/candidate_37
+  37292.45 -> 37309.02, +16.57
+  penalty 8400 -> 8200
+D010 = results/oracle_route_miner/v141_d010_p58_taildeep/candidate_06
+  34062.66 -> 34284.54, +221.88
+  penalty unchanged at 1865
+```
+
+Controls:
+
+```text
+D008 p29/p30 wide reproduced the v140 D008 route and found no new gain.
+D006 p40 was negative versus current; p42 is the useful low-penalty edge.
+D010 p60 found a smaller +79.02, while p58 found the main +221.88 route.
+```
+
+Discovery:
+
+```text
+D010's remaining headroom is not the final order. The useful release point is
+p58, around 2026-03-29 01:59, where a full tail chain
+194807 -> 484227 -> 484175 -> 489094 raises gross enough to beat the previous
+route with the same preference penalty.
+```
+
+Next search:
+
+```text
+Focus D010 p56/p57/p58 with wider candidate coverage and exact scoring. Also
+probe D006 p41/p42 for more low-penalty replacements, but expect small gains.
+```

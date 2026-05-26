@@ -5,18 +5,18 @@
 当前保留两类结果：在线 agent/profile 结果和高收益轨迹 artifact。
 
 ```text
-v140_tail_release_oracle_trajectory
+v141_tail_release_oracle_trajectory
 用途：当前本地最高分 step+summary artifact，用于高收益优先冲分/轨迹提交讨论。
-特点：D001/D002/D004 使用 prefix30 小幅尾链替换；D008 使用 prefix30 少单降罚分尾链；D003/D005 保留 prefix14/prefix12 当前最优；D006 使用 prefix18 tightdist tail route；D009 使用 prefix20 soft high-gross route 后保留全部订单并追加 month-end home/wait closure；其余司机保留当前最好稳定轨迹。
+特点：D001/D002/D004 使用 prefix30 小幅尾链替换；D008 使用 prefix30 少单降罚分尾链；D006 使用 prefix42 低罚分尾链；D010 使用 prefix58 高毛利尾链；D003/D005 保留当前最优；D009 使用 prefix20 soft high-gross route 后保留全部订单并追加 month-end home/wait closure。
 注意：D001/D002/D003/D004/D005/D006/D008/D009 轨迹来自全量货源 oracle/tail mining。这是高收益轨迹 artifact，不是 official_clean 在线 agent 决策。
 复现：demo/build_hybrid_submission_result.py
-score = 374596.30
-total_preference_penalty = 76815.0
+score = 374834.75
+total_preference_penalty = 76615.0
 failed_driver_count = 0
 tokens = 0
-result_dir = demo/results/hybrid_submission/v140_v138_plus_d001_d002_d004_d008_p30_tail
-summary = demo/results/hybrid_submission/v140_v138_plus_d001_d002_d004_d008_p30_tail/monthly_income_202603.json
-steps = demo/results/hybrid_submission/v140_v138_plus_d001_d002_d004_d008_p30_tail/actions_202603_D*.jsonl
+result_dir = demo/results/hybrid_submission/v141_v140_plus_d006_d010_tail
+summary = demo/results/hybrid_submission/v141_v140_plus_d006_d010_tail/monthly_income_202603.json
+steps = demo/results/hybrid_submission/v141_v140_plus_d006_d010_tail/actions_202603_D*.jsonl
 ```
 
 在线 agent/profile 当前保留以下 profile：
@@ -132,6 +132,17 @@ D008 使用 results/oracle_route_miner/v140_d008_p30_taildeep/candidate_72，净
 ```
 
 v140 的关键启发是：p31 释放最后两单已经饱和；p30 释放最后三单仍有小收益。D001/D002/D004 是 `484386 -> 206199 -> 210030` 的毛利覆盖距离成本；D008 是少接末端一单，牺牲 gross 但减少休息/空驶相关罚分后净收益更高。
+
+v141 相比 v140 的新增有效轨迹：
+
+```text
+D006 使用 results/oracle_route_miner/v141_d006_p42_taildeep/candidate_37，净收益从 37292.45 提升到 37309.02，+16.57；偏好罚分从 8400 降到 8200。
+D010 使用 results/oracle_route_miner/v141_d010_p58_taildeep/candidate_06，净收益从 34062.66 提升到 34284.54，+221.88；偏好罚分保持 1865。
+
+完整总分从 v140 的 374596.30 提升到 374834.75，总偏好罚分从 76815 降到 76615。
+```
+
+v141 的关键启发是：D010 的剩余收益不在最后 1-2 单，而在 3 月 29 日凌晨以后整段尾链；p58 的 `194807 -> 484227 -> 484175 -> 489094` 比旧尾链多出 600+ gross，能覆盖新增距离成本。D006 的收益则来自少 200 休息罚分，属于低幅但可叠加的偏好修复。
 
 v132 相比 v129 的新增有效轨迹：
 
