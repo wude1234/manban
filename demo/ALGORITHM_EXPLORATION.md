@@ -2293,3 +2293,58 @@ If no further D009 gain appears, return to release-neighborhood mining for
 D001/D002/D003/D004/D005/D008 and exact-scored candidate swaps near their final
 5 orders.
 ```
+
+## v137: D009 Final-Order Repair Raises Artifact To 374052.31
+
+### Result
+
+```text
+artifact = results/hybrid_submission/v137_v134_plus_d009_p42_c22
+score = 374052.31
+penalty = 77215
+tokens = 0
+failed_driver_count = 0
+
+base = v134_v132_plus_d009_p20_soft_c01
+D009 replacement = results/oracle_route_miner/v137_d009_v134_p42_dailyhome_gross/candidate_22/actions_202603_D009_daily_home_oracle.jsonl
+```
+
+The exact D009 delta is:
+
+```text
+v134 D009 = 20120.85 net, 61428.04 gross, 14338.13 km, 19800 penalty
+v136 D009 = 20253.56 net, 60333.47 gross, 14119.94 km, 18900 penalty
+v137 D009 = 20618.27 net, 60961.27 gross, 14295.33 km, 18900 penalty
+D009 delta vs v136 = +364.71
+D009 delta vs v134 = +497.42
+full score = 373687.60 -> 374052.31
+```
+
+Neighbor controls:
+
+```text
+p38 daily-home tail = 18765.56 net, 57610.64 gross, 18000 penalty
+p39 daily-home tail = 20418.06 net, 59484.10 gross, 18000 penalty
+p40 daily-home tail = 20253.56 net, 60333.47 gross, 18900 penalty
+p41 daily-home tail = 20012.29 net, 61360.51 gross, 19800 penalty
+p42 daily-home tail = 20618.27 net, 60961.27 gross, 18900 penalty
+p40 ultrawide = same best as v136
+```
+
+Discovery:
+
+```text
+D009's high-score route is now a final-order replacement problem. Saving one
+extra daily-home violation is not automatically worth it: p39 saves penalty but
+loses too much gross. p42 keeps the high-gross skeleton to the final day, then
+uses cargo 489360 plus home return to reduce one violation with smaller gross
+loss.
+```
+
+Next search:
+
+```text
+Run p42 wider exact-candidate coverage and p43 preserve-all-orders home-tail
+tests. If p42/p43 saturate, switch back to the other high-gross drivers and
+search their final 3-6 order replacement neighborhoods.
+```

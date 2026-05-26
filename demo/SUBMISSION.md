@@ -5,18 +5,18 @@
 当前保留两类结果：在线 agent/profile 结果和高收益轨迹 artifact。
 
 ```text
-v136_tail_release_oracle_trajectory
+v137_tail_release_oracle_trajectory
 用途：当前本地最高分 step+summary artifact，用于高收益优先冲分/轨迹提交讨论。
-特点：D001 使用 prefix12 capsoft tail route；D002/D005 使用 prefix12 tail route；D003/D004/D008 使用 prefix14 tail route；D006 使用 prefix18 tightdist tail route；D009 使用 prefix20 soft high-gross route 后再用 prefix40 daily-home tail repair；其余司机保留当前最好稳定轨迹。
+特点：D001 使用 prefix12 capsoft tail route；D002/D005 使用 prefix12 tail route；D003/D004/D008 使用 prefix14 tail route；D006 使用 prefix18 tightdist tail route；D009 使用 prefix20 soft high-gross route 后再用 prefix42 daily-home final-order repair；其余司机保留当前最好稳定轨迹。
 注意：D001/D002/D003/D004/D005/D006/D008/D009 轨迹来自全量货源 oracle/tail mining。这是高收益轨迹 artifact，不是 official_clean 在线 agent 决策。
 复现：demo/build_hybrid_submission_result.py
-score = 373687.60
+score = 374052.31
 total_preference_penalty = 77215.0
 failed_driver_count = 0
 tokens = 0
-result_dir = demo/results/hybrid_submission/v136_v134_plus_d009_p40_dailyhome_c05
-summary = demo/results/hybrid_submission/v136_v134_plus_d009_p40_dailyhome_c05/monthly_income_202603.json
-steps = demo/results/hybrid_submission/v136_v134_plus_d009_p40_dailyhome_c05/actions_202603_D*.jsonl
+result_dir = demo/results/hybrid_submission/v137_v134_plus_d009_p42_c22
+summary = demo/results/hybrid_submission/v137_v134_plus_d009_p42_c22/monthly_income_202603.json
+steps = demo/results/hybrid_submission/v137_v134_plus_d009_p42_c22/actions_202603_D*.jsonl
 ```
 
 在线 agent/profile 当前保留以下 profile：
@@ -99,6 +99,16 @@ D009 使用 results/oracle_route_miner/v136_d009_v134_p40_dailyhome_gross/candid
 ```
 
 v136 的关键启发是：D009 的收益不是来自全日归，而是来自“尾段局部修复”。v135 的 p20 全日归最好只有 14619.52，p25/p30/p35 释放也都明显低于 v134；只有 prefix40 保留到 3 月 29 日晚后替换最后两单，才能在少丢毛利的同时减少一天 900 元罚分。
+
+v137 相比 v136 的新增有效轨迹：
+
+```text
+D009 使用 results/oracle_route_miner/v137_d009_v134_p42_dailyhome_gross/candidate_22，净收益从 20253.56 提升到 20618.27，+364.71；gross 从 60333.47 提升到 60961.27，distance 从 14119.94 增到 14295.33，回家/夜间违规罚分保持 18900。
+
+完整总分从 v136 的 373687.60 提升到 374052.31，总偏好罚分保持 77215。
+```
+
+v137 的关键启发是：D009 的最高收益不是尽早修日归，而是保留前 42 单高毛利骨架，只替换最后一单。p39 虽然总罚分更低，但损失毛利后总分只有 373852.10；p42 说明最后一单的目的地/回家衔接比多省一天罚分更重要。
 
 v132 相比 v129 的新增有效轨迹：
 
