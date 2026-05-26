@@ -2240,3 +2240,56 @@ penalty geometry. D001 may still have a few hundred points, but the larger
 breakthrough likely needs D009 daily-home constrained planning or another
 driver-specific cap-aware search.
 ```
+
+## v136: D009 Tail-Only Daily-Home Repair Raises Artifact To 373687.60
+
+### Result
+
+```text
+artifact = results/hybrid_submission/v136_v134_plus_d009_p40_dailyhome_c05
+score = 373687.60
+penalty = 77215
+tokens = 0
+failed_driver_count = 0
+
+base = v134_v132_plus_d009_p20_soft_c01
+D009 replacement = results/oracle_route_miner/v136_d009_v134_p40_dailyhome_gross/candidate_05/actions_202603_D009_daily_home_oracle.jsonl
+```
+
+The exact D009 delta is:
+
+```text
+v134 D009 = 20120.85 net, 61428.04 gross, 14338.13 km, 19800 penalty
+v136 D009 = 20253.56 net, 60333.47 gross, 14119.94 km, 18900 penalty
+D009 delta = +132.71
+full score = 373554.89 -> 373687.60
+```
+
+The negative controls are more important than the small positive:
+
+```text
+p20 full daily-home loose = 14619.52 net, 42641.54 gross, 15300 penalty
+p20 full daily-home gross = 10484.95 net, 28281.13 gross, 9000 penalty
+p25 daily-home tail = 10331.63 net, 34761.56 gross, 12600 penalty
+p30 daily-home tail = 15511.95 net, 45407.40 gross, 14400 penalty
+p35 daily-home tail = 17138.48 net, 50865.61 gross, 16200 penalty
+p40 daily-home tail = 20253.56 net, 60333.47 gross, 18900 penalty
+```
+
+Discovery:
+
+```text
+D009 should not be optimized as a daily-home route from mid-month. The high
+score path is a high-gross route that deliberately pays most home penalties.
+The profitable action is only to repair the last two days, where one 900-point
+home violation can be removed while preserving almost all gross.
+```
+
+Next search:
+
+```text
+Sweep D009 p38/p39/p41/p42 release points and p40 scorer variants.
+If no further D009 gain appears, return to release-neighborhood mining for
+D001/D002/D003/D004/D005/D008 and exact-scored candidate swaps near their final
+5 orders.
+```

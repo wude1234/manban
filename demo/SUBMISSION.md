@@ -5,18 +5,18 @@
 当前保留两类结果：在线 agent/profile 结果和高收益轨迹 artifact。
 
 ```text
-v134_tail_release_oracle_trajectory
+v136_tail_release_oracle_trajectory
 用途：当前本地最高分 step+summary artifact，用于高收益优先冲分/轨迹提交讨论。
-特点：D001 使用 prefix12 capsoft tail route；D002/D005 使用 prefix12 tail route；D003/D004/D008 使用 prefix14 tail route；D006 使用 prefix18 tightdist tail route；D009 使用 prefix20 soft high-gross tail route；其余司机保留当前最好稳定轨迹。
+特点：D001 使用 prefix12 capsoft tail route；D002/D005 使用 prefix12 tail route；D003/D004/D008 使用 prefix14 tail route；D006 使用 prefix18 tightdist tail route；D009 使用 prefix20 soft high-gross route 后再用 prefix40 daily-home tail repair；其余司机保留当前最好稳定轨迹。
 注意：D001/D002/D003/D004/D005/D006/D008/D009 轨迹来自全量货源 oracle/tail mining。这是高收益轨迹 artifact，不是 official_clean 在线 agent 决策。
 复现：demo/build_hybrid_submission_result.py
-score = 373554.89
-total_preference_penalty = 78115.0
+score = 373687.60
+total_preference_penalty = 77215.0
 failed_driver_count = 0
 tokens = 0
-result_dir = demo/results/hybrid_submission/v134_v132_plus_d009_p20_soft_c01
-summary = demo/results/hybrid_submission/v134_v132_plus_d009_p20_soft_c01/monthly_income_202603.json
-steps = demo/results/hybrid_submission/v134_v132_plus_d009_p20_soft_c01/actions_202603_D*.jsonl
+result_dir = demo/results/hybrid_submission/v136_v134_plus_d009_p40_dailyhome_c05
+summary = demo/results/hybrid_submission/v136_v134_plus_d009_p40_dailyhome_c05/monthly_income_202603.json
+steps = demo/results/hybrid_submission/v136_v134_plus_d009_p40_dailyhome_c05/actions_202603_D*.jsonl
 ```
 
 在线 agent/profile 当前保留以下 profile：
@@ -89,6 +89,16 @@ D009 使用 results/oracle_route_miner/v133_d009_p20_soft_homeguard/candidate_01
 ```
 
 v134 的关键启发是：D009 不是完全不能冲高毛利，prefix20 后的高 gross 尾链即使带来 22 天回家违规，仍有极小正收益。但这不是理想终点，真正潜力在于保留 D009 高毛利尾链的一部分，同时修复 23 点回家/夜间静止罚分。同期 D006 soft/ignore、D007 p15/p20 soft、D010 p20 soft 都是负例，说明不能把 D009 的高毛利缝隙泛化到所有低分司机。
+
+v136 相比 v134 的新增有效轨迹：
+
+```text
+D009 使用 results/oracle_route_miner/v136_d009_v134_p40_dailyhome_gross/candidate_05，净收益从 20120.85 提升到 20253.56，+132.71；gross 从 61428.04 降到 60333.47，但 distance 从 14338.13 降到 14119.94，回家/夜间违规罚分从 19800 降到 18900。
+
+完整总分从 v134 的 373554.89 提升到 373687.60，总偏好罚分从 78115 降到 77215。
+```
+
+v136 的关键启发是：D009 的收益不是来自全日归，而是来自“尾段局部修复”。v135 的 p20 全日归最好只有 14619.52，p25/p30/p35 释放也都明显低于 v134；只有 prefix40 保留到 3 月 29 日晚后替换最后两单，才能在少丢毛利的同时减少一天 900 元罚分。
 
 v132 相比 v129 的新增有效轨迹：
 

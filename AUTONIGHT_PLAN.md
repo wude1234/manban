@@ -15,13 +15,13 @@
 ## Current Best
 
 ```text
-version = v134 tail-release oracle trajectory high-score result
-preset = v132 + D009 prefix20 soft high-gross tail route
-score = 373554.89
-penalty = 78115
-latest_verified_run = demo/results/hybrid_submission/v134_v132_plus_d009_p20_soft_c01
-latest_verified_steps = demo/results/hybrid_submission/v134_v132_plus_d009_p20_soft_c01/actions_202603_D*.jsonl
-latest_verified_summary = demo/results/hybrid_submission/v134_v132_plus_d009_p20_soft_c01/monthly_income_202603.json
+version = v136 tail-release oracle trajectory high-score result
+preset = v134 + D009 prefix40 daily-home tail candidate05
+score = 373687.60
+penalty = 77215
+latest_verified_run = demo/results/hybrid_submission/v136_v134_plus_d009_p40_dailyhome_c05
+latest_verified_steps = demo/results/hybrid_submission/v136_v134_plus_d009_p40_dailyhome_c05/actions_202603_D*.jsonl
+latest_verified_summary = demo/results/hybrid_submission/v136_v134_plus_d009_p40_dailyhome_c05/monthly_income_202603.json
 score_profile = score_v105_d005_step7_8_teacher
 clean_profile = official_clean_agentic_planner
 commit_check = git log -1 --oneline
@@ -30,7 +30,7 @@ commit_check = git log -1 --oneline
 Boundary:
 
 ```text
-v134 is the current highest local score artifact. It keeps v132, then replaces D009 with a prefix20 soft high-gross tail route.
+v136 is the current highest local score artifact. It keeps v134, then replaces only D009's last tail with a prefix40 daily-home-constrained candidate.
 v105 remains the latest online agent/profile score: 316546.84, penalty 13465, result demo/results/grid_agentic_algo/20260526_040701_v105_d005_step7_8_timefix/02_submission_score_v105.
 Use v115 for high-score trajectory/teacher exploration; use v105/official_clean for online-agent compliance work.
 ```
@@ -157,6 +157,11 @@ v134 added D009 prefix20 soft high-gross tail mining:
   gross 31571.41 -> 61428.04, distance 7067.51 -> 14338.13, penalty 900 -> 19800
   full hybrid score = 373554.89, penalty 78115
   v133 negatives: D006 soft/ignore lower than v132; D007 p15/p20 soft lower than zero-penalty route; D010 p20 soft collapses to 8675 due 36000 penalty.
+v136 added D009 prefix40 daily-home tail repair on top of v134:
+  D009 20120.85 -> 20253.56, +132.71
+  gross 61428.04 -> 60333.47, distance 14338.13 -> 14119.94, penalty 19800 -> 18900
+  full hybrid score = 373687.60, penalty 77215
+  v135/v136 negatives: full daily-home replanning and early release points p20/p25/p30/p35 destroy gross. D009 only improves when the high-gross path is preserved until the final two days and the last tail is repaired.
 ```
 
 当前搜索范式要切换：
@@ -165,7 +170,7 @@ v134 added D009 prefix20 soft high-gross tail mining:
 不要只围绕 wait step 本身做修补。
 长等待往往是结果，不是原因；要追溯 root_order / root_route，把 after_state 的未来价值纳入接单评分。
 当前冲分第一目标不是泛化，而是继续沿 v105 底座找百元级 early/mid route-chain positives。v104 证明 D010 并非单步 step43 饱和，而是 step39-43 的前置链路可重构；v105 证明 D005 step7 单独改动会崩盘，但 step7+step8 完整链为正。
-v113-v118 证明高收益搜索的核心不是泛化区域规则，而是“路线毛利链是否足以覆盖真实偏好罚分”。D001/D002/D003/D004/D005/D008 都存在 31-33 单高毛利路线族；D006/D007/D009/D010 会被罚分打穿，不能照搬。v120 证明全月重搜会破坏前半月强链；v121/v124 证明固定前缀后的尾段重规划更有效；v125 证明 D006 也能在保留前 18 单后通过尾段高毛利覆盖新增罚分；v127 证明 release point 前移到 prefix12/14 可以降距离和罚分；v129 证明 D001 也适合 prefix12，但 prefix10 对 D002/D005/D008 过早。v132 证明 tightdist 整体不是通用正方向，但 D006 的尾部 scorer 还没完全收敛。v134 证明 D009 存在极窄的“高毛利覆盖回家罚分”空间，但 22 天回家违规把大部分 gross 吃掉。下一步优先做 D009 高毛利尾链的 home repair，而不是继续放松 D007/D010。
+v113-v118 证明高收益搜索的核心不是泛化区域规则，而是“路线毛利链是否足以覆盖真实偏好罚分”。D001/D002/D003/D004/D005/D008 都存在 31-33 单高毛利路线族；D006/D007/D009/D010 会被罚分打穿，不能照搬。v120 证明全月重搜会破坏前半月强链；v121/v124 证明固定前缀后的尾段重规划更有效；v125 证明 D006 也能在保留前 18 单后通过尾段高毛利覆盖新增罚分；v127 证明 release point 前移到 prefix12/14 可以降距离和罚分；v129 证明 D001 也适合 prefix12，但 prefix10 对 D002/D005/D008 过早。v132 证明 tightdist 整体不是通用正方向，但 D006 的尾部 scorer 还没完全收敛。v134/v136 证明 D009 存在极窄的“高毛利覆盖回家罚分”空间，但只能做最后 2 天级别的局部 repair；释放点越早，gross 掉得越快。下一步优先扫 D009 p38-p42 和 p40 scorer 变体，然后回到 D001/D002/D003/D004/D005/D008 的 release-neighborhood 搜索。
 ```
 
 ## Profile Boundary

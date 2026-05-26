@@ -94,6 +94,17 @@ def main() -> int:
     parser.add_argument("--pickup-penalty", type=float, default=0.12)
     parser.add_argument("--express-penalty", type=float, default=350.0)
     parser.add_argument("--home-margin-minutes", type=int, default=0)
+    parser.add_argument(
+        "--seed-actions",
+        default="",
+        help="Optional existing D009 actions JSONL used as a fixed order prefix before daily-home tail mining.",
+    )
+    parser.add_argument(
+        "--seed-prefix-orders",
+        type=int,
+        default=0,
+        help="Number of take_order actions to keep from --seed-actions before mining the remaining tail.",
+    )
     parser.add_argument("--out-dir", default="results/oracle_route_miner/d009_daily_home_oracle")
     parser.add_argument("--score-final", action="store_true")
     args = parser.parse_args()
@@ -108,7 +119,20 @@ def main() -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "daily_home_config.json").write_text(json.dumps(vars(args), ensure_ascii=False, indent=2), encoding="utf-8")
 
-    beam = [Node(progress=0, lat=HOME_LAT, lng=HOME_LNG)]
+    root = Node(progress=0, lat=HOME_LAT, lng=HOME_LNG)
+    if args.seed_actions:
+        root = _load_seed_prefix(
+            Path(args.seed_actions),
+            prefix_orders=max(0, int(args.seed_prefix_orders)),
+            fallback=root,
+        )
+        print(
+            f"seed prefix: orders={root.orders} steps={len(root.history)} "
+            f"t={_clock(root.progress)} used={len(root.used_ids)}",
+            flush=True,
+        )
+
+    beam = [root]
     finals: list[Node] = []
     for depth in range(max(1, args.max_steps)):
         expanded: list[Node] = []
@@ -478,6 +502,52 @@ def _complete_to_horizon(node: Node, *, speed_km_per_hour: float, cost_per_km: f
 
 def _near_home(node: Node) -> bool:
     return haversine_km(node.lat, node.lng, HOME_LAT, HOME_LNG) <= 1.0
+
+
+def _load_seed_prefix(path: Path, *, prefix_orders: int, fallback: Node) -> Node:
+    if prefix_orders <= 0:
+        return fallback
+    if not path.is_file():
+        raise FileNotFoundError(f"missing --seed-actions file: {path}")
+    history: list[dict[str, Any]] = []
+    used: set[str] = set()
+    progress = fallback.progress
+    lat = fallback.lat
+    lng = fallback.lng
+    accepted = 0
+    with path.open(encoding="utf-8") as f:
+        for line in f:
+            if not line.strip():
+                continue
+            rec = json.loads(line)
+            action = rec.get("action") if isinstance(rec, dict) else None
+            params = action.get("params", {}) if isinstance(action, dict) else {}
+            action_name = str(action.get("action", "") if isinstance(action, dict) else "")
+            history.append(rec)
+            result = rec.get("result", {}) if isinstance(rec.get("result"), dict) else {}
+            pos_after = rec.get("position_after", {}) if isinstance(rec.get("position_after"), dict) else {}
+            progress = int(result.get("simulation_progress_minutes") or progress)
+            lat = float(pos_after.get("lat", lat))
+            lng = float(pos_after.get("lng", lng))
+            if action_name == "take_order":
+                cargo_id = str(params.get("cargo_id", "")).strip()
+                if cargo_id:
+                    used.add(cargo_id)
+                accepted += 1
+                if accepted >= prefix_orders:
+                    break
+    if accepted < prefix_orders:
+        raise ValueError(f"{path} contains only {accepted} take_order actions, requested prefix {prefix_orders}")
+    return Node(
+        progress=progress,
+        lat=lat,
+        lng=lng,
+        history=history,
+        used_ids=frozenset(used),
+        proxy_score=0.0,
+        orders=accepted,
+        label=f"seed:D009:{prefix_orders}",
+    )
 
 
 def _rank_node(node: Node) -> float:
