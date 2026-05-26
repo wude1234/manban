@@ -5,10 +5,49 @@
 当前最好可复现分数：
 
 ```text
-score = 373554.89
-preset = v134_v132_plus_d009_p20_soft_c01
-penalty = 78115.0
-result_dir = results/hybrid_submission/v134_v132_plus_d009_p20_soft_c01
+score = 376333.36
+preset = v169_d003_d008_exacttail
+penalty = 76515.0
+result_dir = results/hybrid_submission/v169_d003_d008_exacttail
+```
+
+## 2026-05-26 最新结论：v169 继续证明高分来自尾段精确链路，不是单步贪心
+
+v169 在此前高收益 hybrid artifact 上继续替换 D003/D008 的 exact-tail：
+
+```text
+D003: 41880.67 -> 41906.49, +25.82
+  route = seed:D003:28 > take:300820 > take:482426 > take:484386 > take:206199 > take:210030
+  penalty = 7800
+
+D008: 38880.91 -> 38967.71, +86.80
+  route = seed:D008:27 > take:180213 > take:298622 > take:194166 > take:197179 > take:203930 > take:484386
+  penalty = 10500
+
+full hybrid:
+  score = 376333.36
+  total_preference_penalty = 76515
+  tokens = 0
+  failed_driver_count = 0
+```
+
+核心启发：
+
+```text
+1. D003/D008 的新增收益都很小，但说明 exact-tail 仍未完全收敛；收益来自尾段目的地、短距离闭环和后继链，而不是单笔最高 NPH。
+2. v169 是离线 oracle artifact，包含全量未来货源搜索，不是 official_clean 合法在线 Agent。
+3. 合法在线方向需要把 v169 这类轨迹蒸馏成状态价值：当前收益 + 完单后位置价值 + 可见后继密度 + 月末 closure - 偏好风险。
+4. 第一个合法蒸馏尝试 `submission_official_distilled_value` 为负：275973.46 -> 272961.58，说明 value bonus 过早改变 clean 链路，需要更窄的 near-tie gate 和逐司机消融。
+5. `submission_official_clean_flash` 当前跑分仍是 275973.46 且 tokens=0，表示 Flash 触发窗口过严；API Agent 要先保证可控调用，再让 LLM 只处理关键分叉仲裁。
+```
+
+下一步：
+
+```text
+1. 保留 v169 作为离线 teacher/artifact，不把它误称为合法在线策略。
+2. 对 D003/D008/D010 分别做 distilled online value 的单司机消融，先找到不伤 clean 的最窄 gate。
+3. Flash 只接在 distilled value 的 near-tie 候选上，输入 calculator_summary，不允许生成任意动作。
+4. 继续从 oracle result 中抽象状态规则，不再直接添加 step/cargo 固定 switch 到 official_clean。
 ```
 
 ## v134 新发现：D009 存在高毛利覆盖回家罚分的窄缝，但需要 home repair

@@ -5,18 +5,18 @@
 当前保留两类结果：在线 agent/profile 结果和高收益轨迹 artifact。
 
 ```text
-v157_d007_p63_tail_oracle_trajectory
+v169_d003_d008_exacttail
 用途：当前本地最高分 step+summary artifact，用于高收益优先冲分/轨迹提交讨论。
-特点：在 v154 基础上，保留 D007 前 63 单并重规划最后 4 单尾链，形成 `201636 -> 202277 -> 488028 -> 210030`，保持 D007 零偏好罚分并显著提高月末净收益；同时保留 v151 的 D006 step60 `205313 -> 485412` 距离节省替换。D001/D002/D004 使用 prefix30 小幅尾链替换；D008 使用 prefix30 少单降罚分尾链；D010 使用 prefix58 低距离低罚分尾链二次优化；D003/D005 保留当前最优；D009 使用 prefix20 soft high-gross route 后保留全部订单并追加 month-end home/wait closure。
-注意：D001/D002/D003/D004/D005/D006/D008/D009 轨迹来自全量货源 oracle/tail mining。这是高收益轨迹 artifact，不是 official_clean 在线 agent 决策。
+特点：在此前 hybrid 高收益轨迹上，继续替换 D003 和 D008 的 exact-tail。D003 使用 `seed:D003:28 -> 300820 -> 482426 -> 484386 -> 206199 -> 210030`，D008 使用 `seed:D008:27 -> 180213 -> 298622 -> 194166 -> 197179 -> 203930 -> 484386`。完整结果 score `376333.36`，total_preference_penalty `76515`，failed_driver_count `0`，tokens `0`。
+注意：v169 轨迹来自全量货源 oracle/tail mining/exact-tail search。这是高收益轨迹 artifact，不是 official_clean 在线 agent 决策，也不应被包装成无未来信息的合法在线策略。
 复现：demo/build_hybrid_submission_result.py
-score = 376220.74
-total_preference_penalty = 76315.0
+score = 376333.36
+total_preference_penalty = 76515.0
 failed_driver_count = 0
 tokens = 0
-result_dir = demo/results/hybrid_submission/v157_d007_p63_tail
-summary = demo/results/hybrid_submission/v157_d007_p63_tail/monthly_income_202603.json
-steps = demo/results/hybrid_submission/v157_d007_p63_tail/actions_202603_D*.jsonl
+result_dir = demo/results/hybrid_submission/v169_d003_d008_exacttail
+summary = demo/results/hybrid_submission/v169_d003_d008_exacttail/monthly_income_202603.json
+steps = demo/results/hybrid_submission/v169_d003_d008_exacttail/actions_202603_D*.jsonl
 ```
 
 在线 agent/profile 当前保留以下 profile：
@@ -49,6 +49,14 @@ score_v94_d001_step103_teacher_315167
 official_clean_agentic_planner
 用途：官方强调不得使用已知全局视角时的合规 Agent 版本。
 特点：关闭固定 step/cargo teacher，只使用当前 get_driver_status/query_cargo/query_decision_history 可见状态、司机私有记忆、偏好编译、route scorer 和在线动态空驶候选。
+
+official_clean_flash_agentic_planner
+用途：合规 API Agent 版本。
+特点：底座仍是 official_clean，Qwen3.5-Flash 只在当前可见 top-k 候选的 near-tie/偏好冲突窗口做受控仲裁，输入 calculator_summary，不允许生成候选外动作。当前实测 `submission_official_clean_flash` 分数仍为 `275973.46` 且 tokens=0，说明触发窗口过严，Flash 尚未实际改变决策。
+
+official_distilled_value_agentic_planner
+用途：把 v169/oracle 发现蒸馏成合法在线 value scorer 的实验版本。
+特点：不使用固定 step/cargo teacher，只用当前候选的净收益、NPH、可见后继密度、目的地 latent market、偏好风险和月末 closure 风险。v1 实测 `272961.58`，低于 official_clean `275973.46`，目前作为负例和后续消融起点，不作为提交候选。
 ```
 
 本地 0509 数据当前最好复现结果为 score profile：

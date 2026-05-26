@@ -1,0 +1,31 @@
+{
+  "month": "2026-03",
+  "simulate_time_seconds": 600.0,
+  "simulation_duration_days": 30,
+  "completed_steps": 896,
+  "remaining_cargo_count": 0,
+  "driver_completed_steps": {
+    "D001": 66,
+    "D002": 66,
+    "D003": 59,
+    "D004": 66,
+    "D005": 131,
+    "D006": 78,
+    "D007": 146,
+    "D008": 60,
+    "D009": 101,
+    "D010": 123
+  },
+  "driver_result_files": {
+    "D001": "/home/zrr/study/demo_docs_release_20260509/demo/results/hybrid_submission/v169_d003_d008_exacttail/actions_202603_D001_oracle.jsonl",
+    "D002": "/home/zrr/study/demo_docs_release_20260509/demo/results/hybrid_submission/v169_d003_d008_exacttail/actions_202603_D002_oracle.jsonl",
+    "D003": "/home/zrr/study/demo_docs_release_20260509/demo/results/hybrid_submission/v169_d003_d008_exacttail/actions_202603_D003_oracle.jsonl",
+    "D004": "/home/zrr/study/demo_docs_release_20260509/demo/results/hybrid_submission/v169_d003_d008_exacttail/actions_202603_D004_oracle.jsonl",
+    "D005": "/home/zrr/study/demo_docs_release_20260509/demo/results/hybrid_submission/v169_d003_d008_exacttail/actions_202603_D005_oracle.jsonl",
+    "D006": "/home/zrr/study/demo_docs_release_20260509/demo/results/hybrid_submission/v169_d003_d008_exacttail/actions_202603_D006_splice.jsonl",
+    "D007": "/home/zrr/study/demo_docs_release_20260509/demo/results/hybrid_submission/v169_d003_d008_exacttail/actions_202603_D007_oracle.jsonl",
+    "D008": "/home/zrr/study/demo_docs_release_20260509/demo/results/hybrid_submission/v169_d003_d008_exacttail/actions_202603_D008_oracle.jsonl",
+    "D009": "/home/zrr/study/demo_docs_release_20260509/demo/results/hybrid_submission/v169_d003_d008_exacttail/actions_202603_D009_daily_home_oracle.jsonl",
+    "D010": "/home/zrr/study/demo_docs_release_20260509/demo/results/hybrid_submission/v169_d003_d008_exacttail/actions_202603_D010_oracle.jsonl"
+  }
+}
