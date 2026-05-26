@@ -2348,3 +2348,54 @@ Run p42 wider exact-candidate coverage and p43 preserve-all-orders home-tail
 tests. If p42/p43 saturate, switch back to the other high-gross drivers and
 search their final 3-6 order replacement neighborhoods.
 ```
+
+## v138: D009 Month-End Closure Raises Artifact To 374429.79
+
+### Result
+
+```text
+artifact = results/hybrid_submission/v138_v134_plus_d009_p43_home_tail
+score = 374429.79
+penalty = 77215
+tokens = 0
+failed_driver_count = 0
+
+base = v134_v132_plus_d009_p20_soft_c01
+D009 replacement = results/oracle_route_miner/v138_d009_p43_preserve_all_home/candidate_01/actions_202603_D009_daily_home_oracle.jsonl
+```
+
+The exact D009 delta is:
+
+```text
+v134 D009 = 20120.85 net, 61428.04 gross, 14338.13 km, 19800 penalty
+v137 D009 = 20618.27 net, 60961.27 gross, 14295.33 km, 18900 penalty
+v138 D009 = 20995.75 net, 61428.04 gross, 14354.86 km, 18900 penalty
+D009 delta vs v137 = +377.48
+D009 delta vs v134 = +874.90
+full score = 374052.31 -> 374429.79
+```
+
+The important control is:
+
+```text
+p42 ultradeep lowproxy/highnph/maxgross all re-found cargo 489360 as best p42
+replacement, but none beat preserving the original 43 orders and appending
+home closure.
+```
+
+Discovery:
+
+```text
+This is a closure problem, not an order-selection problem. The original D009
+high-gross route already contains the better final order. The missing action is
+the final home reposition/wait before the month boundary, which removes one
+900-point daily-home violation at only about 25.10 cost.
+```
+
+Next search:
+
+```text
+Systematically scan month-end closure actions for all drivers with residual
+time after the final order. Then search final 3-6 order neighborhoods for the
+high-gross drivers only if closure is saturated.
+```

@@ -15,13 +15,13 @@
 ## Current Best
 
 ```text
-version = v137 tail-release oracle trajectory high-score result
-preset = v134 + D009 prefix42 daily-home final-order candidate22
-score = 374052.31
+version = v138 tail-release oracle trajectory high-score result
+preset = v134 + D009 prefix43 preserve-all-orders home closure
+score = 374429.79
 penalty = 77215
-latest_verified_run = demo/results/hybrid_submission/v137_v134_plus_d009_p42_c22
-latest_verified_steps = demo/results/hybrid_submission/v137_v134_plus_d009_p42_c22/actions_202603_D*.jsonl
-latest_verified_summary = demo/results/hybrid_submission/v137_v134_plus_d009_p42_c22/monthly_income_202603.json
+latest_verified_run = demo/results/hybrid_submission/v138_v134_plus_d009_p43_home_tail
+latest_verified_steps = demo/results/hybrid_submission/v138_v134_plus_d009_p43_home_tail/actions_202603_D*.jsonl
+latest_verified_summary = demo/results/hybrid_submission/v138_v134_plus_d009_p43_home_tail/monthly_income_202603.json
 score_profile = score_v105_d005_step7_8_teacher
 clean_profile = official_clean_agentic_planner
 commit_check = git log -1 --oneline
@@ -30,7 +30,7 @@ commit_check = git log -1 --oneline
 Boundary:
 
 ```text
-v137 is the current highest local score artifact. It keeps v134, then replaces only D009's final order tail with a prefix42 daily-home-constrained candidate.
+v138 is the current highest local score artifact. It keeps v134, then preserves all D009 orders and appends only the month-end home/wait closure.
 v105 remains the latest online agent/profile score: 316546.84, penalty 13465, result demo/results/grid_agentic_algo/20260526_040701_v105_d005_step7_8_timefix/02_submission_score_v105.
 Use v115 for high-score trajectory/teacher exploration; use v105/official_clean for online-agent compliance work.
 ```
@@ -167,6 +167,11 @@ v137 narrowed D009 repair to the final order:
   gross 60333.47 -> 60961.27, distance 14119.94 -> 14295.33, penalty stays 18900
   full hybrid score = 374052.31, penalty 77215
   p39 is positive but smaller because it saves one more violation at too much gross cost; p41/p38 are negative. The best high-score rule is not "reduce D009 penalty", it is "preserve the high-gross route until order 42, then replace the final order with a home-feasible tail."
+v138 found the cleaner D009 month-end closure:
+  D009 20618.27 -> 20995.75, +377.48 vs v137 and +874.90 vs v134
+  gross returns to 61428.04, distance 14354.86, penalty stays 18900
+  full hybrid score = 374429.79, penalty 77215
+  the issue was not the last order; the v134 route already had a profitable final order, but missing the final home/wait action caused one avoidable daily-home violation.
 ```
 
 当前搜索范式要切换：
@@ -175,7 +180,7 @@ v137 narrowed D009 repair to the final order:
 不要只围绕 wait step 本身做修补。
 长等待往往是结果，不是原因；要追溯 root_order / root_route，把 after_state 的未来价值纳入接单评分。
 当前冲分第一目标不是泛化，而是继续沿 v105 底座找百元级 early/mid route-chain positives。v104 证明 D010 并非单步 step43 饱和，而是 step39-43 的前置链路可重构；v105 证明 D005 step7 单独改动会崩盘，但 step7+step8 完整链为正。
-v113-v118 证明高收益搜索的核心不是泛化区域规则，而是“路线毛利链是否足以覆盖真实偏好罚分”。D001/D002/D003/D004/D005/D008 都存在 31-33 单高毛利路线族；D006/D007/D009/D010 会被罚分打穿，不能照搬。v120 证明全月重搜会破坏前半月强链；v121/v124 证明固定前缀后的尾段重规划更有效；v125 证明 D006 也能在保留前 18 单后通过尾段高毛利覆盖新增罚分；v127 证明 release point 前移到 prefix12/14 可以降距离和罚分；v129 证明 D001 也适合 prefix12，但 prefix10 对 D002/D005/D008 过早。v132 证明 tightdist 整体不是通用正方向，但 D006 的尾部 scorer 还没完全收敛。v134-v137 证明 D009 存在极窄的“高毛利覆盖回家罚分”空间，但只能做最终 1-2 单级别的局部 repair；释放点越早，gross 掉得越快。下一步优先扫 D009 p42/p43 候选覆盖和 final-order scorer，再回到 D001/D002/D003/D004/D005/D008 的 release-neighborhood 搜索。
+v113-v118 证明高收益搜索的核心不是泛化区域规则，而是“路线毛利链是否足以覆盖真实偏好罚分”。D001/D002/D003/D004/D005/D008 都存在 31-33 单高毛利路线族；D006/D007/D009/D010 会被罚分打穿，不能照搬。v120 证明全月重搜会破坏前半月强链；v121/v124 证明固定前缀后的尾段重规划更有效；v125 证明 D006 也能在保留前 18 单后通过尾段高毛利覆盖新增罚分；v127 证明 release point 前移到 prefix12/14 可以降距离和罚分；v129 证明 D001 也适合 prefix12，但 prefix10 对 D002/D005/D008 过早。v132 证明 tightdist 整体不是通用正方向，但 D006 的尾部 scorer 还没完全收敛。v134-v138 证明 D009 的最优处理不是换尾单，而是保留高毛利骨架后补月末 closure。下一步优先系统扫描所有司机的 final closure/reposition/wait 是否能减少月末偏好罚分，然后回到 D001/D002/D003/D004/D005/D008 的 release-neighborhood 搜索。
 ```
 
 ## Profile Boundary
