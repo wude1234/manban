@@ -2764,3 +2764,91 @@ different NPH/gross/distance weights. Then apply the same short-tail release
 idea to D006/D010 and any driver whose final 2-5 orders occur before the
 horizon with room for one extra legal order.
 ```
+
+## v160-v165: High-Score Search Boundary Tests After v157
+
+### Result
+
+```text
+current_best = v157_d007_p63_tail
+score = 376220.74
+
+v160_d007_p63_tail_lowdist best D007 = 33590.83  # reproduced v157
+v161_d007_p63_wide_original best D007 = 33590.83 # reproduced v157
+v162_d009_after_familiar_nphdiv best D009 = 12370.45
+v162_d009_after_familiar_soft best D009 = 8598.63
+v162_d009_after_familiar_ignore best D009 = 7886.16
+v162_d006_p18_wide_semisoft best D006 = 32233.86
+```
+
+### New Harness
+
+```text
+quick_splice_scan.py:
+  fast exact-scored one-step cargo replacement without writing per-candidate dirs
+
+quick_insert_scan.py:
+  insert one candidate order after an existing step, replay downstream skeleton,
+  skip invalid old orders, exact-score the resulting route
+
+quick_delete_scan.py:
+  delete one existing action, replay downstream skeleton, exact-score whether
+  earlier/later timing unlocks a better suffix
+```
+
+### Negative Controls
+
+```text
+D001/D002/D003/D004/D005/D008 late broad splice:
+  no positive replacements. Shared public long-haul tail remains locally hard.
+
+D007 tail insert:
+  best = 33329.84, below v157 D007 33590.83.
+  Adding one more order breaks the calibrated four-order suffix or loses 210030.
+
+D010 tail splice/insert/delete:
+  best insert = 34578.21, best splice = 34682.51, best delete = 34444.56,
+  all below current D010 34744.56.
+
+D009 after familiar-order full re-mine:
+  proxy looked high, but official score collapsed because home/night penalty
+  rose to 25200. Current D009 20995.75 is far better.
+
+D006 prefix18 full re-mine:
+  proxy looked high, but exact score fell to 32233.86. The existing D006 route
+  plus v151 step60 splice remains much better at 37324.09.
+```
+
+### Discovery
+
+```text
+The current artifact is not blocked by unswept last-order alternatives.
+Replacement, insertion and deletion scans all confirm that most late tails are
+locally saturated under official scoring.
+
+D009 and D006 expose the main algorithmic problem: proxy route mining is badly
+misaligned when preference geometry is complex. D009 cannot be treated as a
+normal high-gross driver after cargo240646; the route must preserve the existing
+home/penalty structure. D006 similarly loses too much route value when early
+release breaks its validated skeleton.
+
+D007 prefix63 is a narrow seam, not a broad rule. Releasing earlier, inserting
+inside the suffix, or gross-biased reranking all underperform. The winning
+pattern is: validated prefix + compact multi-order suffix + exact scoring of a
+large candidate pool.
+```
+
+### Next Search
+
+```text
+Stop spending cycles on generic tail splice/insert/delete.
+
+The next high-score direction should be exact-score-guided beam selection:
+periodically score more frontier nodes with the official calculator and keep
+routes by exact net, not only proxy. Use this first on D007 prefix63/p62 and then
+on D009 late p39-p43 closure, because those are where proxy/exact mismatch was
+most visible.
+
+Second priority: two-step local route replacement for D009/D010 only around the
+already-validated late closure, not full re-mining from early March.
+```
