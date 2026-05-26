@@ -113,6 +113,23 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Mine high-yield full-month routes with global cargo visibility.")
     parser.add_argument("--driver", required=True, help="Driver id, e.g. D009.")
     parser.add_argument("--beam-width", type=int, default=10)
+    parser.add_argument(
+        "--diverse-beam",
+        action="store_true",
+        help="Keep a diverse frontier by time/location/order-count buckets instead of pure proxy top-N.",
+    )
+    parser.add_argument(
+        "--diverse-top-ratio",
+        type=float,
+        default=0.35,
+        help="When --diverse-beam is enabled, reserve this fraction for pure proxy winners before bucket filling.",
+    )
+    parser.add_argument(
+        "--diverse-per-bucket",
+        type=int,
+        default=2,
+        help="Maximum nodes kept per diversity bucket when --diverse-beam is enabled.",
+    )
     parser.add_argument("--branch-top-n", type=int, default=14)
     parser.add_argument("--candidate-pool", type=int, default=220)
     parser.add_argument("--max-steps", type=int, default=180)
@@ -138,7 +155,7 @@ def main() -> int:
     )
     parser.add_argument(
         "--preference-mode",
-        choices=["ignore", "soft", "d001_capsoft", "d006_semisoft"],
+        choices=["ignore", "soft", "d001_capsoft", "d006_semisoft", "d007_hard", "d009_home_guard"],
         default="soft",
         help="Preference proxy. d001_capsoft treats D001 rest/Shenzhen penalties as capped fixed costs. d006_semisoft keeps the high-gross route search but avoids the expensive D006 fish/long-haul caps.",
     )
@@ -234,7 +251,13 @@ def main() -> int:
         if not expanded:
             break
         expanded.sort(key=_rank_node, reverse=True)
-        beam = expanded[: max(1, int(args.beam_width))]
+        beam = _select_beam(
+            expanded,
+            beam_width=max(1, int(args.beam_width)),
+            diverse=bool(args.diverse_beam),
+            top_ratio=float(args.diverse_top_ratio),
+            per_bucket=max(1, int(args.diverse_per_bucket)),
+        )
         if depth % 10 == 0:
             print(
                 f"depth={depth + 1} "
@@ -418,6 +441,14 @@ def _generate_candidates(
         i = int(raw_i)
         cargo_id = str(cargo.ids[i])
         if cargo_id in used:
+            continue
+        if _hard_reject_candidate(
+            driver_id,
+            cargo.records[i],
+            action_start=int(accept[i]),
+            finish=int(finish[i]),
+            preference_mode=preference_mode,
+        ):
             continue
         pref = _preference_proxy(
             driver_id,
@@ -689,6 +720,40 @@ def _preference_proxy(
     return penalty
 
 
+def _hard_reject_candidate(
+    driver_id: str,
+    rec: CargoRecord,
+    *,
+    action_start: int,
+    finish: int,
+    preference_mode: str,
+) -> bool:
+    if preference_mode == "d007_hard" and driver_id == "D007":
+        if rec.cargo_name == "机械设备":
+            return True
+        if rec.haul_km > 180.0:
+            return True
+        if _overlaps_night(action_start, finish, 23 * 60, 4 * 60):
+            return True
+    if preference_mode == "d009_home_guard" and driver_id == "D009":
+        if rec.cargo_name == "快递快运搬家":
+            return True
+        if _overlaps_night(action_start, finish, 23 * 60, 8 * 60):
+            return True
+        if not _can_reach_d009_home_by_23(finish, rec.end_lat, rec.end_lng):
+            return True
+    return False
+
+
+def _can_reach_d009_home_by_23(finish: int, lat: float, lng: float) -> bool:
+    day_minute = int(finish) % 1440
+    if day_minute >= 23 * 60:
+        return False
+    home_km = haversine_km(float(lat), float(lng), 23.12, 113.28)
+    home_minutes = _distance_to_minutes(home_km, 60.0)
+    return day_minute + home_minutes <= 23 * 60
+
+
 def _build_value_index(cargo: CargoTable) -> dict[tuple[int, int, int], float]:
     value: dict[tuple[int, int, int], list[float]] = {}
     base = cargo.gross_margin + 0.08 * cargo.price
@@ -922,6 +987,74 @@ def _distance_to_minutes(distance_km: float, speed_km_per_hour: float) -> int:
 
 def _rank_node(node: RouteNode) -> float:
     return node.proxy_score + 0.015 * node.accepted_orders - 0.0002 * max(0, HORIZON_MINUTES - node.progress)
+
+
+def _select_beam(
+    nodes: list[RouteNode],
+    *,
+    beam_width: int,
+    diverse: bool,
+    top_ratio: float,
+    per_bucket: int,
+) -> list[RouteNode]:
+    if not nodes or beam_width <= 0:
+        return []
+    if not diverse:
+        return nodes[:beam_width]
+
+    selected: list[RouteNode] = []
+    selected_labels: set[str] = set()
+    bucket_counts: dict[tuple[Any, ...], int] = {}
+
+    def add(node: RouteNode) -> None:
+        selected.append(node)
+        selected_labels.add(node.label)
+        for bucket in _diversity_buckets(node):
+            bucket_counts[bucket] = bucket_counts.get(bucket, 0) + 1
+
+    top_keep = max(1, min(beam_width, int(round(beam_width * max(0.0, min(1.0, top_ratio))))))
+    for node in nodes[:top_keep]:
+        add(node)
+    if len(selected) >= beam_width:
+        return selected[:beam_width]
+
+    for node in nodes[top_keep:]:
+        if node.label in selected_labels:
+            continue
+        buckets = _diversity_buckets(node)
+        if any(bucket_counts.get(bucket, 0) < per_bucket for bucket in buckets):
+            add(node)
+            if len(selected) >= beam_width:
+                return selected
+
+    for node in nodes[top_keep:]:
+        if node.label in selected_labels:
+            continue
+        add(node)
+        if len(selected) >= beam_width:
+            break
+    return selected
+
+
+def _diversity_buckets(node: RouteNode) -> tuple[tuple[Any, ...], ...]:
+    # Coarse buckets intentionally preserve low-proxy alternatives that end in
+    # different time-space states. Exact scoring at the end decides whether the
+    # detour was actually profitable.
+    progress_6h = int(node.progress // 360)
+    progress_12h = int(node.progress // 720)
+    lat_cell_fine = math.floor(node.lat * 5.0)
+    lng_cell_fine = math.floor(node.lng * 5.0)
+    lat_cell_coarse = math.floor(node.lat * 2.0)
+    lng_cell_coarse = math.floor(node.lng * 2.0)
+    last_action = node.label.rsplit(">", 1)[-1] if node.label else ""
+    last_kind = last_action.split(":", 1)[0]
+    order_bucket = int(node.accepted_orders // 2)
+    return (
+        ("time_orders", progress_6h, node.accepted_orders),
+        ("region_time", progress_12h, lat_cell_fine, lng_cell_fine),
+        ("region_orders", order_bucket, lat_cell_coarse, lng_cell_coarse),
+        ("tail_kind", progress_12h, last_kind, order_bucket),
+    )
 
 
 def _zero_usage() -> dict[str, int]:

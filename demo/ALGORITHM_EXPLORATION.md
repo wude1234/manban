@@ -2605,3 +2605,57 @@ stay in the 1565 penalty bucket. In parallel, try a more radical release-point
 grid for low-scoring/high-penalty drivers, but treat D008 and D005 p29/p30 as
 locally saturated unless a different prefix family is used.
 ```
+
+## v151: Local Splice Probe Raises Artifact To 375309.84
+
+### Result
+
+```text
+artifact = results/hybrid_submission/v151_d006_step60_splice
+score = 375309.84
+penalty = 76315
+tokens = 0
+failed_driver_count = 0
+```
+
+Winning local replacement:
+
+```text
+tool = demo/splice_replay_probe.py
+source = results/hybrid_submission/v143_d010_p58_lowdist/actions_202603_D006_oracle.jsonl
+source_step = 60
+original cargo = 205313
+replacement cargo = 485412
+v143 D006 = 37309.02 net, 68253.64 gross, 15163.08 km, 8200 penalty
+v151 D006 = 37324.09 net, 68169.96 gross, 15097.25 km, 8200 penalty
+D006 delta = +15.07
+```
+
+Controls:
+
+```text
+D010 tail one-step splice: best 34655.58, below current 34744.56.
+D009 tail one-step splice: best 20330.95, below current 20995.75.
+D008 tail one-step splice: best 38612.86, below current 38880.91.
+D006 step55/56/58 mostly negative; only step60 cargo485412 is positive.
+```
+
+Discovery:
+
+```text
+The high-score artifact is now so saturated that full tail re-mining often
+misses small exact-scoring improvements. A one-step splice can recover hidden
+gains by preserving the existing high-yield skeleton and only changing one
+cargo. The D006 positive is not a max-gross move: it gives up 83.68 gross but
+saves 65.83 km, so exact net rises by 15.07 with unchanged preference penalty.
+```
+
+Next search:
+
+```text
+Use splice replay as the next high-yield search paradigm, but make it faster:
+first do lightweight replay to keep only candidates that preserve most of the
+suffix, then exact-score the top candidates. Prioritize D001/D002/D003/D004/D005
+shared late-chain steps around 46-59, because the same route family may contain
+more distance-saving swaps that full tail beam search pruned away.
+```
