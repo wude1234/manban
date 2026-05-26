@@ -15,13 +15,13 @@
 ## Current Best
 
 ```text
-version = v154 D007 step120 splice oracle trajectory high-score result
-preset = v151 + D007 step120 one-step cargo splice
-score = 375519.13
+version = v157 D007 p63 short-tail oracle trajectory high-score result
+preset = v154 + D007 prefix63 short-tail replanning
+score = 376220.74
 penalty = 76315
-latest_verified_run = demo/results/hybrid_submission/v154_d007_step120_splice
-latest_verified_steps = demo/results/hybrid_submission/v154_d007_step120_splice/actions_202603_D*.jsonl
-latest_verified_summary = demo/results/hybrid_submission/v154_d007_step120_splice/monthly_income_202603.json
+latest_verified_run = demo/results/hybrid_submission/v157_d007_p63_tail
+latest_verified_steps = demo/results/hybrid_submission/v157_d007_p63_tail/actions_202603_D*.jsonl
+latest_verified_summary = demo/results/hybrid_submission/v157_d007_p63_tail/monthly_income_202603.json
 score_profile = score_v105_d005_step7_8_teacher
 clean_profile = official_clean_agentic_planner
 commit_check = git log -1 --oneline
@@ -30,7 +30,7 @@ commit_check = git log -1 --oneline
 Boundary:
 
 ```text
-v154 is the current highest local score artifact. It keeps v151, then replaces D007 step120 cargo 207995 with cargo 484386. This preserves D007's zero preference penalty and raises D007 net by +209.29. v151's D006 step60 distance-saving splice remains included.
+v157 is the current highest local score artifact. It keeps v154's base, then releases D007 after 63 orders and replans the final short tail as 201636 -> 202277 -> 488028 -> 210030. This preserves D007's zero preference penalty and raises D007 net to 33590.83 (+701.61 versus v154, +910.90 versus v143). v151's D006 step60 distance-saving splice remains included.
 v105 remains the latest online agent/profile score: 316546.84, penalty 13465, result demo/results/grid_agentic_algo/20260526_040701_v105_d005_step7_8_timefix/02_submission_score_v105.
 Use v115 for high-score trajectory/teacher exploration; use v105/official_clean for online-agent compliance work.
 ```

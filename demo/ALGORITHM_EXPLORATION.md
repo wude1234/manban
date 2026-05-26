@@ -2712,3 +2712,55 @@ wider candidate limits and alternative sort keys. Also probe "last positive
 take" replacements for every driver because the no-suffix-risk property makes
 these cheaper and more reliable than mid-chain splices.
 ```
+
+## v157: D007 Prefix63 Short-Tail Replanning Raises Artifact To 376220.74
+
+### Result
+
+```text
+artifact = results/hybrid_submission/v157_d007_p63_tail
+score = 376220.74
+penalty = 76315
+tokens = 0
+failed_driver_count = 0
+```
+
+Winning replacement:
+
+```text
+tool = demo/oracle_route_miner.py
+source = results/hybrid_submission/v154_d007_step120_splice/actions_202603_D007_splice.jsonl
+seed_prefix_orders = 63
+D007 replacement tail = 201636 -> 202277 -> 488028 -> 210030
+v154 D007 = 32889.22 net, 44550.50 gross, 7774.19 km, 0 penalty
+v157 D007 = 33590.83 net, 45592.45 gross, 8001.08 km, 0 penalty
+D007 delta = +701.61
+```
+
+Controls:
+
+```text
+D007 prefix65 one-order tail reproduced v154 at 32889.22.
+D007 prefix64 two-order tail topped out at 32934.94, positive but far below p63.
+D007 single-step splice after rebasing found step116 cargo199213 at 33006.76,
+also positive but far below p63 short-tail replanning.
+```
+
+Discovery:
+
+```text
+The highest-yield new search paradigm is not full-month re-mining or single
+last-order replacement. It is short-tail release: keep the validated trajectory
+until the last safe branch point, then search a compact multi-order suffix.
+D007 is especially suitable because its hard preferences can remain at zero
+penalty while adding a 67th order in the final two days.
+```
+
+Next search:
+
+```text
+Continue D007 prefix61/prefix62/prefix63 variants with wider diversity and
+different NPH/gross/distance weights. Then apply the same short-tail release
+idea to D006/D010 and any driver whose final 2-5 orders occur before the
+horizon with room for one extra legal order.
+```

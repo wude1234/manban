@@ -5,18 +5,18 @@
 当前保留两类结果：在线 agent/profile 结果和高收益轨迹 artifact。
 
 ```text
-v154_d007_step120_splice_oracle_trajectory
+v157_d007_p63_tail_oracle_trajectory
 用途：当前本地最高分 step+summary artifact，用于高收益优先冲分/轨迹提交讨论。
-特点：在 v151 基础上，对 D007 月末最后一单 step120 做单点 cargo splice，将 `207995` 替换为 `484386`，保持 D007 零偏好罚分并提高月末净收益；同时保留 v151 的 D006 step60 `205313 -> 485412` 距离节省替换。D001/D002/D004 使用 prefix30 小幅尾链替换；D008 使用 prefix30 少单降罚分尾链；D010 使用 prefix58 低距离低罚分尾链二次优化；D003/D005 保留当前最优；D009 使用 prefix20 soft high-gross route 后保留全部订单并追加 month-end home/wait closure。
+特点：在 v154 基础上，保留 D007 前 63 单并重规划最后 4 单尾链，形成 `201636 -> 202277 -> 488028 -> 210030`，保持 D007 零偏好罚分并显著提高月末净收益；同时保留 v151 的 D006 step60 `205313 -> 485412` 距离节省替换。D001/D002/D004 使用 prefix30 小幅尾链替换；D008 使用 prefix30 少单降罚分尾链；D010 使用 prefix58 低距离低罚分尾链二次优化；D003/D005 保留当前最优；D009 使用 prefix20 soft high-gross route 后保留全部订单并追加 month-end home/wait closure。
 注意：D001/D002/D003/D004/D005/D006/D008/D009 轨迹来自全量货源 oracle/tail mining。这是高收益轨迹 artifact，不是 official_clean 在线 agent 决策。
 复现：demo/build_hybrid_submission_result.py
-score = 375519.13
+score = 376220.74
 total_preference_penalty = 76315.0
 failed_driver_count = 0
 tokens = 0
-result_dir = demo/results/hybrid_submission/v154_d007_step120_splice
-summary = demo/results/hybrid_submission/v154_d007_step120_splice/monthly_income_202603.json
-steps = demo/results/hybrid_submission/v154_d007_step120_splice/actions_202603_D*.jsonl
+result_dir = demo/results/hybrid_submission/v157_d007_p63_tail
+summary = demo/results/hybrid_submission/v157_d007_p63_tail/monthly_income_202603.json
+steps = demo/results/hybrid_submission/v157_d007_p63_tail/actions_202603_D*.jsonl
 ```
 
 在线 agent/profile 当前保留以下 profile：
