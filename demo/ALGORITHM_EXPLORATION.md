@@ -2548,3 +2548,60 @@ Continue around D010 p57/p58 with explicit low-distance and rest-aware scoring.
 For other drivers, look for similar "lower gross but fewer penalty days" swaps
 instead of pure max-gross tail mining.
 ```
+
+## v143: D010 P58 Low-Distance Search Raises Artifact To 375294.77
+
+### Result
+
+```text
+artifact = results/hybrid_submission/v143_d010_p58_lowdist
+score = 375294.77
+penalty = 76315
+tokens = 0
+failed_driver_count = 0
+```
+
+Winning replacement:
+
+```text
+D010 = results/oracle_route_miner/v143_d010_p58_lowdist/candidate_01
+v142 D010 = 34514.53 net, 51883.72 gross, 10536.13 km, 1565 penalty
+v143 D010 = 34744.56 net, 52098.01 gross, 10525.63 km, 1565 penalty
+D010 delta = +230.03
+```
+
+Controls:
+
+```text
+D010 p58 strictdist found 63-order higher-gross candidates, but they paid 1865
+penalty and topped out at 34666.00, below the 62-order lowdist route.
+D010 p57 lowdist topped out at 34357.99, below current.
+D008 p29 low-distance/penalty search reproduced the v140/v142 route exactly:
+38880.91 net, 10300 penalty.
+D005 p30 low-distance/penalty search reproduced the v127/v142 route exactly:
+39658.84 net, 9900 penalty.
+```
+
+Discovery:
+
+```text
+D010 p58 is still the most valuable active seam. The best tail is not the
+highest-order-count route and not simply the lowest distance route; it is a
+62-order chain that keeps the 1565 penalty while improving both gross and
+distance:
+193800 -> 201349 -> 206199 -> 210030.
+
+The useful search pressure is "low-distance under fixed penalty cap". Once a
+candidate crosses into the 1865 penalty bucket, the extra gross must exceed
+about 300 plus distance cost, and the current 63-order candidates do not.
+```
+
+Next search:
+
+```text
+Keep prioritizing high-score artifact mining over generalization. Search D010
+p58 around cargo-chain perturbations, especially alternatives after 201349 that
+stay in the 1565 penalty bucket. In parallel, try a more radical release-point
+grid for low-scoring/high-penalty drivers, but treat D008 and D005 p29/p30 as
+locally saturated unless a different prefix family is used.
+```
