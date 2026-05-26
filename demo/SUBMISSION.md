@@ -5,18 +5,18 @@
 当前保留两类结果：在线 agent/profile 结果和高收益轨迹 artifact。
 
 ```text
-v141_tail_release_oracle_trajectory
+v142_tail_release_oracle_trajectory
 用途：当前本地最高分 step+summary artifact，用于高收益优先冲分/轨迹提交讨论。
-特点：D001/D002/D004 使用 prefix30 小幅尾链替换；D008 使用 prefix30 少单降罚分尾链；D006 使用 prefix42 低罚分尾链；D010 使用 prefix58 高毛利尾链；D003/D005 保留当前最优；D009 使用 prefix20 soft high-gross route 后保留全部订单并追加 month-end home/wait closure。
+特点：D001/D002/D004 使用 prefix30 小幅尾链替换；D008 使用 prefix30 少单降罚分尾链；D006 使用 prefix42 低罚分尾链；D010 使用 prefix58 低距离低罚分尾链；D003/D005 保留当前最优；D009 使用 prefix20 soft high-gross route 后保留全部订单并追加 month-end home/wait closure。
 注意：D001/D002/D003/D004/D005/D006/D008/D009 轨迹来自全量货源 oracle/tail mining。这是高收益轨迹 artifact，不是 official_clean 在线 agent 决策。
 复现：demo/build_hybrid_submission_result.py
-score = 374834.75
-total_preference_penalty = 76615.0
+score = 375064.74
+total_preference_penalty = 76315.0
 failed_driver_count = 0
 tokens = 0
-result_dir = demo/results/hybrid_submission/v141_v140_plus_d006_d010_tail
-summary = demo/results/hybrid_submission/v141_v140_plus_d006_d010_tail/monthly_income_202603.json
-steps = demo/results/hybrid_submission/v141_v140_plus_d006_d010_tail/actions_202603_D*.jsonl
+result_dir = demo/results/hybrid_submission/v142_v141_plus_d010_p58_ultrawide
+summary = demo/results/hybrid_submission/v142_v141_plus_d010_p58_ultrawide/monthly_income_202603.json
+steps = demo/results/hybrid_submission/v142_v141_plus_d010_p58_ultrawide/actions_202603_D*.jsonl
 ```
 
 在线 agent/profile 当前保留以下 profile：
@@ -143,6 +143,16 @@ D010 使用 results/oracle_route_miner/v141_d010_p58_taildeep/candidate_06，净
 ```
 
 v141 的关键启发是：D010 的剩余收益不在最后 1-2 单，而在 3 月 29 日凌晨以后整段尾链；p58 的 `194807 -> 484227 -> 484175 -> 489094` 比旧尾链多出 600+ gross，能覆盖新增距离成本。D006 的收益则来自少 200 休息罚分，属于低幅但可叠加的偏好修复。
+
+v142 相比 v141 的新增有效轨迹：
+
+```text
+D010 使用 results/oracle_route_miner/v142_d010_p58_ultrawide/candidate_33，净收益从 34284.54 提升到 34514.53，+229.99；gross 从 52304.33 降到 51883.72，但 distance 从 10769.86 降到 10536.13，休息罚分从 1800 降到 1500，总偏好罚分从 1865 降到 1565。
+
+完整总分从 v141 的 374834.75 提升到 375064.74，总偏好罚分从 76615 降到 76315。
+```
+
+v142 的关键启发是：D010 的最优尾链不是最大 gross，而是 `193800 -> 201349 -> 204262 -> 211858` 这种更短、更低罚分的路线。它牺牲约 420 gross，但省 233.73km 距离成本和 300 罚分，净收益更高。
 
 v132 相比 v129 的新增有效轨迹：
 

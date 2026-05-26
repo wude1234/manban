@@ -2500,3 +2500,51 @@ Next search:
 Focus D010 p56/p57/p58 with wider candidate coverage and exact scoring. Also
 probe D006 p41/p42 for more low-penalty replacements, but expect small gains.
 ```
+
+## v142: D010 Low-Penalty P58 Tail Raises Artifact Above 375k
+
+### Result
+
+```text
+artifact = results/hybrid_submission/v142_v141_plus_d010_p58_ultrawide
+score = 375064.74
+penalty = 76315
+tokens = 0
+failed_driver_count = 0
+```
+
+Winning replacement:
+
+```text
+D010 = results/oracle_route_miner/v142_d010_p58_ultrawide/candidate_33
+v141 D010 = 34284.54 net, 52304.33 gross, 10769.86 km, 1865 penalty
+v142 D010 = 34514.53 net, 51883.72 gross, 10536.13 km, 1565 penalty
+D010 delta = +229.99
+```
+
+Controls:
+
+```text
+D010 p56 ultrawide was negative.
+D010 p57 ultrawide reached 34324.50, positive but below p58.
+D010 p58 highnph reached 34433.03, positive but below low-distance p58.
+D006 p41/p42 lowpenalty reproduced v141 and found no new gain.
+```
+
+Discovery:
+
+```text
+D010 is now a penalty-distance tradeoff problem. The route with the highest
+gross is not best. The winning p58 route
+193800 -> 201349 -> 204262 -> 211858
+has lower gross than v141, but saves 233.73 km and one 300-point daily-rest
+violation, so exact net rises by 229.99.
+```
+
+Next search:
+
+```text
+Continue around D010 p57/p58 with explicit low-distance and rest-aware scoring.
+For other drivers, look for similar "lower gross but fewer penalty days" swaps
+instead of pure max-gross tail mining.
+```
