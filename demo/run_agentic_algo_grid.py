@@ -3628,6 +3628,75 @@ def _submission_profile_env(profile: str) -> dict[str, str]:
     }
 
 
+def _official_clean_plus_env() -> dict[str, str]:
+    return _submission_profile_env("official_clean_plus")
+
+
+def _official_distilled_value_env() -> dict[str, str]:
+    return _submission_profile_env("official_distilled_value")
+
+
+def _official_clean_flash_env(*, observe_only: bool = False) -> dict[str, str]:
+    env = _submission_profile_env("official_clean")
+    env.update(
+        {
+            "AGENT_STRATEGY": "llm_rerank_agent",
+            "AGENT_LLM_RERANK_BASE_STRATEGY": "new_release_agentic_planner_agent",
+            "AGENT_LLM_MODEL": "qwen3.5-flash",
+            "AGENT_LLM_RERANK_DRIVERS": "D003,D008,D010",
+            "AGENT_LLM_RERANK_TOP_K": "3",
+            "AGENT_LLM_RERANK_NEAR_TIE_ONLY": "1",
+            "AGENT_LLM_RERANK_MAX_SCORE_GAP": "6",
+            "AGENT_LLM_RERANK_ON_CONFLICT": "1",
+            "AGENT_LLM_CONFLICT_MAX_SCORE_DROP": "8",
+            "AGENT_LLM_CONFLICT_MIN_RISK_GAIN": "120",
+            "AGENT_LLM_CONFLICT_MIN_ROUTE_GAIN": "35",
+            "AGENT_LLM_MAX_SCORE_DROP": "6",
+            "AGENT_LLM_MAX_NET_DROP": "60",
+            "AGENT_LLM_MIN_SCORE_IMPROVEMENT": "-4",
+            "AGENT_LLM_MIN_NET_IMPROVEMENT": "-40",
+            "AGENT_LLM_SKILL_CRITIC": "1",
+            "AGENT_LLM_SKILL_CRITIC_ALLOW_KEEP_SWITCH": "1",
+            "AGENT_LLM_SKILL_CRITIC_REJECT_RISKS": "deadline,unknown",
+            "AGENT_LLM_MAX_TOKENS": "96",
+            "AGENT_LLM_TEMPERATURE": "0",
+            "AGENT_LLM_ENABLE_THINKING": "0",
+            "AGENT_LLM_OBSERVE_ONLY": "1" if observe_only else "0",
+        }
+    )
+    return env
+
+
+def _official_clean_plus_flash_env() -> dict[str, str]:
+    env = _official_clean_plus_env()
+    env.update(
+        {
+            "AGENT_STRATEGY": "llm_rerank_agent",
+            "AGENT_LLM_RERANK_BASE_STRATEGY": "new_release_agentic_planner_agent",
+            "AGENT_LLM_MODEL": "qwen3.5-flash",
+            "AGENT_LLM_RERANK_DRIVERS": "D003,D004,D008,D009,D010",
+            "AGENT_LLM_RERANK_TOP_K": "3",
+            "AGENT_LLM_RERANK_NEAR_TIE_ONLY": "1",
+            "AGENT_LLM_RERANK_MAX_SCORE_GAP": "10",
+            "AGENT_LLM_RERANK_ON_CONFLICT": "1",
+            "AGENT_LLM_CONFLICT_MAX_SCORE_DROP": "16",
+            "AGENT_LLM_CONFLICT_MIN_RISK_GAIN": "100",
+            "AGENT_LLM_CONFLICT_MIN_ROUTE_GAIN": "28",
+            "AGENT_LLM_MAX_SCORE_DROP": "8",
+            "AGENT_LLM_MAX_NET_DROP": "80",
+            "AGENT_LLM_MIN_SCORE_IMPROVEMENT": "0",
+            "AGENT_LLM_MIN_NET_IMPROVEMENT": "0",
+            "AGENT_LLM_SKILL_CRITIC": "1",
+            "AGENT_LLM_SKILL_CRITIC_ALLOW_KEEP_SWITCH": "1",
+            "AGENT_LLM_SKILL_CRITIC_REJECT_RISKS": "deadline,unknown",
+            "AGENT_LLM_MAX_TOKENS": "96",
+            "AGENT_LLM_TEMPERATURE": "0",
+            "AGENT_LLM_ENABLE_THINKING": "0",
+        }
+    )
+    return env
+
+
 def _v82_v77_layered_env(
     *,
     route_weight: str = "0.010",
@@ -5184,6 +5253,11 @@ PRESETS.update(
         "submission_score_v104": _submission_profile_env("score_v104"),
         "submission_score_v105": _submission_profile_env("score_v105"),
         "submission_official_clean": _submission_profile_env("official_clean"),
+        "submission_official_clean_flash_observe": _official_clean_flash_env(observe_only=True),
+        "submission_official_clean_flash": _official_clean_flash_env(),
+        "submission_official_clean_plus": _official_clean_plus_env(),
+        "submission_official_clean_plus_flash": _official_clean_plus_flash_env(),
+        "submission_official_distilled_value": _official_distilled_value_env(),
         # v82: re-test true agentic state-value modules on the v77 best route.
         # These presets add no new fixed teacher labels; they only change the
         # online scoring layer, so gains here are algorithmic rather than trace

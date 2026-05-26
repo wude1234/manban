@@ -58,6 +58,7 @@ class NewReleaseAgenticPlannerAgent(NewReleaseHybridValueAgent):
         self._d010_recovery_gate_by_driver: dict[str, dict[str, Any]] = {}
         self._state_value_gate_by_driver: dict[str, dict[str, Any]] = {}
         self._idle_trap_gate_by_driver: dict[str, dict[str, Any]] = {}
+        self._distilled_online_value_by_driver: dict[str, dict[str, Any]] = {}
         self._agent_layers = AgentLayerState()
 
     def pre_action(
@@ -75,6 +76,7 @@ class NewReleaseAgenticPlannerAgent(NewReleaseHybridValueAgent):
         _prepare_high_net_tie_state(status, viable, self)
         self._prepare_state_value_gate_state(status, viable)
         self._prepare_idle_trap_gate_state(status, viable)
+        self._prepare_distilled_online_value_state(status, viable)
 
         action = _counterfactual_cargo_switch_action(status, viable)
         if action is not None:
@@ -141,6 +143,7 @@ class NewReleaseAgenticPlannerAgent(NewReleaseHybridValueAgent):
         base += self._d010_recovery_gate_bonus(feature, status)
         base += self._state_value_gate_bonus(feature, status)
         base += self._idle_trap_gate_bonus(feature, status)
+        base += self._distilled_online_value_bonus(feature, status)
         base += self._layered_agent_bonus(feature, status)
         return base
 
@@ -629,6 +632,115 @@ class NewReleaseAgenticPlannerAgent(NewReleaseHybridValueAgent):
             "action": "wait",
             "params": {"duration_minutes": _env_int("AGENT_AP_IDLE_TRAP_WAIT_MINUTES", 180)},
         }
+
+    def _prepare_distilled_online_value_state(self, status: dict[str, Any], viable: list[dict[str, Any]]) -> None:
+        driver_id = _driver_id(status)
+        if not _env_bool("AGENT_AP_ENABLE_DISTILLED_ONLINE_VALUE", False):
+            self._distilled_online_value_by_driver.pop(driver_id, None)
+            return
+        if driver_id not in _env_str_set("AGENT_AP_DISTILLED_ONLINE_VALUE_DRIVERS", "D003,D008,D010"):
+            self._distilled_online_value_by_driver.pop(driver_id, None)
+            return
+
+        memory = self._agent_layers.memory_for(driver_id)
+        rows: list[dict[str, Any]] = []
+        for item in viable:
+            if not self.is_selectable(item, status):
+                continue
+            route = route_plan_features(item, status, viable)
+            latent = _latent_market_state(item, route, status)
+            pref_risk = preference_risk_delta(item, status, memory.compiled_preference)
+            base_score = self._score_without_rollout(item, status)
+            value = _distilled_online_value(item, route, latent, pref_risk, status)
+            rows.append(
+                {
+                    "cargo_id": str(item.get("cargo_id", "")),
+                    "base_score": base_score,
+                    "value": value,
+                    "route_value": float(route.get("destination_opportunity_value", 0.0)),
+                    "pref_risk": pref_risk,
+                    "latent_market": float(latent.get("market_value", 0.0)),
+                    "isolation_risk": float(latent.get("isolation_risk", 0.0)),
+                }
+            )
+
+        rows.sort(key=lambda item: float(item["base_score"]), reverse=True)
+        top_k = max(2, _env_int("AGENT_AP_DISTILLED_ONLINE_VALUE_TOP_K", 5))
+        rows = rows[:top_k]
+        if len(rows) < 2:
+            self._distilled_online_value_by_driver.pop(driver_id, None)
+            return
+
+        best = rows[0]
+        score_gap = float(best["base_score"]) - float(rows[1]["base_score"])
+        max_gap = _env_float("AGENT_AP_DISTILLED_ONLINE_VALUE_MAX_GAP", 3.0)
+        max_drop = _env_float("AGENT_AP_DISTILLED_ONLINE_VALUE_MAX_BASE_DROP", 8.0)
+        min_value_delta = _env_float("AGENT_AP_DISTILLED_ONLINE_VALUE_MIN_DELTA", 28.0)
+        score_drop_cost = _env_float("AGENT_AP_DISTILLED_ONLINE_VALUE_SCORE_DROP_COST", 1.8)
+        reference_value = float(best["value"])
+
+        eligible: dict[str, float] = {}
+        values: dict[str, dict[str, float]] = {}
+        for item in rows:
+            cargo_id = str(item["cargo_id"])
+            score_drop = max(0.0, float(best["base_score"]) - float(item["base_score"]))
+            value_delta = float(item["value"]) - reference_value
+            raw = value_delta - score_drop_cost * score_drop
+            values[cargo_id] = {
+                "base_score": round(float(item["base_score"]), 4),
+                "distilled_online_value": round(float(item["value"]), 4),
+                "value_delta_vs_rule": round(value_delta, 4),
+                "score_drop_vs_rule": round(score_drop, 4),
+                "route_value": round(float(item["route_value"]), 4),
+                "preference_risk_delta": round(float(item["pref_risk"]), 4),
+                "latent_market_value": round(float(item["latent_market"]), 4),
+                "latent_isolation_risk": round(float(item["isolation_risk"]), 4),
+            }
+            if cargo_id == str(best["cargo_id"]):
+                eligible[cargo_id] = 0.0
+                continue
+            if score_drop > max_drop:
+                continue
+            if score_gap > max_gap and value_delta < min_value_delta:
+                continue
+            if raw <= 0.0:
+                continue
+            eligible[cargo_id] = raw
+
+        if len(eligible) <= 1:
+            self._distilled_online_value_by_driver.pop(driver_id, None)
+            return
+
+        self._distilled_online_value_by_driver[driver_id] = {
+            "best_cargo_id": str(best["cargo_id"]),
+            "score_gap": score_gap,
+            "eligible": eligible,
+            "values": values,
+        }
+
+    def _distilled_online_value_bonus(self, feature: dict[str, Any], status: dict[str, Any]) -> float:
+        driver_id = _driver_id(status)
+        state = self._distilled_online_value_by_driver.get(driver_id)
+        if not state:
+            return 0.0
+        values = state.get("values")
+        cargo_id = str(feature.get("cargo_id", ""))
+        if isinstance(values, dict) and isinstance(values.get(cargo_id), dict):
+            for key, value in values[cargo_id].items():
+                feature[key] = value
+        eligible = state.get("eligible")
+        if not isinstance(eligible, dict) or cargo_id not in eligible:
+            return 0.0
+        raw = max(0.0, float(eligible.get(cargo_id, 0.0)))
+        weight = _env_float(
+            f"AGENT_AP_{driver_id}_DISTILLED_ONLINE_VALUE_WEIGHT",
+            _env_float("AGENT_AP_DISTILLED_ONLINE_VALUE_WEIGHT", 0.020),
+        )
+        cap = _env_float(
+            f"AGENT_AP_{driver_id}_DISTILLED_ONLINE_VALUE_BONUS_CAP",
+            _env_float("AGENT_AP_DISTILLED_ONLINE_VALUE_BONUS_CAP", 4.0),
+        )
+        return max(0.0, min(cap, raw * weight))
 
     def _visible_chain_bonus(self, feature: dict[str, Any], status: dict[str, Any]) -> float:
         driver_id = _driver_id(status)
@@ -3974,6 +4086,109 @@ def _after_state_value(
         # Prefer stable after-states over short local hops when the month still
         # has enough time for a chain to unfold.
         value += 0.06 * float(feature.get("haul_km", 0.0)) * min(1.0, remaining_days / 8.0)
+    return round(value, 2)
+
+
+def _distilled_online_value(
+    feature: dict[str, Any],
+    route: dict[str, Any],
+    latent: dict[str, float],
+    preference_risk: float,
+    status: dict[str, Any],
+) -> float:
+    """Oracle-derived state value using only legal online observations.
+
+    Offline high-score routes repeatedly favored orders that kept the driver in
+    a reusable after-state: good unit-time revenue, dense visible successors,
+    low pickup waste, moderate preference risk, and a clean month-end closure.
+    This function encodes those patterns without using fixed step/cargo labels
+    or future cargo tables.
+    """
+
+    current = int(status.get("simulation_progress_minutes", 0) or 0)
+    finish = int(feature.get("finish_minutes", current) or current)
+    remaining_days = max(0.0, (31 * 1440 - finish) / 1440.0)
+    day = finish // 1440 + 1
+    finish_minute = finish % 1440
+    driver_id = _driver_id(status)
+
+    net = max(0.0, float(feature.get("estimated_net", 0.0) or 0.0))
+    nph = max(0.0, float(feature.get("net_per_hour", 0.0) or 0.0))
+    pickup = max(0.0, float(feature.get("pickup_km", 0.0) or 0.0))
+    haul = max(0.0, float(feature.get("haul_km", 0.0) or 0.0))
+    wait = max(0.0, float(feature.get("wait_minutes", 0.0) or 0.0))
+    total_minutes = max(1.0, float(feature.get("total_exec_minutes", 1.0) or 1.0))
+    reachable = max(0.0, float(route.get("reachable_successors", 0.0) or 0.0))
+    successor_nph = max(0.0, float(route.get("best_successor_nph", 0.0) or 0.0))
+    successor_pickup = max(0.0, float(route.get("best_successor_pickup_minutes", 0.0) or 0.0))
+    market = max(0.0, float(latent.get("market_value", 0.0) or 0.0))
+    isolation = max(0.0, float(latent.get("isolation_risk", 0.0) or 0.0))
+    city_value = _latent_city_value(str(feature.get("end_city", "") or ""))
+
+    value = 0.16 * net + 0.95 * nph
+    value += 3.2 * min(8.0, reachable)
+    value += 0.22 * successor_nph
+    value += 0.055 * market * min(1.0, remaining_days / 7.0)
+    value += 22.0 * city_value * min(1.0, remaining_days / 5.0)
+    value -= 0.28 * pickup
+    value -= 0.030 * wait
+    value -= 0.018 * max(0.0, total_minutes - 420.0)
+    value -= 0.18 * isolation
+    value -= 0.030 * max(0.0, preference_risk)
+
+    if reachable <= 1.0 and city_value < 0.25:
+        value -= 16.0
+    if successor_pickup > 120.0:
+        value -= min(18.0, 0.08 * (successor_pickup - 120.0))
+    if pickup > haul and haul < 120.0:
+        value -= min(18.0, 0.10 * (pickup - haul))
+    if 7 * 60 <= finish_minute <= 20 * 60:
+        value += 4.0 * city_value
+    if finish_minute >= 22 * 60 or finish_minute <= 5 * 60:
+        value -= 6.0 * max(0.0, 1.0 - city_value)
+
+    # Month-end oracle routes gained by avoiding stranded endpoints, not by
+    # blindly chasing gross.  Penalize hard-to-close tail states after day 27.
+    if day >= 27:
+        value -= 0.070 * pickup
+        value -= 0.070 * max(0.0, total_minutes - 360.0)
+        if reachable <= 1.0:
+            value -= 18.0
+        if city_value >= 0.55 and finish_minute <= 21 * 60:
+            value += 8.0
+
+    if driver_id == "D003":
+        # Once D003 has paid most deadhead cost, high gross can be worth some
+        # extra movement, but only when after-state is not isolated.
+        value += 0.025 * net
+        if reachable <= 0.0 and city_value < 0.25:
+            value -= 22.0
+    elif driver_id == "D008":
+        # D008 oracle wins often came from chainable mid/long moves and avoiding
+        # low-value idle traps near the month end.
+        value += 0.035 * min(360.0, haul) * min(1.0, remaining_days / 9.0)
+        if day >= 24 and reachable <= 1.0:
+            value -= 24.0
+    elif driver_id == "D010":
+        target_dist = min(
+            haversine_km(float(feature.get("end_lat", 0.0) or 0.0), float(feature.get("end_lng", 0.0) or 0.0), D010_HOME[0], D010_HOME[1]),
+            haversine_km(float(feature.get("end_lat", 0.0) or 0.0), float(feature.get("end_lng", 0.0) or 0.0), D010_TARGET[0], D010_TARGET[1]),
+        )
+        value -= min(35.0, 0.10 * target_dist)
+        if _interval_overlaps_daily_window(current, finish, 21, 6):
+            value -= 16.0
+    elif driver_id == "D009":
+        home_dist = haversine_km(
+            float(feature.get("end_lat", 0.0) or 0.0),
+            float(feature.get("end_lng", 0.0) or 0.0),
+            D009_HOME[0],
+            D009_HOME[1],
+        )
+        if finish_minute >= 17 * 60:
+            value -= min(32.0, 0.18 * home_dist)
+        if _d009_can_finish_and_get_home(feature, status, margin_minutes=20):
+            value += 10.0
+
     return round(value, 2)
 
 

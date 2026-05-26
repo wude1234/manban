@@ -19,6 +19,10 @@ LEGACY_V101_SCORE_PROFILE = "score_v101_high_yield_teacher_316057"
 LEGACY_V98_SCORE_PROFILE = "score_v98_root_idle_trap_teacher_315688"
 LEGACY_SCORE_PROFILE = "score_v94_d001_step103_teacher_315167"
 OFFICIAL_CLEAN_PROFILE = "official_clean_agentic_planner"
+OFFICIAL_CLEAN_FLASH_PROFILE = "official_clean_flash_agentic_planner"
+OFFICIAL_CLEAN_FLASH_OBSERVE_PROFILE = "official_clean_flash_observe_agentic_planner"
+OFFICIAL_CLEAN_PLUS_PROFILE = "official_clean_plus_agentic_planner"
+OFFICIAL_DISTILLED_VALUE_PROFILE = "official_distilled_value_agentic_planner"
 SUBMISSION_PROFILE = os.getenv("AGENT_SUBMISSION_PROFILE", SCORE_PROFILE).strip() or SCORE_PROFILE
 
 
@@ -308,6 +312,183 @@ _SCORE_TEACHER_DEFAULTS: dict[str, str] = {
 }
 
 
+_OFFICIAL_CLEAN_PLUS_DEFAULTS: dict[str, str] = {
+    # Legal online-agent profile: no fixed step/cargo teachers, no oracle route
+    # table.  These knobs only use current status, current visible cargo,
+    # driver preferences, and in-session decision history.
+    "AGENT_SUBMISSION_PROFILE": OFFICIAL_CLEAN_PLUS_PROFILE,
+    "AGENT_AP_ENABLE_COUNTERFACTUAL_SWITCHES": "0",
+    "AGENT_AP_COUNTERFACTUAL_SWITCHES": "",
+    "AGENT_AP_ENABLE_DISTILLED_COUNTERFACTUAL_GATE": "0",
+    "AGENT_D003_NEAREST_CARGO_LIMIT": "420",
+    "AGENT_D008_NEAREST_CARGO_LIMIT": "420",
+    # Oracle analysis repeatedly showed that the winners are not always the
+    # best single-order NPH; reward visible follow-on opportunity and stable
+    # after-states as a controlled proxy for future value.
+    "AGENT_AP_ENABLE_VISIBLE_CHAIN_VALUE": "1",
+    "AGENT_AP_D001_CHAIN_WEIGHT": "1.05",
+    "AGENT_AP_D002_CHAIN_WEIGHT": "0.0",
+    "AGENT_AP_D003_CHAIN_WEIGHT": "0.04",
+    "AGENT_AP_D004_CHAIN_WEIGHT": "0.0",
+    "AGENT_AP_D005_CHAIN_WEIGHT": "0.0",
+    "AGENT_AP_D006_CHAIN_WEIGHT": "0.014",
+    "AGENT_AP_D007_CHAIN_WEIGHT": "0.10",
+    "AGENT_AP_D008_CHAIN_WEIGHT": "0.04",
+    "AGENT_AP_D009_CHAIN_WEIGHT": "0.0",
+    "AGENT_AP_D010_CHAIN_WEIGHT": "0.10",
+    "AGENT_AP_ENABLE_LAYERED_AGENT_SCORER": "1",
+    "AGENT_AP_LAYER_ROUTE_WEIGHT": "0.004",
+    "AGENT_AP_LAYER_RISK_WEIGHT": "0.020",
+    "AGENT_AP_LAYER_BONUS_CAP": "6",
+    "AGENT_AP_ENABLE_UNIT_TIME_SCORER": "1",
+    "AGENT_AP_UNIT_TIME_DRIVERS": "D003,D008",
+    "AGENT_AP_UNIT_TIME_WEIGHT": "0.003",
+    "AGENT_AP_UNIT_TIME_SUCCESSOR_WEIGHT": "0.10",
+    "AGENT_AP_UNIT_TIME_DENSITY_WEIGHT": "0.8",
+    "AGENT_AP_UNIT_TIME_WAIT_COST": "0.035",
+    "AGENT_AP_UNIT_TIME_PICKUP_COST": "0.08",
+    "AGENT_AP_UNIT_TIME_LONG_ORDER_COST": "0.025",
+    "AGENT_AP_UNIT_TIME_MIN_NPH": "0",
+    "AGENT_AP_ENABLE_LATENT_MARKET_SCORER": "1",
+    "AGENT_AP_LATENT_MARKET_DRIVERS": "D003,D008",
+    "AGENT_AP_LATENT_MARKET_WEIGHT": "0.0015",
+    "AGENT_AP_LATENT_ISOLATION_WEIGHT": "0.0020",
+    "AGENT_AP_ENABLE_STATE_VALUE_GATE": "1",
+    "AGENT_AP_STATE_VALUE_DRIVERS": "D003,D008",
+    "AGENT_AP_STATE_VALUE_WEIGHT": "0.030",
+    "AGENT_AP_STATE_VALUE_MAX_GAP": "0.8",
+    "AGENT_AP_STATE_VALUE_CONFLICT_MAX_GAP": "3.0",
+    "AGENT_AP_STATE_VALUE_VISIBLE_GAP": "35",
+    "AGENT_AP_STATE_VALUE_STATE_GAP": "20",
+    "AGENT_AP_STATE_VALUE_TOP_K": "6",
+    "AGENT_AP_STATE_VALUE_SCORE_DROP_COST": "0.22",
+    "AGENT_AP_STATE_VALUE_BONUS_CAP": "6",
+    "AGENT_AP_ENABLE_GATED_ROLLOUT": "1",
+    "AGENT_AP_GATED_ROLLOUT_DRIVERS": "D003,D008",
+    "AGENT_AP_GATED_ROLLOUT_MAX_GAP": "6",
+    "AGENT_AP_GATED_ROLLOUT_TOP_K": "2",
+    "AGENT_AP_GATED_ROLLOUT_MAX_BASE_DROP": "35",
+    "AGENT_AP_GATED_ROLLOUT_BONUS_CAP": "6",
+    "AGENT_AP_ROLLOUT_TOP_N": "2",
+    "AGENT_AP_ROLLOUT_SUCCESSOR_MAX_PICKUP_MINUTES": "180",
+    "AGENT_AP_ROLLOUT_SUCCESSOR_MAX_WAIT_MINUTES": "180",
+    "AGENT_AP_ROLLOUT_NEXT_NET_WEIGHT": "0.045",
+    "AGENT_AP_ROLLOUT_NEXT_NPH_WEIGHT": "0.45",
+    "AGENT_AP_ROLLOUT_AVG_NEXT_WEIGHT": "0.35",
+    "AGENT_AP_ENABLE_IDLE_TRAP_GATE": "1",
+    "AGENT_AP_IDLE_TRAP_DRIVERS": "D008",
+    "AGENT_AP_IDLE_TRAP_WEIGHT": "0.05",
+    "AGENT_AP_IDLE_TRAP_BONUS_CAP": "8",
+    "AGENT_AP_IDLE_TRAP_TOP_K": "5",
+    "AGENT_AP_IDLE_TRAP_MAX_SCORE_GAP": "55",
+    "AGENT_AP_IDLE_TRAP_MIN_AFTER_GAP": "14",
+    "AGENT_AP_IDLE_TRAP_MIN_RISK_GAP": "35",
+    "AGENT_AP_IDLE_TRAP_SCORE_DROP_COST": "0.45",
+    "AGENT_AP_IDLE_TRAP_AFTER_RISK_WEIGHT": "0.25",
+    "AGENT_AP_IDLE_TRAP_MIN_BEST_RISK": "35",
+    # D003/D008 oracle artifacts showed that paying capped or moderate penalties
+    # can be profitable.  Price them in the scorer instead of treating every
+    # soft preference as a hard rejection.
+    "AGENT_AP_D003_AFTER_CAP_NET_WEIGHT": "0.04",
+    "AGENT_AP_D003_AFTER_CAP_PICKUP_COST": "0.15",
+    "AGENT_D008_SCORE_NET_WEIGHT": "0.006",
+    "AGENT_AP_D008_STATE_VALUE_WEIGHT": "0.035",
+    # D009 high-score artifacts taught the same lesson: after the familiar
+    # cargo is protected, strict daily home can destroy gross.  This legal
+    # profile prices home risk online instead of using future route knowledge.
+    "AGENT_D009_RELAX_HOME_AFTER_TEMP": "0",
+    "AGENT_D009_SCORE_NET_WEIGHT": "0.0",
+    "AGENT_AP_D009_HOME_SLACK_WEIGHT": "0.0",
+    "AGENT_AP_ENABLE_D009_EVENING_STAY_HOME": "0",
+    # D010 remains preference-dominated; protect the family event and daily rest
+    # rather than chasing late gross.
+    "AGENT_AP_D010_FAMILY_PRE_QUERY": "1",
+    "AGENT_ENABLE_D010_REST_DEADLINE": "1",
+    "AGENT_AP_ENABLE_D010_RECOVERY_GATE": "0",
+    "AGENT_AP_D010_RECOVERY_START_MINUTE": "1200",
+    "AGENT_AP_D010_RECOVERY_END_MINUTE": "1439",
+    "AGENT_AP_D010_RECOVERY_TOP_K": "4",
+    "AGENT_AP_D010_RECOVERY_MAX_BASE_DROP": "90",
+    "AGENT_AP_D010_RECOVERY_BONUS": "32",
+    "AGENT_AP_D010_RECOVERY_BONUS_CAP": "55",
+    "AGENT_AP_ENABLE_D010_NIGHT_REST_PRESERVE": "0",
+    "AGENT_AP_D010_NIGHT_REST_BONUS": "28",
+    "AGENT_AP_D010_NIGHT_REST_RISK_COST": "40",
+    "AGENT_AP_ENABLE_ONLINE_DYNAMIC_REPOSITION": "1",
+    "AGENT_AP_DYNAMIC_REPOSITION_DRIVERS": "D001,D004,D006,D007,D010",
+    "AGENT_AP_DYNAMIC_REPOSITION_MIN_VALUE": "110",
+    "AGENT_AP_DYNAMIC_REPOSITION_MIN_GAIN": "24",
+    "AGENT_AP_DYNAMIC_REPOSITION_MAX_KM": "180",
+    "AGENT_AP_DYNAMIC_REPOSITION_CLUSTER_RADIUS_KM": "35",
+    "AGENT_AP_DYNAMIC_REPOSITION_TOP_K": "16",
+    "AGENT_AP_DYNAMIC_REPOSITION_MAX_MINUTE": "1260",
+    "AGENT_AP_DYNAMIC_REPOSITION_MIN_VIABLE": "10",
+}
+
+
+_OFFICIAL_CLEAN_FLASH_DEFAULTS: dict[str, str] = {
+    # Legal API agent profile.  The deterministic official-clean planner still
+    # generates the action; Qwen3.5-Flash only arbitrates among current visible
+    # top-k candidates under numeric guards.  It does not use fixed step labels,
+    # full-month cargo knowledge, or oracle trajectories.
+    "AGENT_SUBMISSION_PROFILE": OFFICIAL_CLEAN_FLASH_PROFILE,
+    "AGENT_STRATEGY": "llm_rerank_agent",
+    "AGENT_LLM_RERANK_BASE_STRATEGY": "new_release_agentic_planner_agent",
+    "AGENT_LLM_MODEL": "qwen3.5-flash",
+    "AGENT_LLM_RERANK_DRIVERS": "D003,D008,D010",
+    "AGENT_LLM_RERANK_TOP_K": "3",
+    "AGENT_LLM_RERANK_NEAR_TIE_ONLY": "1",
+    "AGENT_LLM_RERANK_MAX_SCORE_GAP": "6",
+    "AGENT_LLM_RERANK_ON_CONFLICT": "1",
+    "AGENT_LLM_CONFLICT_MAX_SCORE_DROP": "8",
+    "AGENT_LLM_CONFLICT_MIN_RISK_GAIN": "120",
+    "AGENT_LLM_CONFLICT_MIN_ROUTE_GAIN": "35",
+    "AGENT_LLM_MAX_SCORE_DROP": "6",
+    "AGENT_LLM_MAX_NET_DROP": "60",
+    "AGENT_LLM_MIN_SCORE_IMPROVEMENT": "-4",
+    "AGENT_LLM_MIN_NET_IMPROVEMENT": "-40",
+    "AGENT_LLM_SKILL_CRITIC": "1",
+    "AGENT_LLM_SKILL_CRITIC_ALLOW_KEEP_SWITCH": "1",
+    "AGENT_LLM_SKILL_CRITIC_REJECT_RISKS": "deadline,unknown",
+    "AGENT_LLM_MAX_TOKENS": "96",
+    "AGENT_LLM_TEMPERATURE": "0",
+    "AGENT_LLM_ENABLE_THINKING": "0",
+    "AGENT_LLM_OBSERVE_ONLY": "0",
+}
+
+
+_OFFICIAL_CLEAN_FLASH_OBSERVE_DEFAULTS: dict[str, str] = {
+    **_OFFICIAL_CLEAN_FLASH_DEFAULTS,
+    "AGENT_SUBMISSION_PROFILE": OFFICIAL_CLEAN_FLASH_OBSERVE_PROFILE,
+    "AGENT_LLM_OBSERVE_ONLY": "1",
+}
+
+
+_OFFICIAL_DISTILLED_VALUE_DEFAULTS: dict[str, str] = {
+    # Legal online distillation profile.  It uses the same action space and
+    # observations as official_clean, but adds a small gated value-function
+    # bonus distilled from oracle route analysis: current net + after-state
+    # market value - preference/closure risk.  No fixed step/cargo teachers.
+    "AGENT_SUBMISSION_PROFILE": OFFICIAL_DISTILLED_VALUE_PROFILE,
+    "AGENT_AP_ENABLE_COUNTERFACTUAL_SWITCHES": "0",
+    "AGENT_AP_COUNTERFACTUAL_SWITCHES": "",
+    "AGENT_AP_ENABLE_DISTILLED_COUNTERFACTUAL_GATE": "0",
+    "AGENT_AP_ENABLE_DISTILLED_ONLINE_VALUE": "1",
+    "AGENT_AP_DISTILLED_ONLINE_VALUE_DRIVERS": "D003,D008,D010",
+    "AGENT_AP_DISTILLED_ONLINE_VALUE_TOP_K": "5",
+    "AGENT_AP_DISTILLED_ONLINE_VALUE_MAX_GAP": "3",
+    "AGENT_AP_DISTILLED_ONLINE_VALUE_MAX_BASE_DROP": "8",
+    "AGENT_AP_DISTILLED_ONLINE_VALUE_MIN_DELTA": "28",
+    "AGENT_AP_DISTILLED_ONLINE_VALUE_SCORE_DROP_COST": "1.8",
+    "AGENT_AP_DISTILLED_ONLINE_VALUE_WEIGHT": "0.020",
+    "AGENT_AP_DISTILLED_ONLINE_VALUE_BONUS_CAP": "4",
+    "AGENT_AP_D008_DISTILLED_ONLINE_VALUE_WEIGHT": "0.026",
+    "AGENT_AP_D008_DISTILLED_ONLINE_VALUE_BONUS_CAP": "5",
+    "AGENT_AP_D010_DISTILLED_ONLINE_VALUE_WEIGHT": "0.016",
+    "AGENT_AP_D010_DISTILLED_ONLINE_VALUE_BONUS_CAP": "3",
+}
+
+
 _SCORE_V98_TEACHER_DEFAULTS: dict[str, str] = {
     **_SCORE_TEACHER_DEFAULTS,
     "AGENT_AP_ENABLE_DISTILLED_D001_STEP106_WAIT180": "1",
@@ -472,6 +653,29 @@ def _profile_defaults(profile: str) -> dict[str, str]:
         defaults.update(_SCORE_TEACHER_DEFAULTS)
     elif normalized in {"official", "official_clean", "clean", OFFICIAL_CLEAN_PROFILE.lower()}:
         defaults["AGENT_SUBMISSION_PROFILE"] = OFFICIAL_CLEAN_PROFILE
+    elif normalized in {
+        "official_clean_flash",
+        "clean_flash",
+        "flash_clean",
+        OFFICIAL_CLEAN_FLASH_PROFILE.lower(),
+    }:
+        defaults.update(_OFFICIAL_CLEAN_FLASH_DEFAULTS)
+    elif normalized in {
+        "official_clean_flash_observe",
+        "clean_flash_observe",
+        "flash_clean_observe",
+        OFFICIAL_CLEAN_FLASH_OBSERVE_PROFILE.lower(),
+    }:
+        defaults.update(_OFFICIAL_CLEAN_FLASH_OBSERVE_DEFAULTS)
+    elif normalized in {"official_clean_plus", "clean_plus", OFFICIAL_CLEAN_PLUS_PROFILE.lower()}:
+        defaults.update(_OFFICIAL_CLEAN_PLUS_DEFAULTS)
+    elif normalized in {
+        "official_distilled_value",
+        "distilled_value",
+        "clean_distilled_value",
+        OFFICIAL_DISTILLED_VALUE_PROFILE.lower(),
+    }:
+        defaults.update(_OFFICIAL_DISTILLED_VALUE_DEFAULTS)
     else:
         # Unknown profile names should still run the safer official-clean stack.
         defaults["AGENT_SUBMISSION_PROFILE"] = normalized or OFFICIAL_CLEAN_PROFILE
