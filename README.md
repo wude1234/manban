@@ -91,6 +91,29 @@ cd /path/to/demo_docs_release_20260509/demo
 DASHSCOPE_API_KEY="$DASHSCOPE_API_KEY" /home/zrr/anaconda3/envs/llava/bin/python run_agentic_algo_grid.py --python /home/zrr/anaconda3/envs/llava/bin/python --tag clean_flash_check --grid "submission_official_clean_flash"
 ```
 
+批量探索合法在线 value scorer：
+
+```bash
+cd /path/to/demo_docs_release_20260509
+JOBS=3 PYTHON_BIN=/home/zrr/anaconda3/envs/llava/bin/python demo/scripts/run_legal_value_batch.sh
+```
+
+这个脚本会批量跑：
+
+```text
+baseline: official_clean vs official_distilled_value
+single_tight: D003/D008/D010 单司机 tight gate
+pair_tight: 两两组合和 core tight
+single_ultratight: 更保守 gate
+single_light: 更放松 gate
+```
+
+日志在：
+
+```text
+demo/results/batch_logs/
+```
+
 ## 重要边界
 
 - `v169`、`v157`、`v154` 等 `hybrid_submission` artifact 是离线 oracle 结果，适合研究“最优路线为什么赢”。

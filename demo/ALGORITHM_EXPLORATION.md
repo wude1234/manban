@@ -50,6 +50,35 @@ full hybrid:
 4. 继续从 oracle result 中抽象状态规则，不再直接添加 step/cargo 固定 switch 到 official_clean。
 ```
 
+## 合法在线 value 批量探索脚本
+
+新增脚本：
+
+```text
+demo/scripts/run_legal_value_batch.sh
+```
+
+用途：
+
+```text
+批量验证 official_clean、official_distilled_value、D003/D008/D010 单司机 tight/ultratight/light gate，以及两两组合。
+目标不是追 oracle 轨迹，而是找“不使用未来信息时，哪些蒸馏 value gate 不伤 clean 且可能提升收益”。
+```
+
+运行：
+
+```bash
+cd /path/to/demo_docs_release_20260509
+JOBS=3 PYTHON_BIN=/home/zrr/anaconda3/envs/llava/bin/python demo/scripts/run_legal_value_batch.sh
+```
+
+结果：
+
+```text
+demo/results/grid_agentic_algo/*legal_value_batch*
+demo/results/batch_logs/*
+```
+
 ## v134 新发现：D009 存在高毛利覆盖回家罚分的窄缝，但需要 home repair
 
 v134 在 v132 基础上替换 D009 的 prefix20 soft high-gross tail route：

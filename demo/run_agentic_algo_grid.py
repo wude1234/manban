@@ -3636,6 +3636,39 @@ def _official_distilled_value_env() -> dict[str, str]:
     return _submission_profile_env("official_distilled_value")
 
 
+def _official_distilled_value_variant_env(
+    *,
+    drivers: str,
+    top_k: str = "4",
+    max_gap: str = "0.6",
+    max_drop: str = "3",
+    min_delta: str = "55",
+    score_drop_cost: str = "3.0",
+    weight: str = "0.008",
+    cap: str = "1.5",
+) -> dict[str, str]:
+    env = _official_distilled_value_env()
+    env.update(
+        {
+            "AGENT_AP_DISTILLED_ONLINE_VALUE_DRIVERS": drivers,
+            "AGENT_AP_DISTILLED_ONLINE_VALUE_TOP_K": top_k,
+            "AGENT_AP_DISTILLED_ONLINE_VALUE_MAX_GAP": max_gap,
+            "AGENT_AP_DISTILLED_ONLINE_VALUE_MAX_BASE_DROP": max_drop,
+            "AGENT_AP_DISTILLED_ONLINE_VALUE_MIN_DELTA": min_delta,
+            "AGENT_AP_DISTILLED_ONLINE_VALUE_SCORE_DROP_COST": score_drop_cost,
+            "AGENT_AP_DISTILLED_ONLINE_VALUE_WEIGHT": weight,
+            "AGENT_AP_DISTILLED_ONLINE_VALUE_BONUS_CAP": cap,
+            "AGENT_AP_D003_DISTILLED_ONLINE_VALUE_WEIGHT": weight,
+            "AGENT_AP_D003_DISTILLED_ONLINE_VALUE_BONUS_CAP": cap,
+            "AGENT_AP_D008_DISTILLED_ONLINE_VALUE_WEIGHT": weight,
+            "AGENT_AP_D008_DISTILLED_ONLINE_VALUE_BONUS_CAP": cap,
+            "AGENT_AP_D010_DISTILLED_ONLINE_VALUE_WEIGHT": weight,
+            "AGENT_AP_D010_DISTILLED_ONLINE_VALUE_BONUS_CAP": cap,
+        }
+    )
+    return env
+
+
 def _official_clean_flash_env(*, observe_only: bool = False) -> dict[str, str]:
     env = _submission_profile_env("official_clean")
     env.update(
@@ -5258,6 +5291,40 @@ PRESETS.update(
         "submission_official_clean_plus": _official_clean_plus_env(),
         "submission_official_clean_plus_flash": _official_clean_plus_flash_env(),
         "submission_official_distilled_value": _official_distilled_value_env(),
+        "legal_value_d003_tight": _official_distilled_value_variant_env(drivers="D003"),
+        "legal_value_d008_tight": _official_distilled_value_variant_env(drivers="D008"),
+        "legal_value_d010_tight": _official_distilled_value_variant_env(drivers="D010"),
+        "legal_value_d003d008_tight": _official_distilled_value_variant_env(drivers="D003,D008"),
+        "legal_value_d003d010_tight": _official_distilled_value_variant_env(drivers="D003,D010"),
+        "legal_value_d008d010_tight": _official_distilled_value_variant_env(drivers="D008,D010"),
+        "legal_value_core_tight": _official_distilled_value_variant_env(drivers="D003,D008,D010"),
+        "legal_value_d003_ultratight": _official_distilled_value_variant_env(
+            drivers="D003", max_gap="0.25", max_drop="1.5", min_delta="75", score_drop_cost="4.0", weight="0.004", cap="0.8"
+        ),
+        "legal_value_d008_ultratight": _official_distilled_value_variant_env(
+            drivers="D008", max_gap="0.25", max_drop="1.5", min_delta="75", score_drop_cost="4.0", weight="0.004", cap="0.8"
+        ),
+        "legal_value_d010_ultratight": _official_distilled_value_variant_env(
+            drivers="D010", max_gap="0.25", max_drop="1.5", min_delta="75", score_drop_cost="4.0", weight="0.004", cap="0.8"
+        ),
+        "legal_value_core_ultratight": _official_distilled_value_variant_env(
+            drivers="D003,D008,D010", max_gap="0.25", max_drop="1.5", min_delta="75", score_drop_cost="4.0", weight="0.004", cap="0.8"
+        ),
+        "legal_value_d003_light": _official_distilled_value_variant_env(
+            drivers="D003", top_k="5", max_gap="1.2", max_drop="5", min_delta="40", score_drop_cost="2.2", weight="0.012", cap="2.5"
+        ),
+        "legal_value_d008_light": _official_distilled_value_variant_env(
+            drivers="D008", top_k="5", max_gap="1.2", max_drop="5", min_delta="40", score_drop_cost="2.2", weight="0.012", cap="2.5"
+        ),
+        "legal_value_d010_light": _official_distilled_value_variant_env(
+            drivers="D010", top_k="5", max_gap="1.2", max_drop="5", min_delta="40", score_drop_cost="2.2", weight="0.012", cap="2.5"
+        ),
+        "legal_value_core_light": _official_distilled_value_variant_env(
+            drivers="D003,D008,D010", top_k="5", max_gap="1.2", max_drop="5", min_delta="40", score_drop_cost="2.2", weight="0.012", cap="2.5"
+        ),
+        "legal_value_d003d008_light": _official_distilled_value_variant_env(
+            drivers="D003,D008", top_k="5", max_gap="1.2", max_drop="5", min_delta="40", score_drop_cost="2.2", weight="0.012", cap="2.5"
+        ),
         # v82: re-test true agentic state-value modules on the v77 best route.
         # These presets add no new fixed teacher labels; they only change the
         # online scoring layer, so gains here are algorithmic rather than trace
