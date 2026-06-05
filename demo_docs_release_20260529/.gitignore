@@ -1,0 +1,24 @@
+# Python/cache artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local environments
+.env
+.venv/
+venv/
+
+# Local/private runtime config
+demo/server/config/config.json
+
+# Competition data and generated results should not be pushed to GitHub.
+demo/server/data/
+demo/results/
+
+# Logs and temporary outputs
+*.log
+logs/
+tmp/
+
