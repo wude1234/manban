@@ -41,15 +41,26 @@ pip install -r requirements.txt
 
 - 复制 `server/config/config.example.json` 为 `server/config/config.json`
 - 推荐使用环境变量 `DASHSCOPE_API_KEY`
+- 从官方赛题包准备数据文件到 `server/data/`：
+
+```text
+server/data/
+├── cargo_dataset.jsonl
+└── drivers.json
+```
+
+公开仓库默认不保存这两个原始数据文件。正式评测时也不需要选手提交数据，赛方会在评测环境提供对应数据。
 
 3) 运行仿真
 
 ```bash
 cd demo/server
-python main.py
+python main.py --simulation-days 1 --max-steps 8 --model-name qwen3.5-flash
 ```
 
 结果会写入 `demo/results/`（包括 `actions_*.jsonl`、`history/`、`run_summary_202603.json` 等）。
+
+完整 31 天仿真可去掉 `--simulation-days 1 --max-steps 8`。
 
 4) 计算收益
 
@@ -71,3 +82,4 @@ python calc_monthly_income.py
 
 - 不要把真实密钥写入仓库（`config.json` 建议本地维护）
 - 运行产物建议不入库（`demo/results/` 已在 `.gitignore` 中处理）
+- 原始数据建议不入库（`demo/server/data/` 仅保留说明文件）

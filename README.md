@@ -33,6 +33,7 @@ demo/run_agentic_algo_grid.py        实验 preset / grid harness
 demo/exact_tail_enumerator.py        离线 exact-tail 搜索工具
 demo/results/hybrid_submission/      当前保留的高收益 artifact
 demo/resources/official_data_20260509.tar.gz  0509 官方数据快照
+demo_docs_release_20260529/          0529 二版/复赛方向 release、提交包和验证记录
 demo/ALGORITHM_EXPLORATION.md        最完整的实验发现与正负例分析
 demo/SUBMISSION.md                   当前提交版本、profile 和 artifact 说明
 AUTONIGHT_PLAN.md                    夜间探索/新对话恢复用状态索引
@@ -55,6 +56,8 @@ data/cargo_dataset.jsonl
 data/drivers.json
 ```
 
+其中 `drivers.json` 为 0509 版本 D001-D010 共 10 个司机的官方快照，仅用于本仓库旧实验复现；它不是 20260529 二版/复赛隐藏数据。
+
 `demo/server/config/config.json` 不入库。需要从模板复制：
 
 ```bash
@@ -66,6 +69,26 @@ cp demo/server/config/config.example.json demo/server/config/config.json
 
 ```bash
 export DASHSCOPE_API_KEY='your_key_here'
+```
+
+## 20260529 Release
+
+`demo_docs_release_20260529/` 是后续二版/复赛方向的独立归档目录，包含：
+
+```text
+demo_docs_release_20260529/README.md
+demo_docs_release_20260529/codex_change_log_20260605.md
+demo_docs_release_20260529/submission_*.zip
+demo_docs_release_20260529/demo/agent/model_decision_service.py
+```
+
+这个子目录不提交 `demo/server/data/` 原始数据。公开调试数据、隐藏司机与复赛新数据的边界见子目录 README。当前已记录的 20260529 方向最好线上成绩是：
+
+```text
+1780641880699_submission_hidden_guard_20260605.zip
+submitted_at = 2026-06-05 14:44:40
+score = -49585.3900
+preference_penalty = 86559.2500
 ```
 
 ## 常用运行命令

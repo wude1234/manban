@@ -2,9 +2,67 @@
 
 本仓库整理了天池 Agent 开发大赛“司机找货 Agent 连续决策仿真赛”的赛题包、提交包、验证记录与重要实现说明。
 
+## 给协作者快速上手
+
+这个目录的目标不是只保存一个提交包，而是让后续协作者能继续分析、复现和改进 Agent：
+
+- 阅读赛题规则：从 `docs/`、`demo/README.md` 和本文的“赛题需求重点”开始。
+- 改进策略代码：主要入口是 `demo/agent/model_decision_service.py`。
+- 对照历史方案：查看各个 `submission_*` 目录和 ZIP，以及 `codex_change_log_20260605.md`。
+- 复现实验：需要把官方赛题包中的原始数据放回本地 `demo/server/data/`。
+
+本目录默认不提交 20260529 赛题原始数据。协作者本地需要准备：
+
+```text
+demo/server/data/
+├── cargo_dataset.jsonl
+└── drivers.json
+```
+
+注意：远端仓库根目录已有旧版 `demo/resources/official_data_20260509.tar.gz`，里面包含 0509 版本 D001-D010 共 10 个司机和对应货源，用于旧实验复现；它不等同于 20260529 二版/复赛数据。
+
+公开调试包中当前只有 D001、D002 两个司机；正式评测/复赛使用的隐藏司机和新货源由赛方在评测环境注入，不会提前公开。不要为了拟合公开司机写死 `driver_id`、固定货源 ID 或固定日期规则。
+
+推荐本地复现命令：
+
+```bash
+cd demo/server
+pip install -r requirements.txt
+export DASHSCOPE_API_KEY="your_api_key"
+python main.py --simulation-days 1 --max-steps 8 --model-name qwen3.5-flash
+
+cd ..
+python calc_monthly_income.py
+```
+
+完整 31 天自测可以去掉 `--simulation-days 1 --max-steps 8`。结果会写入 `demo/results/`，该目录只用于本地分析，不需要提交到比赛平台，也不建议上传到公开仓库。
+
+## 原始司机数据是否要提交
+
+不建议把“10 个司机数据”或任何完整原始数据直接提交到公开 GitHub，也不要放进比赛 ZIP。
+
+- 比赛 ZIP：复赛要求提交 `demo/agent/` 为主，数据由赛方评测环境提供，提交数据没有必要，还可能不符合规则。
+- 公开 GitHub：除非确认赛方允许再分发，否则不要上传 `drivers.json`、`cargo_dataset.jsonl` 这类原始数据。
+- 团队协作：如果确实要让队友复现，应让队友从官方赛题包获取数据，或在私有受控渠道共享，并保持本目录的路径约定 `demo/server/data/`。
+- 代码策略：允许基于运行时 `get_driver_status` 返回的偏好做通用解析和 LLM 编译，不要把某几个公开司机的偏好硬编码成专用逻辑。
+
 ## 当前推荐提交包
 
-推荐使用已经过 live API 检查的最新版：
+平台已出分的当前最好包：
+
+```text
+submission_hidden_guard_20260605.zip
+```
+
+对应平台文件：
+
+```text
+1780641880699_submission_hidden_guard_20260605.zip
+```
+
+该包 2026-06-05 14:44:40 线上测评完成，分数 `-49585.3900`，偏好扣分 `86559.2500`。
+
+另有一个经过完整 live API 本地仿真的最新版，适合作为后续继续改进的代码基线，但尚未记录平台出分：
 
 ```text
 submission_profile_compiler_livechecked_20260605_152621.zip
@@ -30,14 +88,15 @@ demo/
 
 ## 线上历史提交成绩
 
-以下为平台已完成测评的两次历史提交。平台文件名前缀为提交系统生成的 ID，本仓库内保留的是对应的本地 ZIP 文件。
+以下为平台已完成测评的历史提交。平台文件名前缀为提交系统生成的 ID，本仓库内保留的是对应的本地 ZIP 文件。
 
 | 平台文件名 | 本地对应 ZIP | 提交时间 | 状态 | 分数 | 偏好扣分 | 提示 |
 | --- | --- | --- | --- | ---: | ---: | --- |
+| `1780641880699_submission_hidden_guard_20260605.zip` | `submission_hidden_guard_20260605.zip` | 2026-06-05 14:44:40 | 测评完成 | -49585.3900 | 86559.2500 | - |
 | `1780585172364_submission_selective_guard_20260604.zip` | `submission_selective_guard_20260604.zip` | 2026-06-04 22:59:32 | 测评完成 | -51920.5400 | 84899.2500 | ok |
 | `1780503995670_submission_flash_qwen35_agent_only_20260604.zip` | `submission_flash_qwen35_agent_only_20260604.zip` | 2026-06-04 00:26:35 | 测评完成 | -129332.6600 | 188259.3600 | - |
 
-22:59:32 的 `submission_selective_guard_20260604.zip` 相比 00:26:35 的 `submission_flash_qwen35_agent_only_20260604.zip`，平台分数提高了 77412.1200，偏好扣分减少了 103360.1100。
+2026-06-05 14:44:40 的 `submission_hidden_guard_20260605.zip` 是当前已记录线上最好分。相比 2026-06-04 22:59:32 的 `submission_selective_guard_20260604.zip`，平台分数提高了 2335.1500，但偏好扣分增加了 1660.0000。
 
 ## 赛题需求重点
 
@@ -108,7 +167,7 @@ submission_profile_compiler_20260605_150710.zip
 submission_profile_compiler_livechecked_20260605_152621.zip
 ```
 
-建议后续提交优先从 `submission_profile_compiler_livechecked_20260605_152621.zip` 开始。
+若只看平台已出分结果，优先参考 `submission_hidden_guard_20260605.zip`；若继续做 live API 偏好编译方向，优先从 `submission_profile_compiler_livechecked_20260605_152621.zip` 开始。
 
 ## 目录说明
 

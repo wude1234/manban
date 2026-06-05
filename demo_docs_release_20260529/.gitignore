@@ -14,11 +14,11 @@ venv/
 demo/server/config/config.json
 
 # Competition data and generated results should not be pushed to GitHub.
-demo/server/data/
+demo/server/data/*
+!demo/server/data/README.md
 demo/results/
 
 # Logs and temporary outputs
 *.log
 logs/
 tmp/
-
